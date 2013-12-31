@@ -17,7 +17,7 @@ data EType = Ind
 -- the only difference here is we don't have simple type
 -- for lambda calculus, so we have \x.x : ind, not ind -> ind
 
-data Meta = MVar VName EType
+data Meta = MVar VName
           | Forall VName EType Meta
           | Imply Meta Meta
           | Iota VName EType Meta
@@ -69,7 +69,7 @@ data Decl = ProgDecl VName Prog
           deriving Show
 
 fv :: Meta -> S.Set VName
-fv (MVar x _) = S.insert x S.empty
+fv (MVar x) = S.insert x S.empty
 fv (Imply f1 f2) = fv f1 `S.union` fv f2
 fv (Forall x _ f) = S.delete x (fv f)
 fv (In t s) = fv t `S.union` (fv s)
@@ -82,7 +82,7 @@ type BindCxt a = Reader [(VName, Int)] a
 plus1 = Data.List.map (\x ->(fst x,snd x + 1))
 
 debruijn :: Meta -> BindCxt MNameless
-debruijn (MVar x t) = do 
+debruijn (MVar x) = do 
   Just n <- asks (lookup x) 
   return $ MV n
 
@@ -116,53 +116,53 @@ alphaMeta t1 t2 =
 instance Eq Meta where
   t1 == t2 = t1 `alphaMeta` t2
 
-testform = In (MVar "y" Ind) (MVar "nat" (To Ind Form)) == In (MVar "x" Ind) (MVar "nat" (To Ind Form))
+--testform = In (MVar "y" Ind) (MVar "nat" (To Ind Form)) == In (MVar "x" Ind) (MVar "nat" (To Ind Form))
 
 -- [M/X]M
 subst :: Meta -> Meta -> Meta -> GVar Meta
-subst s (MVar x t1) (MVar y t2) =
-  if x == y && t1 == t2
-  then return s else return $ MVar y t2
+subst s (MVar x) (MVar y) =
+  if x == y
+  then return s else return $ MVar y
                                
-subst s (MVar x t) (Imply f1 f2) = do
-  c1 <- subst s (MVar x t) f1
-  c2 <- subst s (MVar x t) f2
+subst s (MVar x) (Imply f1 f2) = do
+  c1 <- subst s (MVar x) f1
+  c2 <- subst s (MVar x) f2
   return $ Imply c1 c2
 
-subst s (MVar x t) (In t1 bin) =  do
-  b <- subst s (MVar x t) t1
-  c <- subst s (MVar x t) bin
+subst s (MVar x) (In t1 bin) =  do
+  b <- subst s (MVar x) t1
+  c <- subst s (MVar x) bin
   return $ In b c
 
-subst s (MVar x t) (Forall a t1 f) =
-  if x == a && t == t1
+subst s (MVar x) (Forall a t1 f) =
+  if x == a 
   then return $ Forall a t1 f
   else
     if not (x `S.member` fv f) || not (a `S.member` fv s)
     then do
-      c <- subst s (MVar x t) f
+      c <- subst s (MVar x) f
       return $ Forall a t1 c
     else
       do
         n <- get
         modify (+1)
-        c1 <- subst (MVar (a++ show n) t) (MVar a t) f
-        c2 <- subst s (MVar x t) c1
-        return $ Forall (a++ show n) t c2
+        c1 <- subst (MVar (a++ show n)) (MVar a) f
+        c2 <- subst s (MVar x) c1
+        return $ Forall (a++ show n) t1 c2
 
-subst s (MVar x t) (Iota a t1 f) =
-  if x == a && t == t1 then return $ Iota a t1 f
+subst s (MVar x) (Iota a t1 f) =
+  if x == a then return $ Iota a t1 f
   else if not (x `S.member` fv f) || not (a `S.member` fv s)
        then do
-         c <- subst s (MVar x t) f
+         c <- subst s (MVar x) f
          return $ Iota a t1 c
        else
          do
            n <- get
            modify (+1)
-           c1 <- subst (MVar (a++ show n) t) (MVar a t) f
-           c2 <- subst s (MVar x t) c1
-           return $ Iota (a++ show n) t c2
+           c1 <- subst (MVar (a++ show n)) (MVar a) f
+           c2 <- subst s (MVar x) c1
+           return $ Iota (a++ show n) t1 c2
 
 
 
