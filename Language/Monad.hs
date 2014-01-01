@@ -13,6 +13,7 @@ import Control.Monad.Error
 import qualified Data.Map as M
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
+import Control.Monad.Error
 
 newtype Global a =
   Global {runGlobal :: ReaderT Env (StateT PrfEnv (ErrorT String IO)) a }
@@ -20,7 +21,7 @@ newtype Global a =
             MonadReader Env, MonadState PrfEnv, MonadError String, MonadIO)
 
 data Env = Env{
-               def::M.Map VName Meta,
+               def::M.Map VName (EType, Meta),
                gamma::M.Map VName EType,
                proofCxt::M.Map VName (ProofScripts, Meta)
               }
@@ -38,5 +39,11 @@ emptyPrfEnv :: PrfEnv
 emptyPrfEnv = PrfEnv { assumption = [],
                 localProof=M.empty}
 
--- extendGamma :: Vname -> EType -> Env -> Env
--- extendGamma v t e@(Env {gamma}) = e{gamma = M.insert v t gamma}
+extendGamma :: VName -> EType -> Env -> Env
+extendGamma v t e@(Env {gamma}) = e{gamma = M.insert v t gamma}
+
+pushAssump :: VName -> Meta -> PrfEnv -> PrfEnv
+pushAssump v f e@(PrfEnv {assumption}) = e{assumption = (v,f):assumption}
+
+popAssump :: PrfEnv -> PrfEnv
+popAssump e@(PrfEnv {assumption}) = e{assumption = tail assumption}
