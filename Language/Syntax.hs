@@ -17,7 +17,7 @@ data EType = Ind
 -- the only difference here is we don't have simple type
 -- for lambda calculus, so we have \x.x : ind, not ind -> ind
 
-data Meta = MVar VName
+data Meta = MVar VName EType
           | Forall VName EType Meta
           | Imply Meta Meta
           | Iota VName EType Meta
@@ -69,7 +69,7 @@ data Decl = ProgDecl VName Prog
           deriving Show
 
 fv :: Meta -> S.Set VName
-fv (MVar x) = S.insert x S.empty
+fv (MVar x _) = S.insert x S.empty
 fv (Imply f1 f2) = fv f1 `S.union` fv f2
 fv (Forall x _ f) = S.delete x (fv f)
 fv (In t s) = fv t `S.union` (fv s)
@@ -82,7 +82,7 @@ type BindCxt a = Reader [(VName, Int)] a
 plus1 = Data.List.map (\x ->(fst x,snd x + 1))
 
 debruijn :: Meta -> BindCxt MNameless
-debruijn (MVar x) = do 
+debruijn (MVar x _) = do 
   Just n <- asks (lookup x) 
   return $ MV n
 
@@ -120,48 +120,48 @@ instance Eq Meta where
 
 -- [M/X]M
 subst :: Meta -> Meta -> Meta -> GVar Meta
-subst s (MVar x) (MVar y) =
+subst s (MVar x _) (MVar y t) =
   if x == y
-  then return s else return $ MVar y
+  then return s else return $ MVar y t
                                
-subst s (MVar x) (Imply f1 f2) = do
-  c1 <- subst s (MVar x) f1
-  c2 <- subst s (MVar x) f2
+subst s (MVar x u) (Imply f1 f2) = do
+  c1 <- subst s (MVar x u) f1
+  c2 <- subst s (MVar x u) f2
   return $ Imply c1 c2
 
-subst s (MVar x) (In t1 bin) =  do
-  b <- subst s (MVar x) t1
-  c <- subst s (MVar x) bin
+subst s (MVar x u) (In t1 bin) =  do
+  b <- subst s (MVar x u) t1
+  c <- subst s (MVar x u) bin
   return $ In b c
 
-subst s (MVar x) (Forall a t1 f) =
+subst s (MVar x u) (Forall a t1 f) =
   if x == a 
   then return $ Forall a t1 f
   else
     if not (x `S.member` fv f) || not (a `S.member` fv s)
     then do
-      c <- subst s (MVar x) f
+      c <- subst s (MVar x u) f
       return $ Forall a t1 c
     else
       do
         n <- get
         modify (+1)
-        c1 <- subst (MVar (a++ show n)) (MVar a) f
-        c2 <- subst s (MVar x) c1
+        c1 <- subst (MVar (a++ show n) u) (MVar a u) f
+        c2 <- subst s (MVar x u) c1
         return $ Forall (a++ show n) t1 c2
 
-subst s (MVar x) (Iota a t1 f) =
+subst s (MVar x u) (Iota a t1 f) =
   if x == a then return $ Iota a t1 f
   else if not (x `S.member` fv f) || not (a `S.member` fv s)
        then do
-         c <- subst s (MVar x) f
+         c <- subst s (MVar x u) f
          return $ Iota a t1 c
        else
          do
            n <- get
            modify (+1)
-           c1 <- subst (MVar (a++ show n)) (MVar a) f
-           c2 <- subst s (MVar x) c1
+           c1 <- subst (MVar (a++ show n) u) (MVar a u) f
+           c2 <- subst s (MVar x u) c1
            return $ Iota (a++ show n) t1 c2
 
 
