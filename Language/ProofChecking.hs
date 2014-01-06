@@ -11,7 +11,7 @@ compEType :: Meta -> Global EType
 compEType (MVar x t) = do
   e <- ask
   case M.lookup x (gamma e) of
-    Nothing -> throwError ("Can't find variable " ++ show x)
+    Nothing -> return t
     Just a -> if a == t then return a
               else throwError ("type mismatch at " ++ show x)
 
@@ -131,6 +131,34 @@ comp (Imply f1 f) = do
   a <- comp f1
   b <- comp f
   return $ Imply a b
-  
-comp m = reduce m
 
+comp (In m1 (Iota x t m)) = do
+  a <- compEType (In m1 (Iota x t m))
+  case a of
+    Ind -> return $ In m1 (Iota x t m)
+    _ -> return $ fst (runState (subst m1 (MVar x t) m) 0)
+
+comp (In m1 (MVar x t)) = return $ In m1 (MVar x t)
+  
+comp (In m1 (In m2 m3)) = do
+  a <- comp (In m2 m3)
+  return $ In m1 a
+
+repeatComp :: Meta -> Global Meta
+repeatComp m = do
+  n <- comp m
+  n1 <- comp n
+  if n1 == n then return n
+    else repeatComp n1
+
+tr = (In (MVar "x" Ind) (In (MVar "y" Ind) (Iota "y" Ind (Iota "z2" Ind (In (MVar "y" Ind) (In (MVar "z2" Ind) (MVar "q" (To Ind (To Ind Form)))))))))
+compTest :: IO ()
+compTest = do
+  b <- runErrorT $ runStateT (runReaderT (runGlobal (ensureForm tr )) emptyEnv) emptyPrfEnv
+  case b of
+    Left e -> putStrLn e
+    Right a -> do
+      c <- runErrorT $ runStateT (runReaderT (runGlobal (repeatComp tr )) emptyEnv) emptyPrfEnv 
+      case c of
+        Left e -> putStrLn e
+        Right a -> putStrLn $ show $ fst a

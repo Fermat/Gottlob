@@ -39,6 +39,8 @@ data Proof = Assume VName Meta
            | UG VName EType Proof
            | Cmp Proof
            | InvCmp Proof
+           | Beta Proof
+           | InvBeta Proof
            | Discharge VName Proof
            deriving (Show)
 
