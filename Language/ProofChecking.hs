@@ -47,40 +47,51 @@ ensureForm m = do
   a <- compEType m
   unless (a == Form) $ throwError $ (show m) ++ " is not a well-formed formula"
 
-compFormula :: Proof -> Global Meta
-compFormula (PrVar v) = do
+ensureTerm :: Meta -> Global ()
+ensureTerm m = do
+  a <- compEType m
+  unless (a == Ind) $ throwError $ (show m) ++ " is not a lambda term"
+
+ensureEq :: Eq a, Show a => a -> a -> Global ()
+ensureEq m1 m2 = 
+  unless (m1 == m2) $ throwError $ "In compatible meta term " ++ show m1 ++ "and " ++ show m2
+
+checkFormula :: Proof -> Global Meta
+checkFormula (PrVar v)  = do
   e <- ask
   case M.lookup v (proofCxt e) of
-    Just a -> 
-      return $ snd a
+    Just a -> return $ snd a
     Nothing -> do 
       s <- get
       case lookup v (assumption s) of
-        Just a1 -> return a1
-        _ ->
+        Just a1 ->
+          return a1
+        _ -> 
           throwError $ "Can't find variable" ++ v
 
-compFormula (Assume x f) = do
-  ensureForm f
+checkFormula (Assume x m) = do
+  ensureForm m
   e <- get
-  put $ pushAssump x f e
-  return f
+  put $ pushAssump x m e
+  return m
 
-compFormula (MP p1 p2) = do
- f1 <- compFormula p1
+checkFormula (MP p1 p2 m) = do
+ f1 <- checkFormula p1 
  ensureForm f1
- f2 <- compFormula p2
+ f2 <- checkFormula p2
  ensureForm f2
  case f1 of
    Imply a1 a2 -> do
-     if a1 == f2 then return a2
+     if a1 == f2 then do
+       ensure a2 m
+       return a2
        else throwError "Modus Ponens Matching Error."
    _ -> throwError "Wrong use of Mondus Ponens"
 
-compFormula (Discharge x p) = do
+checkFormula (Discharge x p) m = do
   e <- get
   if fst (head (assumption e)) == x then do
-    f <- compFormula p
+    f <- checkFormula p
     put $ popAssump e
     let f2 = snd (head (assumption e)) in
       do
@@ -88,8 +99,8 @@ compFormula (Discharge x p) = do
         return $ (Imply  f2 f)
     else throwError "Wrong use of implication introduction"
 
-compFormula (Inst p m) = do
-  f <- compFormula p
+checkFormula (Inst p m) = do
+  f <- checkFormula p
   ensureForm f
   t <- compEType m
   case f of
@@ -103,21 +114,63 @@ compFormula (Inst p m) = do
       else throwError $ "Type mismatch for "++(show m)
     _ -> throwError "Wrong use of Instantiation"
 
-compFormula (UG x t p) = do
+checkFormula (UG x t p) = do
   e <- get
   if isFree x (assumption e)
     then throwError "Wrong use of universal generalization"
     else do
-    f <- compFormula p
+    f <- checkFormula p
     ensureForm (Forall x t f)
     return $ (Forall x t f)
 
-compFormula (Cmp p1) = do
-  f1 <- compFormula p1
+checkFormula (Cmp p1 m) = do
+  f1 <- checkFormula p1
   ensureForm f1
-  a <- comp f1
+  a <- repeatComp f1
   ensureForm a
+  ensureEq a m
   return a
+
+checkFormula (InvCmp p1 m1) = do
+  f1 <- checkFormula p1
+  ensureForm f1
+  a <- repeatComp m1
+  ensureForm a
+  ensureEq a f1
+  return m1
+
+checkFormula (Beta p1) = do
+  f1 <- checkFormula p1
+  ensureForm f1
+  case f1 of
+    In t m -> do
+      ensureTerm t
+      t1 <- reduce t
+      ensureForm $ In t1 m
+      return $ In t1 m
+    _ -> throwError "This form of extensionality is not supported"
+
+checkProof :: ProofScripts -> Global String
+-- checkProof ((n, InvCmp p,f):xs) = do 
+--   Right a <- compFormula p
+--   Right f1 <- repeatComp f
+--   e <- get
+--   if f1 == a then
+--     do
+--       put $ extendLocalProof n (InvCmp p) f e
+--       checkProof xs
+--     else return $ Left $ "Error in the proof: "++(show p)
+
+checkProof ((n,p,f):xs) = do
+ a <- checkFormula p
+ e <- get
+ if a == f then do
+   put $ extendLocalProof n p f e
+   checkProof xs
+   else return $ Left $ "Error in the proof: "++(show p)
+
+checkProof [] = return $ Right "Pass Proof check."
+
 
 isFree :: VName -> [(VName, Meta)] -> Bool
 isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
@@ -138,7 +191,12 @@ comp (In m1 (Iota x t m)) = do
     Ind -> return $ In m1 (Iota x t m)
     _ -> return $ fst (runState (subst m1 (MVar x t) m) 0)
 
-comp (In m1 (MVar x t)) = return $ In m1 (MVar x t)
+comp (In m1 (MVar x t)) = do
+  e <- ask
+  let a = M.lookup x (def e)
+  case a of
+    Nothing -> return $ In m1 (MVar x t)
+    Just (et, t) -> return $ In m1 t
   
 comp (In m1 (In m2 m3)) = do
   a <- comp (In m2 m3)
@@ -152,6 +210,7 @@ repeatComp m = do
     else repeatComp n1
 
 tr = (In (MVar "x" Ind) (In (MVar "y" Ind) (Iota "y" Ind (Iota "z2" Ind (In (MVar "y" Ind) (In (MVar "z2" Ind) (MVar "q" (To Ind (To Ind Form)))))))))
+
 compTest :: IO ()
 compTest = do
   b <- runErrorT $ runStateT (runReaderT (runGlobal (ensureForm tr )) emptyEnv) emptyPrfEnv

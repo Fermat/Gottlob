@@ -34,14 +34,14 @@ data MNameless = MV Int
 
 data Proof = Assume VName Meta
            | PrVar VName
-           | MP Proof Proof
+           | MP Proof Meta Proof Meta
            | Inst Proof Meta
-           | UG VName EType Proof
-           | Cmp Proof
-           | InvCmp Proof
-           | Beta Proof
-           | InvBeta Proof
-           | Discharge VName Proof
+           | UG VName EType Proof Meta
+           | Cmp Proof Meta
+           | InvCmp Proof Meta
+           | Beta Proof Meta
+           | InvBeta Proof Meta
+           | Discharge VName Proof Meta
            deriving (Show)
 
 type ProofScripts = [(VName, Proof, Meta)]
