@@ -47,3 +47,6 @@ pushAssump v f e@(PrfEnv {assumption}) = e{assumption = (v,f):assumption}
 
 popAssump :: PrfEnv -> PrfEnv
 popAssump e@(PrfEnv {assumption}) = e{assumption = tail assumption}
+
+extendLocalProof :: VName -> Proof -> Meta -> PrfEnv -> PrfEnv
+extendLocalProof v p f e@(PrfEnv {localProof}) = e{localProof = M.insert v (p,f) localProof}

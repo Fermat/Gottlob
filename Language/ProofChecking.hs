@@ -52,7 +52,7 @@ ensureTerm m = do
   a <- compEType m
   unless (a == Ind) $ throwError $ (show m) ++ " is not a lambda term"
 
-ensureEq :: Eq a, Show a => a -> a -> Global ()
+ensureEq :: (Eq a, Show a) => a -> a -> Global ()
 ensureEq m1 m2 = 
   unless (m1 == m2) $ throwError $ "In compatible meta term " ++ show m1 ++ "and " ++ show m2
 
@@ -83,12 +83,13 @@ checkFormula (MP p1 p2 m) = do
  case f1 of
    Imply a1 a2 -> do
      if a1 == f2 then do
-       ensure a2 m
+       ensureEq a2 m
        return a2
        else throwError "Modus Ponens Matching Error."
    _ -> throwError "Wrong use of Mondus Ponens"
 
-checkFormula (Discharge x p) m = do
+
+checkFormula (Discharge x p m) = do
   e <- get
   if fst (head (assumption e)) == x then do
     f <- checkFormula p
@@ -96,10 +97,11 @@ checkFormula (Discharge x p) m = do
     let f2 = snd (head (assumption e)) in
       do
         ensureForm (Imply f2 f)
-        return $ (Imply  f2 f)
+        ensureEq (Imply f2 f) m
+        return $ (Imply f2 f)
     else throwError "Wrong use of implication introduction"
 
-checkFormula (Inst p m) = do
+checkFormula (Inst p m form) = do
   f <- checkFormula p
   ensureForm f
   t <- compEType m
@@ -110,17 +112,19 @@ checkFormula (Inst p m) = do
         in
          do
            ensureForm a
+           ensureEq a form
            return a
       else throwError $ "Type mismatch for "++(show m)
     _ -> throwError "Wrong use of Instantiation"
 
-checkFormula (UG x t p) = do
+checkFormula (UG x t p m) = do
   e <- get
   if isFree x (assumption e)
     then throwError "Wrong use of universal generalization"
     else do
     f <- checkFormula p
     ensureForm (Forall x t f)
+    ensureEq (Forall x t f) m
     return $ (Forall x t f)
 
 checkFormula (Cmp p1 m) = do
@@ -139,7 +143,7 @@ checkFormula (InvCmp p1 m1) = do
   ensureEq a f1
   return m1
 
-checkFormula (Beta p1) = do
+checkFormula (Beta p1 form) = do
   f1 <- checkFormula p1
   ensureForm f1
   case f1 of
@@ -147,29 +151,35 @@ checkFormula (Beta p1) = do
       ensureTerm t
       t1 <- reduce t
       ensureForm $ In t1 m
+      ensureEq (In t1 m) form
+      return $ In t1 m
+    _ -> throwError "This form of extensionality is not supported"
+
+checkFormula (InvBeta p1 form) = do
+  f1 <- checkFormula p1
+  ensureForm f1
+  case form of
+    In t m -> do
+      ensureTerm t
+      t1 <- reduce t
+      ensureForm $ In t1 m
+      ensureEq (In t1 m) f1
       return $ In t1 m
     _ -> throwError "This form of extensionality is not supported"
 
 checkProof :: ProofScripts -> Global String
--- checkProof ((n, InvCmp p,f):xs) = do 
---   Right a <- compFormula p
---   Right f1 <- repeatComp f
---   e <- get
---   if f1 == a then
---     do
---       put $ extendLocalProof n (InvCmp p) f e
---       checkProof xs
---     else return $ Left $ "Error in the proof: "++(show p)
-
 checkProof ((n,p,f):xs) = do
  a <- checkFormula p
  e <- get
- if a == f then do
-   put $ extendLocalProof n p f e
-   checkProof xs
-   else return $ Left $ "Error in the proof: "++(show p)
+ case p of
+   Assume _ _ -> checkProof xs
+   _ -> do
+     put $ extendLocalProof n p f e
+     checkProof xs
 
-checkProof [] = return $ Right "Pass Proof check."
+checkProof [] = do
+  put $ emptyPrfEnv
+  return $ "Passed proof check."
 
 
 isFree :: VName -> [(VName, Meta)] -> Bool

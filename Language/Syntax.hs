@@ -34,8 +34,8 @@ data MNameless = MV Int
 
 data Proof = Assume VName Meta
            | PrVar VName
-           | MP Proof Meta Proof Meta
-           | Inst Proof Meta
+           | MP Proof Proof Meta
+           | Inst Proof Meta Meta
            | UG VName EType Proof Meta
            | Cmp Proof Meta
            | InvCmp Proof Meta
