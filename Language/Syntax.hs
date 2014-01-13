@@ -53,12 +53,14 @@ data Prog = Name VName
           deriving Show
 
 -- formal type for program
-data FType = Base [VName]
+data FType = FVar VName EType
+           | Base VName [(FType, EType)]
            | Arrow FType FType
+           | Pi VName FType FType
            deriving (Show, Eq)
                     
 data Datatype =
-  Data VName [VName] [(VName,FType)]    
+  Data VName [(VName, EType)] [(VName,FType)]    
   deriving (Show)
 
 type Module = [Decl] 

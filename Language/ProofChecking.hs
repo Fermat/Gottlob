@@ -212,6 +212,10 @@ comp (In m1 (In m2 m3)) = do
   a <- comp (In m2 m3)
   return $ In m1 a
 
+comp (Iota x t m) = do
+  a <- comp m
+  return $ Iota x t a
+  
 repeatComp :: Meta -> Global Meta
 repeatComp m = do
   n <- comp m
@@ -231,3 +235,12 @@ compTest = do
       case c of
         Left e -> putStrLn e
         Right a -> putStrLn $ show $ fst a
+
+tr1 = In (MVar "n" Ind) (In (MVar "U" (To Ind Form)) (MVar "Vec" (To (To Ind Form) (To Ind (To Ind Form)))))
+compTest1 :: IO ()
+compTest1 = do
+  b <- runErrorT $ runStateT (runReaderT (runGlobal (compEType tr1 )) emptyEnv) emptyPrfEnv
+  case b of
+    Left e -> putStrLn e
+    Right a ->
+      putStrLn $ show $ fst a
