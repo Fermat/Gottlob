@@ -63,11 +63,13 @@ data Datatype =
   Data VName [(VName, EType)] [(VName,FType)]    
   deriving (Show)
 
-type Module = [Decl] 
+data Module = Module VName [Decl] deriving (Show)
+
 
 data Decl = ProgDecl VName Prog
           | ProofDecl VName ProofScripts Meta
           | DataDecl Datatype
+          | OperatorDecl String Int String
           deriving Show
 
 fv :: Meta -> S.Set VName
