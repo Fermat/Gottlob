@@ -6,6 +6,11 @@ import Language.Monad
 import Control.Monad.State
 import Control.Monad.Error
 import Control.Monad.Reader
+import Text.Parsec
+import Text.Parsec.Language
+import Text.Parsec.Pos
+import Text.Parsec.Indent
+
 
 
 data Tree a = Leaf
@@ -41,3 +46,8 @@ comptest1 = do
         Left e -> putStrLn e
         Right a -> putStrLn $ show $ fst a
 
+testParse :: (SourcePos -> SourcePos) 
+          -> IndentParser String () a 
+          -> String -> Either ParseError a
+
+testParse f p src = fst $ flip runState (f $ initialPos "") $ runParserT p () "" src
