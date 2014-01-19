@@ -13,8 +13,9 @@ import qualified Data.IntMap as IM
 import Control.Exception(Exception)
 import Data.Typeable
 import Data.Char
--- parseModule :: String -> String -> Either P.ParseError Module
--- parseModule srcName cnts = runParser gModule initialParserState srcName cnts
+parseModule :: String -> String -> Either P.ParseError Module
+parseModule srcName cnts = runIndent srcName $
+                           runParserT gModule initialParserState srcName cnts
 
 
 type Parser a = IndentParser String ExprParserState a
@@ -23,22 +24,16 @@ type Parser a = IndentParser String ExprParserState a
 
 data ExprParserState =
   ExprParserState {
-    exprParser :: IndentParser String ExprParserState Meta,
+    exprParser :: IndentParser String ExprParserState FType,
     exprOpTable :: IM.IntMap [Operator String ExprParserState (State SourcePos) Meta]
     }
 
--- initialParserState :: ExprParserState
--- initialParserState = ExprParserState {
---   exprParser = buildExpressionParser initialTable factor,
---   exprOpTable = IM.fromAscList (zip [0..] initialTable)
---   }
+initialParserState :: ExprParserState
+initialParserState = ExprParserState {
+  exprParser = ftype,
+  exprOpTable = IM.fromAscList []
+  }
 
--- initialTable :: [[Operator String u (State SourcePos) Meta]]
--- initialTable =
---   [
---    [binOp AssocRight "::" In]
---   ,[binOp AssocRight "->" Imply]
---   ]
   
 etypeOpTable :: [[Operator String u (State SourcePos) EType]]
 etypeOpTable =
@@ -87,6 +82,7 @@ gDataDecl = do
           c <- termVar
           reservedOp "::"
           t <- ftype
+--          unexpected $ show t
           return (c,t)
         params = option [] $ many1 defaultVar
           
@@ -123,7 +119,7 @@ ftype :: Parser FType
 ftype = buildExpressionParser ftypeOpTable base
 
 base :: Parser FType
-base = fvar <|> dep <|> compound
+base = try compound <|> fvar <|> dep
 
 fvar = do
   n <- identifier
@@ -147,16 +143,15 @@ compound = do
   as <- compoundArgs
   return $ Base n as
   where
-    compoundArgs = do
+    compoundArgs = 
       many1 $
-        do{
-         b<- termVar;
-         return (FVar b Ind, Ind)
-          } <|>
-        do {
-          b <- ftype;
-          return (b, To Ind Form)
-          }
+      try (do{ b<- termVar;
+               return (FVar b Ind, Ind)
+             }) <|>
+      (do {
+        b <- ftype;
+        return (b, To Ind Form)
+        })
     
   
 -------------------------------
@@ -188,7 +183,8 @@ gottlobStyle = Token.LanguageDef
                     "data", 
                     "theorem", "proof",
                     "show",
-                    "i", "o"
+                    "i", "o",
+                    "where", "module"
                   ]
                , Token.reservedOpNames =
                     ["\\", "->", "|", ".","=", "::", ":"]
