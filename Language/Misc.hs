@@ -10,6 +10,7 @@ import Text.Parsec
 import Text.Parsec.Language
 import Text.Parsec.Pos
 import Text.Parsec.Indent
+import Text.Parsec.Token
 
 
 

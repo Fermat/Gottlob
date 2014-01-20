@@ -70,6 +70,8 @@ gModule = do
 gDecl :: Parser Decl
 gDecl = gDataDecl 
 
+
+              
 gDataDecl  :: Parser Decl
 gDataDecl = do
   reserved "data"
@@ -82,10 +84,8 @@ gDataDecl = do
           c <- termVar
           reservedOp "::"
           t <- ftype
---          unexpected $ show t
           return (c,t)
         params = option [] $ many1 defaultVar
-          
 
 defaultVar :: ParsecT String u (State SourcePos) (VName,EType)
 defaultVar = do
@@ -119,10 +119,11 @@ ftype :: Parser FType
 ftype = buildExpressionParser ftypeOpTable base
 
 base :: Parser FType
-base = try compound <|> fvar <|> dep
+base = compound <|> dep
 
 fvar = do
   n <- identifier
+--  unexpected "suck"
   if (isUpper (head n))
     then return $ FVar n (To Ind Form)
     else  unexpected "Type variable must begin with an Uppercase letter"
@@ -138,20 +139,38 @@ dep = do
   t1 <- ftype
   return $ Pi x t t1
   
-compound = do 
+compound = do
   n <- consName
-  as <- compoundArgs
-  return $ Base n as
-  where
-    compoundArgs = 
-      many1 $
-      try (do{ b<- termVar;
-               return (FVar b Ind, Ind)
-             }) <|>
-      (do {
-        b <- ftype;
-        return (b, To Ind Form)
-        })
+  as <- option [] $ compoundArgs
+  if null as then
+    return $ FVar n (To Ind Form)
+    else 
+    return $ Base n as
+
+compoundArgs = 
+  many $ indented >>
+  (try (do{ n <- setVar;
+            return $ (FVar n (To Ind Form),(To Ind Form))})
+       <|>
+       (do{ n <- termVar;
+            return $ (FVar n Ind, Ind)})) 
+
+--  block innerArg <|>
+
+innerArg = do
+  b <- parens ftype
+  return (b, To Ind Form)
+
+  
+      -- option [] $
+      -- many1
+      -- try (do{ b<- termVar;
+      --          return (FVar b Ind, Ind)
+      --        }) <|>
+      -- (do {
+      --   b <- ftype;
+      --   return (b, To Ind Form)
+      --   })
     
   
 -------------------------------
