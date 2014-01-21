@@ -1,6 +1,7 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable, PackageImports,ParallelListComp, FlexibleContexts #-}
 module Language.Parser where
 import Language.Syntax
+import Language.Program
 import Text.Parsec hiding (ParseError,Empty, State)
 import qualified Text.Parsec as P
 import Text.Parsec.Language
@@ -13,6 +14,7 @@ import qualified Data.IntMap as IM
 import Control.Exception(Exception)
 import Data.Typeable
 import Data.Char
+import Data.List
 parseModule :: String -> String -> Either P.ParseError Module
 parseModule srcName cnts = runIndent srcName $
                            runParserT gModule initialParserState srcName cnts
@@ -56,7 +58,6 @@ preOp op f = Prefix (reservedOp op >> return f)
 deriving instance Typeable P.ParseError
 instance Exception P.ParseError where
 
-
 gModule :: Parser Module
 gModule = do
   whiteSpace
@@ -68,11 +69,9 @@ gModule = do
   return $ Module modName bs
 
 gDecl :: Parser Decl
-gDecl = gDataDecl 
+gDecl = gDataDecl <|> progDecl
 
-
-              
-gDataDecl  :: Parser Decl
+gDataDecl :: Parser Decl
 gDataDecl = do
   reserved "data"
   n <- consName
@@ -119,11 +118,10 @@ ftype :: Parser FType
 ftype = buildExpressionParser ftypeOpTable base
 
 base :: Parser FType
-base = compound <|> dep
+base = compound <|> try dep <|> parens ftype
 
 fvar = do
   n <- identifier
---  unexpected "suck"
   if (isUpper (head n))
     then return $ FVar n (To Ind Form)
     else  unexpected "Type variable must begin with an Uppercase letter"
@@ -149,37 +147,61 @@ compound = do
 
 compoundArgs = 
   many $ indented >>
-  (try (do{ n <- setVar;
-            return $ (FVar n (To Ind Form),(To Ind Form))})
-       <|>
-       (do{ n <- termVar;
-            return $ (FVar n Ind, Ind)})) 
-
---  block innerArg <|>
+  ((try (do{ n <- setVar;
+            return $ (FT $ FVar n (To Ind Form),(To Ind Form))}))
+  <|>
+  (do{ n <- prog;
+       return $ (TM $ progTerm n, Ind)})
+  <|> innerArg )
 
 innerArg = do
   b <- parens ftype
-  return (b, To Ind Form)
+  return (FT b, To Ind Form)
 
+-----  Parser for Program ------
+
+progDecl :: Parser Decl
+progDecl = do
+  n <- termVar
+  as <- many termVar
+  reservedOp "="
+  p <- prog
+  return $ ProgDecl n (Abs as p)
+
+prog :: Parser Prog  
+prog = absProg <|> caseTerm <|> appProg <|> parens prog
+
+appProg = do
+  n <- termVar
+  as <- many $ indented >>
+        (parens prog <|>
+         (do{x <- termVar;
+             return $ Name x}))
+  if null as then return $ Name n
+    else return $ foldl' (\ z x -> Applica z x) (Name n) as
+         
+caseTerm = do
+  reserved "case"
+  n <- termVar
+  reserved "of"
+  bs <- block branch
+  return $ Match n bs
+  where
+    branch = do
+      v <- termVar
+      l <- many termVar
+      reservedOp "->"
+      pr <- prog
+      return $ (v, l, pr)
+
+absProg = do
+  reservedOp "\\"
+  as <- many1 termVar
+  p <- prog
+  return $ Abs as p
   
-      -- option [] $
-      -- many1
-      -- try (do{ b<- termVar;
-      --          return (FVar b Ind, Ind)
-      --        }) <|>
-      -- (do {
-      --   b <- ftype;
-      --   return (b, To Ind Form)
-      --   })
-    
-  
+
 -------------------------------
--- expr :: Parser FType
--- expr = do
---   st <- getState
---   wrapPos $ exprParser st
-
-
 
 -- Tokenizer definition
 

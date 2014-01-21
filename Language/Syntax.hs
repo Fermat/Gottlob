@@ -53,8 +53,13 @@ data Prog = Name VName
           deriving Show
 
 -- formal type for program
+
+data Mix = FT FType
+         | TM Meta -- for terms that appears in FTypes
+         deriving (Show, Eq)
+                  
 data FType = FVar VName EType
-           | Base VName [(FType, EType)]
+           | Base VName [(Mix, EType)]
            | Arrow FType FType
            | Pi VName FType FType
            deriving (Show, Eq)

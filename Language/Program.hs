@@ -10,10 +10,16 @@ constrApp :: [Meta] -> Meta -> Meta
 constrApp [] t = t
 constrApp (x:l) t = constrApp l (In x t)
 
+-- Translating Formal-Type to Set
 interp :: FType -> Meta
 interp (FVar x t) = MVar x t
 interp (Base x l) =
-  constrApp (map (interp.fst) l) (MVar x (constrEType (map snd l)))
+  constrApp (map (helper.fst) l) (MVar x (constrEType (map snd l)))
+  where helper a =
+          case a of
+            FT tf-> interp tf
+            TM t -> t
+          
 interp (Arrow t1 t2) =
   Iota "f" Ind (Forall "x" Ind (Imply (In (MVar "x" Ind) (interp t1)) (In (In (MVar "x" Ind) (MVar "f" Ind)) (interp t2))))
 
@@ -55,7 +61,8 @@ getConstr (Data _ _ l)  = map fst l
 constr :: [VName] -> Meta -> Meta
 constr [] t = t
 constr (x:xs) t = Iota x Ind (constr xs t)
-  
+
+-- scottization
 toScott :: Datatype -> Datatype  -> [(VName, Meta)]
 toScott l (Data d _ []) = []
 toScott l (Data d _ ((c,t):xs)) =
@@ -68,6 +75,7 @@ toScott l (Data d _ ((c,t):xs)) =
 app :: Meta -> Meta -> Meta
 app m1 m2 = In m2 m1
 
+-- Translating Program to meta term
 progTerm :: Prog -> Meta
 progTerm (Name n) = MVar n Ind
 progTerm (Applica p1 p2) = In (progTerm p2) (progTerm p1)
