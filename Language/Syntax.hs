@@ -70,7 +70,6 @@ data Datatype =
 
 data Module = Module VName [Decl] deriving (Show)
 
-
 data Decl = ProgDecl VName Prog
           | ProofDecl VName ProofScripts Meta
           | DataDecl Datatype

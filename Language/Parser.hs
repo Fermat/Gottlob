@@ -36,6 +36,9 @@ initialParserState = ExprParserState {
   exprOpTable = IM.fromAscList []
   }
 
+formulaOpTable :: [[Operator String u (State SourcePos) Meta]]
+formulaOpTable =
+  [[binOp AssocRight "->" Imply]]
   
 etypeOpTable :: [[Operator String u (State SourcePos) EType]]
 etypeOpTable =
@@ -69,7 +72,7 @@ gModule = do
   return $ Module modName bs
 
 gDecl :: Parser Decl
-gDecl = gDataDecl <|> progDecl
+gDecl = gDataDecl <|> progDecl <|> proofDecl
 
 gDataDecl :: Parser Decl
 gDataDecl = do
@@ -166,7 +169,8 @@ progDecl = do
   as <- many termVar
   reservedOp "="
   p <- prog
-  return $ ProgDecl n (Abs as p)
+  if (null as) then return $ ProgDecl n p
+    else return $ ProgDecl n (Abs as p)
 
 prog :: Parser Prog  
 prog = absProg <|> caseTerm <|> appProg <|> parens prog
@@ -197,10 +201,26 @@ caseTerm = do
 absProg = do
   reservedOp "\\"
   as <- many1 termVar
+  reservedOp "."
   p <- prog
   return $ Abs as p
-  
 
+------------- Parser for Formula---------
+
+proofDecl :: Parser Decl
+proofDecl = do
+  reserved "theorem"
+  n <- identifier
+  reservedOp "."
+  f <- formula
+  reserved "proof"
+  ps <- proofScripts
+  return $ ProofDecl n ps f
+
+formula :: Parser Meta
+formula = 
+
+  
 -------------------------------
 
 -- Tokenizer definition
@@ -222,7 +242,7 @@ gottlobStyle = Token.LanguageDef
                     "cmp","invcmp", "inst", "mp", "discharge", "ug", 
                     "case", "of",
                     "data", 
-                    "theorem", "proof",
+                    "theorem", "proof", "qed",
                     "show",
                     "i", "o",
                     "where", "module"
