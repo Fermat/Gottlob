@@ -150,8 +150,8 @@ compoundArgs =
   ((try (do{ n <- setVar;
             return $ (FT $ FVar n (To Ind Form),(To Ind Form))}))
   <|>
-  (do{ n <- prog;
-       return $ (TM $ progTerm n, Ind)})
+  (try (do{ n <- prog;
+       return $ (TM $ progTerm n, Ind)}))
   <|> innerArg )
 
 innerArg = do
