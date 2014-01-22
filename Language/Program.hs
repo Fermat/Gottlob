@@ -80,7 +80,7 @@ progTerm :: Prog -> Meta
 progTerm (Name n) = MVar n Ind
 progTerm (Applica p1 p2) = In (progTerm p2) (progTerm p1)
 progTerm (Abs l p) = constr l (progTerm p)
-progTerm (Match v l) = appBranch l (MVar v Ind)
+progTerm (Match v l) = appBranch l (progTerm v)
 
 appBranch :: [(VName, [VName], Prog)] -> Meta -> Meta
 appBranch [] m = m

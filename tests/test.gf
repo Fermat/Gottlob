@@ -8,14 +8,20 @@ data Vec U a where
      vnil :: Vec U z
      vcons ::  (n::Nat) -> U -> Vec U n -> Vec U (s n)
 
-add n m = 
-  case n of
-     z -> m
-     s n'-> s (add n' m)
 
-data Ob A R where
-  ohead :: (A -> R) -> Ob A R -> Ob A R
-  otail :: Ob A R -> Ob A R
+add n m = 
+  case (s n) of
+     z -> m
+     s n'-> s (add n' m) c q
+
+-- data Ob A R where
+--   ohead :: (A -> R) -> Ob A R -> Ob A R
+--   otail :: Ob A R -> Ob A R
+
+Vec U a = iota x . forall Vec . 
+          vnil :: Vec U z -> 
+          (forall y u n. u :: U -> y :: Vec U n -> vcons n u y :: Vec U (s n))
+          -> x :: Vec U a
 
 -- forall y. y ::C -> s y :: C
 -- forall y :: C -> s y :: C xxxxxxxxxxx good
@@ -24,11 +30,7 @@ data Ob A R where
 -- forall C => P
 -- P
 
-Vec U a = iota x . forall Vec . 
-         vnil :: Vec U z -> 
-         (forall y u n. u :: U -> y :: Vec U n -> vcons n u y :: Vec U (s n))
-         -> x :: Vec U a
-
+{-
 theorem ind. forall C.Z :: C -> (forall y :: C -> S y :: C) -> (forall m :: Nat -> m :: C)
 proof  
        C : Ind -> Form
@@ -45,3 +47,4 @@ proof
        b8 = discharge a1 b7 : Z::C -> (forall y :: C -> S y :: C) -> forall m :: Nat -> m :: C
        b9 = ug C b8 : forall C. Z::C -> (forall y :: C -> S y :: C) -> forall m :: Nat -> m :: C
 qed
+-}

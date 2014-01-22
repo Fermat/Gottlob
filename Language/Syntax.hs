@@ -49,7 +49,7 @@ type ProofScripts = [(VName, Proof, Meta)]
 data Prog = Name VName 
           | Applica Prog Prog
           | Abs [VName] Prog
-          | Match VName [(VName, [VName], Prog)]
+          | Match Prog [(VName, [VName], Prog)]
           deriving Show
 
 -- formal type for program
@@ -73,6 +73,7 @@ data Module = Module VName [Decl] deriving (Show)
 data Decl = ProgDecl VName Prog
           | ProofDecl VName ProofScripts Meta
           | DataDecl Datatype
+          | SetDecl VName Meta
           | OperatorDecl String Int String
           deriving Show
 

@@ -72,7 +72,7 @@ gModule = do
   return $ Module modName bs
 
 gDecl :: Parser Decl
-gDecl = gDataDecl <|> progDecl <|> proofDecl
+gDecl = gDataDecl <|> progDecl -- <|> setDecl
 
 gDataDecl :: Parser Decl
 gDataDecl = do
@@ -151,6 +151,8 @@ compound = do
 compoundArgs = 
   many $ indented >>
   ((try (do{ n <- setVar;
+             -- Could be other complicated set var, but we will support that
+             -- if there is an example
             return $ (FT $ FVar n (To Ind Form),(To Ind Form))}))
   <|>
   (try (do{ n <- prog;
@@ -175,18 +177,23 @@ progDecl = do
 prog :: Parser Prog  
 prog = absProg <|> caseTerm <|> appProg <|> parens prog
 
-appProg = do
+termVarProg :: Parser Prog
+termVarProg = do
   n <- termVar
+  return $ Name n
+  
+appProg = do
+  sp <- termVarProg <|> parens prog
   as <- many $ indented >>
         (parens prog <|>
          (do{x <- termVar;
              return $ Name x}))
-  if null as then return $ Name n
-    else return $ foldl' (\ z x -> Applica z x) (Name n) as
+  if null as then return sp
+    else return $ foldl' (\ z x -> Applica z x) sp as
          
 caseTerm = do
   reserved "case"
-  n <- termVar
+  n <- prog
   reserved "of"
   bs <- block branch
   return $ Match n bs
@@ -205,8 +212,71 @@ absProg = do
   p <- prog
   return $ Abs as p
 
-------------- Parser for Formula---------
+--------------set decl-------------
+  
+setDecl :: Parser Decl
+setDecl = do
+  n <- setVar
+  as <- many $ try termVar <|> setVar
+  reservedOp "="
+  s <- set
+  if (null as) then return $ SetDecl n s
+    else return $
+         SetDecl n (foldl' (\ z x -> Iota  x (getEType x) z) p as)
+  where getEType x = if isUpper $ head x then
+                       To Ind Form
+                     else Ind
 
+------------- Parser for Formula, Set---------
+
+progMeta :: Parser Meta
+progMeta = do
+  p <- prog
+  return $ progTerm p
+
+setVarMeta :: Parser Meta
+setVarMeta = do
+  n <- setVar
+  return $ MVar n (To Ind Form)
+  
+set :: Parser Meta
+set = iotaClause <|> appClause <|> parens set
+
+iotaClause = do
+  reserved "iota"
+  x <- termVar
+  reservedOp "."
+  f <- formula
+  return $ Iota x Ind f
+
+-- has bugs... it 's all about how to infer
+-- the right etype information..
+appClause = do 
+  n <- setVarMeta <|> parens set
+  as <- many $ indented >>
+         (try setVarMeta  <|> try progMeta <|>
+          parens set)
+  if null as then return n
+    else return $ foldl' (\ z x -> In x z) n as
+
+formula :: Parser Meta
+formula = buildExpressionParser formulaOpTable atom
+
+atom :: Parser Meta
+atom = forallClause <|> inClause <|> parens atom
+
+forallClause = do
+  reserved "forall"
+  xs <- many1 $ var 
+  
+  
+inClause = do
+  p <- progMeta
+  reservedOp "::"
+  s <- set
+  return $ In p s
+
+{-
 proofDecl :: Parser Decl
 proofDecl = do
   reserved "theorem"
@@ -219,7 +289,7 @@ proofDecl = do
 
 formula :: Parser Meta
 formula = 
-
+-}
   
 -------------------------------
 
@@ -238,13 +308,12 @@ gottlobStyle = Token.LanguageDef
                 , Token.caseSensitive  = True
                 , Token.reservedNames =
                   [
-                    "forall",
+                    "forall", "iota", 
                     "cmp","invcmp", "inst", "mp", "discharge", "ug", 
                     "case", "of",
                     "data", 
                     "theorem", "proof", "qed",
                     "show",
-                    "i", "o",
                     "where", "module"
                   ]
                , Token.reservedOpNames =
