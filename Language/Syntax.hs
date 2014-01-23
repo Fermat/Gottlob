@@ -10,6 +10,7 @@ type VName = String
 -- extensional type, type have interpretation as set in ZF.
 data EType = Ind
            | Form
+           | EVar VName
            | To EType EType
            deriving (Show, Eq)
 
@@ -17,6 +18,16 @@ data EType = Ind
 -- the only difference here is we don't have simple type
 -- for lambda calculus, so we have \x.x : ind, not ind -> ind
 
+-- PreMeta is the unannotated meta.
+
+data PreMeta = PVar VName
+             | PForall VName PreMeta
+             | PImply PreMeta PreMeta
+             | PIota VName PreMeta
+             | PIn PreMeta PreMeta
+             | PApp PreMeta PreMeta
+             deriving (Show)
+  
 data Meta = MVar VName EType
           | Forall VName EType Meta
           | Imply Meta Meta

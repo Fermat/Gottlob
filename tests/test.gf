@@ -18,10 +18,27 @@ add n m =
 --   ohead :: (A -> R) -> Ob A R -> Ob A R
 --   otail :: Ob A R -> Ob A R
 
-Vec U a = iota x . forall Vec . 
-          vnil :: Vec U z -> 
-          (forall y u n. u :: U -> y :: Vec U n -> vcons n u y :: Vec U (s n))
-          -> x :: Vec U a
+Vec :: 
+Vec U a = iota x . forall P : (Term -> Formula) -> Term -> Term -> Form . 
+          vnil :: P U z -> 
+          (forall y u n. u :: U -> y :: P U n -> vcons n u y :: P U (s n))
+          -> x :: P U a
+
+Vec U a = iota x . forall P :: (Term -> Formula) -> Term -> Term -> Form . 
+          vnil :: P U z -> 
+          (forall y u n. u :: U -> y :: P U n -> vcons n u y :: P U (s n))
+          -> x :: P U a
+
+Vec = iota U a x . forall P . vnil :: P U z -> 
+          (forall y u n. u :: U -> y :: P U n -> vcons n u y :: P U (s n))
+          -> x :: P U a
+-- annotated
+Vec = iota U:X0 a:I x:I . forall P:X1 . vnil:I :: P:X1 U:X0 z:I -> 
+          (forall y:I u:I n:I. u :: U -> y :: P U n -> vcons n u y :: P U (s n))
+          -> x :: P U a
+-- constraits:
+X1 = X0 -> I -> (I -> O)
+X0 = I -> O
 
 -- forall y. y ::C -> s y :: C
 -- forall y :: C -> s y :: C xxxxxxxxxxx good
