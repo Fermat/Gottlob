@@ -33,8 +33,8 @@ Vec = iota U a x . forall P . vnil :: P U z ->
           (forall y u n. u :: U -> y :: P U n -> vcons n u y :: P U (s n))
           -> x :: P U a
 -- annotated
-Vec = iota U:X0 a:I x:I . forall P:X1 . vnil:I :: P:X1 U:X0 z:I -> 
-          (forall y:I u:I n:I. u :: U -> y :: P U n -> vcons n u y :: P U (s n))
+Vec = iota U:X0 a x . forall P:X1 . vnil :: P:X1 U:X0 z:I -> 
+          (forall y u n. u :: U -> y :: P U n -> vcons n u y :: P U (s n))
           -> x :: P U a
 -- constraits:
 X1 = X0 -> I -> (I -> O)
@@ -46,9 +46,9 @@ X0 = I -> O
 -- forall C . P XXXX good
 -- forall C => P
 -- P
-
+-- forall C:X0 . z :: C -> (forall y. y :: C -> s y :: C) -> (forall m . m :: Nat:X1 -> m :: C)
 {-
-theorem ind. forall C.Z :: C -> (forall y :: C -> S y :: C) -> (forall m :: Nat -> m :: C)
+theorem ind. forall C. Z :: C -> (forall y :: C -> S y :: C) -> (forall m :: Nat -> m :: C)
 proof  
        C : Ind -> Form
        [a1] : Z::C
