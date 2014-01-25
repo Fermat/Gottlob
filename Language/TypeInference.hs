@@ -118,6 +118,19 @@ solve l n | n == length l = l
 test3 = solve
         [(To (To (EVar "Y") (EVar "Z")) (EVar "W"),To (EVar "X") (EVar "X")),(EVar "W",To (EVar "A") (EVar "A"))] 0
 
-             
+check :: Constraints -> Int -> Bool
+check ((EVar x, t):l) n | n /= (length l)+1 
+                           = if x `S.member` vars t
+                             then False
+                             else if x `S.member` lVars l
+                                  then False
+                                  else check (l ++ [(EVar x,t)]) (n+1)
+                        | n == (length l)+1 = True
+                                              
+unify :: PreMeta -> EType -> InfCxt Bool
+unify m t = do
+  (a, c) <- infer m
+  let c1 = solve ((a,t):c) 0 in
+    return $ check c1 0
 
 

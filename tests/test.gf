@@ -48,9 +48,9 @@ X0 = I -> O
 -- P
 -- forall C:X0 . z :: C -> (forall y. y :: C -> s y :: C) -> (forall m . m :: Nat:X1 -> m :: C)
 {-
-theorem ind. forall C. Z :: C -> (forall y :: C -> S y :: C) -> (forall m :: Nat -> m :: C)
+theorem ind. 
+forall C. Z :: C -> (forall y. y :: C -> S y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
-       C : Ind -> Form
        [a1] : Z::C
        [a2] : forall y :: C -> S y :: C
        [a3] : m :: Nat
