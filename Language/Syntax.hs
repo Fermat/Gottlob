@@ -14,18 +14,34 @@ data EType = Ind
            | To EType EType
            deriving (Show, Eq)
 
+
+vars :: EType -> S.Set VName
+vars (EVar x) = S.insert x S.empty
+vars Ind = S.empty
+vars Form = S.empty
+vars (To t1 t2) = S.union (vars t1) (vars t2)
+
+sub :: EType -> VName -> EType -> EType
+sub a x Ind = Ind
+sub a x Form = Form
+sub a x (EVar y) = if x == y then a else EVar y
+sub a x (To t1 t2) = To (sub a x t1) (sub a x t2)
+
 -- meta term, represent Church's simple type theory,
 -- the only difference here is we don't have simple type
 -- for lambda calculus, so we have \x.x : ind, not ind -> ind
 
 -- PreMeta is the unannotated meta.
 
-data PreMeta = PVar VName
-             | PForall VName PreMeta
-             | PImply PreMeta PreMeta
-             | PIota VName PreMeta
-             | PIn PreMeta PreMeta
-             | PApp PreMeta PreMeta
+data PreMeta = PVar VName             
+             | PForall VName PreMeta  -- forall x.F
+             | PImply PreMeta PreMeta -- F1 -> F2
+             | PIota VName PreMeta -- iota x.F
+             | PIn PreMeta PreMeta -- t :: S
+             | PSApp PreMeta PreMeta -- Vec U
+             | PMApp PreMeta PreMeta -- (Vec U) n
+             | PTApp PreMeta PreMeta -- t n
+             | PLambda VName PreMeta -- \ x. t
              deriving (Show)
   
 data Meta = MVar VName EType
@@ -74,7 +90,8 @@ data FType = FVar VName EType
            | Arrow FType FType
            | Pi VName FType FType
            deriving (Show, Eq)
-                    
+
+
 data Datatype =
   Data VName [(VName, EType)] [(VName,FType)]    
   deriving (Show)
