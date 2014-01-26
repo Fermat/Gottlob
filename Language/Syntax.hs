@@ -71,7 +71,7 @@ data Prog = Name VName
 
 -- formal type for program
 data Args = ArgType FType
-          | ArgTerm Prog
+          | ArgProg Prog
           deriving (Show, Eq)
                    
 data FType = FVar VName 

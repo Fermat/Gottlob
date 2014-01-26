@@ -13,7 +13,7 @@ add n m =
   case (s n) of
      z -> m
      s n'-> s (add n' m) c q
-
+{-
 -- data Ob A R where
 --   ohead :: (A -> R) -> Ob A R -> Ob A R
 --   otail :: Ob A R -> Ob A R
@@ -63,4 +63,5 @@ proof
        b8 = discharge a1 b7 : Z::C -> (forall y :: C -> S y :: C) -> forall m :: Nat -> m :: C
        b9 = ug C b8 : forall C. Z::C -> (forall y :: C -> S y :: C) -> forall m :: Nat -> m :: C
 qed
+-}
 -}

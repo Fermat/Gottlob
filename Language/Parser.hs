@@ -87,7 +87,7 @@ gDataDecl = do
           reservedOp "::"
           t <- ftype
           return (c,t)
-        params = option [] $ many1 (setVar <|> termVar)
+        params = option [] $ many1 (try setVar <|> termVar)
 
 -- defaultVar :: ParsecT String u (State SourcePos) (VName,EType)
 -- defaultVar = do
@@ -181,7 +181,7 @@ appProg = do
          (do{x <- termVar;
              return $ Name x}))
   if null as then return sp
-    else return $ foldl' (\ z x -> Applica z x) sp as
+    else return $ Applica sp as
          
 caseTerm = do
   reserved "case"
@@ -205,7 +205,8 @@ absProg = do
   return $ Abs as p
 
 --------------set decl-------------
-  
+
+{-
 setDecl :: Parser Decl
 setDecl = do
   n <- setVar
@@ -267,7 +268,7 @@ inClause = do
   reservedOp "::"
   s <- set
   return $ In p s
-
+-}
 {-
 proofDecl :: Parser Decl
 proofDecl = do
