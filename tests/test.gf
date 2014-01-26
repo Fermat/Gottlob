@@ -1,5 +1,15 @@
 module vector where
 
+formula infix 2 ^
+
+Eq a b = forall C . a :: C -> b ::C ^ e::C
+
+(^) A B = A -> B 
+
+Vec U a = iota x . forall P . vnil :: P U z -> 
+  (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
+
+{-
 theorem ind. forall C. z :: C -> (forall y. y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
        [a1] : z :: C
@@ -15,11 +25,9 @@ proof
        b8 = discharge a1 b7 : z::C -> (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
        b9 = ug C b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
 qed
+-}
 
--- Eq a b = forall C . a :: C -> b ::C
 
--- Vec U a = iota x . forall P . vnil :: P U z -> 
---   (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
           
 -- data Nat where
 --    z :: Nat 

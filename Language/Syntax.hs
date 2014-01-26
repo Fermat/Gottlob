@@ -96,6 +96,7 @@ data Decl = ProgDecl VName Prog
           | ProofDecl VName ProofScripts PreTerm
           | DataDecl Datatype
           | SetDecl VName PreTerm
+          | FormOperatorDecl String Int String
           deriving Show
 
 {-

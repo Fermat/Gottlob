@@ -8,6 +8,7 @@ import Text.Parsec.Language
 import Text.Parsec.Expr(Operator(..),Assoc(..),buildExpressionParser)
 import qualified Text.Parsec.Token as Token
 import Text.Parsec.Indent
+import Control.Applicative hiding ((<|>),many)
 import Control.Monad.State.Lazy
 import "mtl" Control.Monad.Identity
 import qualified Data.IntMap as IM
@@ -19,29 +20,38 @@ parseModule :: String -> String -> Either P.ParseError Module
 parseModule srcName cnts = runIndent srcName $
                            runParserT gModule initialParserState srcName cnts
 
-type Parser a = IndentParser String ExprParserState a
+type Parser a = IndentParser String ParserState a
 
 -- User state, so that we can update the operator parsing table.
 
-data ExprParserState =
-  ExprParserState {
-    exprParser :: IndentParser String ExprParserState FType,
-    exprOpTable :: IM.IntMap [Operator String ExprParserState (State SourcePos) PreTerm]
+data ParserState =
+  ParserState {
+    setParser :: IndentParser String ParserState PreTerm,
+    progParser :: IndentParser String ParserState PreTerm,
+    formulaParser :: IndentParser String ParserState PreTerm,
+    setOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm],
+    progOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm],
+    formulaOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm]
     }
 
-initialParserState :: ExprParserState
-initialParserState = ExprParserState {
-  exprParser = ftype,
-  exprOpTable = IM.fromAscList []
+initialParserState :: ParserState
+initialParserState = ParserState {
+  setParser = set,
+  progParser = progPre,
+  formulaParser = buildExpressionParser initialFormulaOpTable atom,
+  setOpTable =  IM.fromAscList (zip [0 ..] [[]]),
+  progOpTable =  IM.fromAscList (zip [0 ..] [[]]),
+  formulaOpTable =  IM.fromAscList (zip [0 ..] initialFormulaOpTable)
   }
 
-formulaOpTable :: [[Operator String u (State SourcePos) PreTerm]]
-formulaOpTable =
-  [[binOp AssocRight "->" Imply]]
+initialFormulaOpTable :: [[Operator String u (State SourcePos) PreTerm]]
+initialFormulaOpTable =
+  [[], [], []
+    ,[binOp AssocRight "->" Imply]]
   
-etypeOpTable :: [[Operator String u (State SourcePos) EType]]
-etypeOpTable =
-  [[binOp AssocRight "->" To]]
+-- etypeOpTable :: [[Operator String u (State SourcePos) EType]]
+-- etypeOpTable =
+--   [[binOp AssocRight "->" To]]
 
 ftypeOpTable :: [[Operator String u (State SourcePos) FType]]
 ftypeOpTable =
@@ -71,7 +81,36 @@ gModule = do
   return $ Module modName bs
 
 gDecl :: Parser Decl
-gDecl = gDataDecl <|> proofDecl <|> try progDecl <|> setDecl 
+gDecl = gDataDecl <|> proofDecl <|> try progDecl <|> setDecl <|> formOperatorDecl
+
+formOperatorDecl :: Parser Decl
+formOperatorDecl = do
+  reserved "formula"
+  r <- choice [reserved i >> return i
+               | i <- ["infix","infixr","infixl","pre","post"]
+               ]
+  level <- fromInteger <$> integer
+  op <- operator
+  -- update the table
+  st <- getState
+  let table' = IM.insertWith (++) level [toOp op r] $ formulaOpTable st
+      form' = buildExpressionParser (map snd (IM.toAscList table')) atom
+  putState $ ParserState (setParser st) (progParser st) form' (setOpTable st) (progOpTable st) table'
+  return (FormOperatorDecl op level r)
+  where toOp op "infix" =
+          binOp AssocNone op (binApp op)
+        toOp op "infixr" =
+          binOp AssocRight op (binApp op)
+        toOp op "infixl" =
+          binOp AssocLeft op (binApp op)
+        toOp op "pre" =
+          preOp op (SApp (PVar op))
+        toOp op "post" =
+          preOp op (SApp (PVar op))
+        -- Unreachable, since we guard with 'choice' above...
+        toOp _ fx = error (fx ++ " is not a valid operator fixity.")
+        binApp op x y = SApp (SApp (PVar op) x) y
+
 
 gDataDecl :: Parser Decl
 gDataDecl = do
@@ -192,10 +231,10 @@ absProg = do
 
 setDecl :: Parser Decl
 setDecl = do
-  n <- setVar
+  n <- try setVar <|> parens operator
   as <- many $ try termVar <|> setVar
   reservedOp "="
-  s <- try set <|> formula
+  s <- try formula <|> set
   if (null as) then return $ SetDecl n s
     else return $
          SetDecl n (foldr (\ x z -> Iota  x z) s as)
@@ -231,11 +270,18 @@ appClause = do
                      else SApp z x
 
 formula :: Parser PreTerm
-formula = buildExpressionParser formulaOpTable atom
-
+formula = do
+  st <- getState
+  formulaParser st
+  
 atom :: Parser PreTerm
-atom = forallClause <|> try inClause <|> parens formula
-
+atom = forallClause <|> try inClause
+       <|> formVar <|> parens formula
+       
+formVar = do
+  n <- setVar
+  return $ PVar n
+  
 forallClause = do
   reserved "forall"
   xs <- many1 $ try termVar <|> setVar
@@ -353,7 +399,9 @@ gottlobStyle = Token.LanguageDef
                     "data", 
                     "theorem", "proof", "qed",
                     "show",
-                    "where", "module"
+                    "where", "module",
+                    "infix", "infixl", "infixr", "pre", "post",
+                    "formula", "prog", "set"
                   ]
                , Token.reservedOpNames =
                     ["\\", "->", "|", ".","=", "::", ":"]
