@@ -5,19 +5,19 @@ data Nat where
    s :: Nat -> Nat 
 
 data Vec U a where
-     vnil :: Vec U z
+     vnil :: Vec U z 
      vcons ::  (n::Nat) -> U -> Vec U n -> Vec U (s n)
-
 
 add n m = 
   case (s n) of
      z -> m
      s n'-> s (add n' m) c q
-{-
--- data Ob A R where
---   ohead :: (A -> R) -> Ob A R -> Ob A R
---   otail :: Ob A R -> Ob A R
 
+data Ob A R where
+  ohead :: (A -> R) -> Ob A R -> Ob A R
+  otail :: Ob A R -> Ob A R
+  
+{-
 Vec :: 
 Vec U a = iota x . forall P : (Term -> Formula) -> Term -> Term -> Form . 
           vnil :: P U z -> 

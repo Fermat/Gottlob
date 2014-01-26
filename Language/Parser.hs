@@ -145,11 +145,13 @@ compound = do
 
 compoundArgs = 
   many $ indented >>
-  ((try (do{ n <- ftype;
-            return $ ArgType n}))
+  (try (do{ n <- setVar;
+       return $ ArgType $ FVar n})
   <|>
   (try (do{ n <- prog;
-       return $ ArgProg n})))
+       return $ ArgProg n}))
+  <|> (try (do{ n <- parens ftype;
+            return $ ArgType n})))
 
 -- innerArg = do
 --   b <- parens ftype
