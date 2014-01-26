@@ -55,19 +55,19 @@ data PNameless = PV Int
              | LM PNameless
              deriving (Show, Eq)
 
-data Proof = Assume VName PreTerm
+data Proof = Assume VName
            | PrVar VName
-           | MP Proof Proof PreTerm
-           | Inst Proof PreTerm PreTerm
-           | UG VName Proof PreTerm
-           | Cmp Proof PreTerm
-           | InvCmp Proof PreTerm
-           | Beta Proof PreTerm
-           | InvBeta Proof PreTerm
-           | Discharge VName Proof PreTerm
+           | MP Proof Proof 
+           | Inst Proof PreTerm 
+           | UG VName Proof 
+           | Cmp Proof 
+           | InvCmp Proof 
+           | Beta Proof 
+           | InvBeta Proof 
+           | Discharge VName Proof 
            deriving (Show)
 
-type ProofScripts = [(VName, Proof)]
+type ProofScripts = [(VName, Proof, PreTerm)]
 
 data Prog = Name VName 
           | Applica Prog [Prog]

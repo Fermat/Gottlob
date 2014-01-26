@@ -1,9 +1,25 @@
 module vector where
 
-Eq a b = forall C . a :: C -> b ::C
+theorem ind. forall C. z :: C -> (forall y. y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
+proof  
+       [a1] : z :: C
+       [a2] : forall y . y :: C -> s y :: C
+       [a3] : m :: Nat
+       b1 = cmp a3 : forall C . z :: C -> (forall y . y :: C -> s y :: C) -> m :: C
+       b2 = inst b1 C : z :: C -> (forall y . y :: C -> s y :: C) -> m :: C
+       b3 = mp b2 a1 : (forall y. y :: C -> s y :: C) -> m :: C
+       b4 = mp b3 a2 : m :: C
+       b5 = discharge a3 b4 : m :: Nat -> m :: C
+       b6 = ug m b5 : forall m. m :: Nat -> m :: C
+       b7 = discharge a2 b6 : (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
+       b8 = discharge a1 b7 : z::C -> (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
+       b9 = ug C b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
+qed
 
-Vec U a = iota x . forall P . vnil :: P U z -> 
-  (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
+-- Eq a b = forall C . a :: C -> b ::C
+
+-- Vec U a = iota x . forall P . vnil :: P U z -> 
+--   (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
           
 -- data Nat where
 --    z :: Nat 
@@ -39,21 +55,6 @@ X0 = I -> O
 -- forall C => P
 -- P
 -- forall C:X0 . z :: C -> (forall y. y :: C -> s y :: C) -> (forall m . m :: Nat:X1 -> m :: C)
-{-
-theorem ind. forall C. Z :: C -> (forall y :: C -> S y :: C) -> (forall m :: Nat -> m :: C)
-proof  
-       [a1] : Z::C
-       [a2] : forall y :: C -> S y :: C
-       [a3] : m :: Nat
-       b1 = cmp a3 : forall C . Z :: C -> (forall y :: C -> S y :: C) -> m :: C
-       b2 = inst b1 C : Z :: C -> (forall y :: C -> S y :: C) -> m :: C
-       b3 = mp b2 a1 : (forall y :: C -> S y :: C) -> m :: C
-       b4 = mp b3 a2 : m :: C
-       b5 = discharge a3 b4 : m :: Nat -> m :: C
-       b6 = ug m b5 : forall m. m :: Nat -> m :: C
-       b7 = discharge a2 b6 : (forall y :: C -> S y :: C) -> forall m :: Nat -> m :: C
-       b8 = discharge a1 b7 : Z::C -> (forall y :: C -> S y :: C) -> forall m :: Nat -> m :: C
-       b9 = ug C b8 : forall C. Z::C -> (forall y :: C -> S y :: C) -> forall m :: Nat -> m :: C
-qed
--}
+
+
 -}

@@ -71,7 +71,7 @@ gModule = do
   return $ Module modName bs
 
 gDecl :: Parser Decl
-gDecl = gDataDecl <|> try progDecl <|> setDecl
+gDecl = gDataDecl <|> proofDecl <|> try progDecl <|> setDecl 
 
 gDataDecl :: Parser Decl
 gDataDecl = do
@@ -258,11 +258,78 @@ proofDecl = do
   reservedOp "."
   f <- formula
   reserved "proof"
-  ps <- proofScripts
+  ps <- block $ assumption <|> proofDef
+  reserved "qed"
   return $ ProofDecl n ps f
 
+assumption :: Parser (VName, Proof, PreTerm)
+assumption = do
+ a <- brackets termVar
+ reservedOp ":"
+ f <- formula
+ return (a, Assume a, f)
 
+proofDef :: Parser (VName, Proof, PreTerm)
+proofDef = do
+  b <- termVar
+  reservedOp "="
+  p <- proof
+  reservedOp ":"
+  f <- formula
+  return (b, p, f)
+
+proof :: Parser Proof
+proof = var <|> cmp <|> invcmp <|> mp <|> inst <|>
+        ug <|> beta <|> invbeta <|> discharge <|> parens proof
+
+var = do
+  v <- termVar
+  return $ PrVar v
   
+cmp = do
+  reserved "cmp"
+  p <- proof
+  return $ Cmp p
+
+invcmp = do
+  reserved "invcmp"
+  p <- proof
+  return $ InvCmp p
+
+mp = do
+  reserved "mp"
+  p1 <- proof
+  p2 <- proof
+  return $ MP p1 p2
+
+discharge = do
+  reserved "discharge"
+  n <- termVar
+  p <- proof
+  return $ Discharge n p
+  
+inst = do
+  reserved "inst"
+  p <- proof
+  t <- try progPre <|> try set <|> formula
+  return $ Inst p t
+
+ug = do
+  reserved "ug"
+  m <- try setVar <|> termVar
+  p <- proof
+  return $ UG m p
+
+beta = do
+  reserved "beta"
+  p <- proof
+  return $ Beta p
+
+invbeta = do
+  reserved "invbeta"
+  p <- proof
+  return $ InvBeta p
+
 -------------------------------
 
 -- Tokenizer definition
@@ -281,7 +348,7 @@ gottlobStyle = Token.LanguageDef
                 , Token.reservedNames =
                   [
                     "forall", "iota", 
-                    "cmp","invcmp", "inst", "mp", "discharge", "ug", 
+                    "cmp","invcmp", "inst", "mp", "discharge", "ug", "beta", "invbeta",
                     "case", "of",
                     "data", 
                     "theorem", "proof", "qed",
