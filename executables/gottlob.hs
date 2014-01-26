@@ -1,8 +1,8 @@
 module Main where
 import Language.Parser
 import Language.Syntax
-import Language.ProofChecking
-import Language.Monad
+-- import Language.ProofChecking
+-- import Language.Monad
 import Control.Monad.Error hiding (join)
 import Text.PrettyPrint(render)
 import System.Console.CmdArgs

@@ -14,7 +14,6 @@ data EType = Ind
            | To EType EType
            deriving (Show, Eq)
 
-
 vars :: EType -> S.Set VName
 vars (EVar x) = S.insert x S.empty
 vars Ind = S.empty
@@ -27,84 +26,73 @@ sub a x Form = Form
 sub a x (EVar y) = if x == y then a else EVar y
 sub a x (To t1 t2) = To (sub a x t1) (sub a x t2)
 
--- meta term, represent Church's simple type theory,
--- the only difference here is we don't have simple type
--- for lambda calculus, so we have \x.x : ind, not ind -> ind
-
--- PreMeta is the unannotated meta.
-
-data PreMeta = PVar VName             
-             | PForall VName PreMeta  -- forall x.F
-             | PImply PreMeta PreMeta -- F1 -> F2
-             | PIota VName PreMeta -- iota x.F
-             | PIn PreMeta PreMeta -- t :: S
-             | PSApp PreMeta PreMeta -- Vec U
-             | PMApp PreMeta PreMeta -- (Vec U) n
-             | PTApp PreMeta PreMeta -- t n
-             | PLambda VName PreMeta -- \ x. t
-             deriving (Show)
-  
-data Meta = MVar VName EType
-          | Forall VName EType Meta
-          | Imply Meta Meta
-          | Iota VName EType Meta
-          | In Meta Meta
+data PreTerm = PVar VName             
+          | Forall VName PreTerm  -- forall x.F
+          | Imply PreTerm PreTerm -- F1 -> F2
+          | Iota VName PreTerm -- iota x.F
+          | In PreTerm PreTerm -- t :: S
+          | SApp PreTerm PreTerm -- Vec U
+          | TApp PreTerm PreTerm -- (Vec U) n
+          | App PreTerm PreTerm -- t n
+          | Lambda VName PreTerm -- \ x. t
           deriving (Show)
 
 -- nameless meta term
-data MNameless = MV Int
-             | FA MNameless
-             | IN MNameless MNameless
-             | IMP MNameless MNameless
-             | IA MNameless
+data PNameless = PV Int
+             | FA PNameless
+             | IMP PNameless PNameless
+             | IA PNameless
+             | IN PNameless PNameless
+             | SAP PNameless PNameless
+             | TAP PNameless PNameless
+             | AP PNameless PNameless
+             | LM PNameless
              deriving (Show, Eq)
 
-data Proof = Assume VName Meta
+data Proof = Assume VName PreTerm
            | PrVar VName
-           | MP Proof Proof Meta
-           | Inst Proof Meta Meta
-           | UG VName EType Proof Meta
-           | Cmp Proof Meta
-           | InvCmp Proof Meta
-           | Beta Proof Meta
-           | InvBeta Proof Meta
-           | Discharge VName Proof Meta
+           | MP Proof Proof PreTerm
+           | Inst Proof PreTerm PreTerm
+           | UG VName Proof PreTerm
+           | Cmp Proof PreTerm
+           | InvCmp Proof PreTerm
+           | Beta Proof PreTerm
+           | InvBeta Proof PreTerm
+           | Discharge VName Proof PreTerm
            deriving (Show)
 
-type ProofScripts = [(VName, Proof, Meta)]
+type ProofScripts = [(VName, Proof)]
 
 data Prog = Name VName 
-          | Applica Prog Prog
+          | Applica Prog [Prog]
           | Abs [VName] Prog
           | Match Prog [(VName, [VName], Prog)]
-          deriving Show
+          deriving (Show, Eq)
 
 -- formal type for program
-
-data Mix = FT FType
-         | TM Meta -- for terms that appears in FTypes
-         deriving (Show, Eq)
-                  
-data FType = FVar VName EType
-           | Base VName [(Mix, EType)]
+data Args = ArgType FType
+          | ArgTerm Prog
+          deriving (Show, Eq)
+                   
+data FType = FVar VName 
+           | FCons VName [Args]
            | Arrow FType FType
            | Pi VName FType FType
            deriving (Show, Eq)
 
-
 data Datatype =
-  Data VName [(VName, EType)] [(VName,FType)]    
+  Data VName [VName] [(VName,FType)]    
   deriving (Show)
 
 data Module = Module VName [Decl] deriving (Show)
 
 data Decl = ProgDecl VName Prog
-          | ProofDecl VName ProofScripts Meta
+          | ProofDecl VName ProofScripts PreTerm
           | DataDecl Datatype
-          | SetDecl VName Meta
-          | OperatorDecl String Int String
+          | SetDecl VName PreTerm
           deriving Show
 
+{-
 fv :: Meta -> S.Set VName
 fv (MVar x _) = S.insert x S.empty
 fv (Imply f1 f2) = fv f1 `S.union` fv f2
@@ -201,7 +189,7 @@ subst s (MVar x u) (Iota a t1 f) =
            c2 <- subst s (MVar x u) c1
            return $ Iota (a++ show n) t1 c2
 
-
+-}
 
 
               

@@ -1,7 +1,7 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable, PackageImports,ParallelListComp, FlexibleContexts #-}
 module Language.Parser where
 import Language.Syntax
-import Language.Program
+--import Language.Program
 import Text.Parsec hiding (ParseError,Empty, State)
 import qualified Text.Parsec as P
 import Text.Parsec.Language
@@ -27,7 +27,7 @@ type Parser a = IndentParser String ExprParserState a
 data ExprParserState =
   ExprParserState {
     exprParser :: IndentParser String ExprParserState FType,
-    exprOpTable :: IM.IntMap [Operator String ExprParserState (State SourcePos) Meta]
+    exprOpTable :: IM.IntMap [Operator String ExprParserState (State SourcePos) PreTerm]
     }
 
 initialParserState :: ExprParserState
@@ -36,7 +36,7 @@ initialParserState = ExprParserState {
   exprOpTable = IM.fromAscList []
   }
 
-formulaOpTable :: [[Operator String u (State SourcePos) Meta]]
+formulaOpTable :: [[Operator String u (State SourcePos) PreTerm]]
 formulaOpTable =
   [[binOp AssocRight "->" Imply]]
   
@@ -77,7 +77,7 @@ gDecl = gDataDecl <|> progDecl -- <|> setDecl
 gDataDecl :: Parser Decl
 gDataDecl = do
   reserved "data"
-  n <- consName
+  n <- setVar
   ps <- params
   reserved "where"
   cs <- block cons 
@@ -87,20 +87,20 @@ gDataDecl = do
           reservedOp "::"
           t <- ftype
           return (c,t)
-        params = option [] $ many1 defaultVar
+        params = option [] $ many1 (setVar <|> termVar)
 
-defaultVar :: ParsecT String u (State SourcePos) (VName,EType)
-defaultVar = do
-  n <- identifier
-  if isLower (head n) then return $ (n, Ind)
-    else return $ (n, To Ind Form)
+-- defaultVar :: ParsecT String u (State SourcePos) (VName,EType)
+-- defaultVar = do
+--   n <- identifier
+--   if isLower (head n) then return $ (n, Ind)
+--     else return $ (n, To Ind Form)
          
-consName :: ParsecT String u (State SourcePos) String
-consName = do
-  n <- identifier
-  when (null n || isLower (head n)) $
-       unexpected "Data names must begin with an uppercase letter"
-  return n
+-- consName :: ParsecT String u (State SourcePos) String
+-- consName = do
+--   n <- identifier
+--   when (null n || isLower (head n)) $
+--        unexpected "Data names must begin with an uppercase letter"
+--   return n
 
 termVar :: Parser String
 termVar = do
@@ -117,17 +117,12 @@ setVar = do
   return n
 
 -- parser for FType--
+
 ftype :: Parser FType
 ftype = buildExpressionParser ftypeOpTable base
 
 base :: Parser FType
 base = compound <|> try dep <|> parens ftype
-
-fvar = do
-  n <- identifier
-  if (isUpper (head n))
-    then return $ FVar n (To Ind Form)
-    else  unexpected "Type variable must begin with an Uppercase letter"
 
 dep = do
   (x,t) <- parens $ do{
@@ -141,27 +136,24 @@ dep = do
   return $ Pi x t t1
   
 compound = do
-  n <- consName
+  n <- setVar
   as <- option [] $ compoundArgs
   if null as then
-    return $ FVar n (To Ind Form)
+    return $ FVar n 
     else 
-    return $ Base n as
+    return $ FCons n as
 
 compoundArgs = 
   many $ indented >>
-  ((try (do{ n <- setVar;
-             -- Could be other complicated set var, but we will support that
-             -- if there is an example
-            return $ (FT $ FVar n (To Ind Form),(To Ind Form))}))
+  ((try (do{ n <- ftype;
+            return $ ArgType n}))
   <|>
   (try (do{ n <- prog;
-       return $ (TM $ progTerm n, Ind)}))
-  <|> innerArg )
+       return $ ArgProg n})))
 
-innerArg = do
-  b <- parens ftype
-  return (FT b, To Ind Form)
+-- innerArg = do
+--   b <- parens ftype
+--   return (FT b, To Ind Form)
 
 -----  Parser for Program ------
 
