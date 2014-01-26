@@ -1,7 +1,7 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable, PackageImports,ParallelListComp, FlexibleContexts #-}
 module Language.Parser where
 import Language.Syntax
---import Language.Program
+import Language.Program
 import Text.Parsec hiding (ParseError,Empty, State)
 import qualified Text.Parsec as P
 import Text.Parsec.Language
@@ -18,7 +18,6 @@ import Data.List
 parseModule :: String -> String -> Either P.ParseError Module
 parseModule srcName cnts = runIndent srcName $
                            runParserT gModule initialParserState srcName cnts
-
 
 type Parser a = IndentParser String ExprParserState a
 
@@ -72,7 +71,7 @@ gModule = do
   return $ Module modName bs
 
 gDecl :: Parser Decl
-gDecl = gDataDecl <|> progDecl -- <|> setDecl
+gDecl = gDataDecl <|> try progDecl <|> setDecl
 
 gDataDecl :: Parser Decl
 gDataDecl = do
@@ -88,19 +87,6 @@ gDataDecl = do
           t <- ftype
           return (c,t)
         params = option [] $ many1 (try setVar <|> termVar)
-
--- defaultVar :: ParsecT String u (State SourcePos) (VName,EType)
--- defaultVar = do
---   n <- identifier
---   if isLower (head n) then return $ (n, Ind)
---     else return $ (n, To Ind Form)
-         
--- consName :: ParsecT String u (State SourcePos) String
--- consName = do
---   n <- identifier
---   when (null n || isLower (head n)) $
---        unexpected "Data names must begin with an uppercase letter"
---   return n
 
 termVar :: Parser String
 termVar = do
@@ -153,10 +139,6 @@ compoundArgs =
   <|> (try (do{ n <- parens ftype;
             return $ ArgType n})))
 
--- innerArg = do
---   b <- parens ftype
---   return (FT b, To Ind Form)
-
 -----  Parser for Program ------
 
 progDecl :: Parser Decl
@@ -208,70 +190,67 @@ absProg = do
 
 --------------set decl-------------
 
-{-
 setDecl :: Parser Decl
 setDecl = do
   n <- setVar
   as <- many $ try termVar <|> setVar
   reservedOp "="
-  s <- set
+  s <- try set <|> formula
   if (null as) then return $ SetDecl n s
     else return $
-         SetDecl n (foldl' (\ z x -> Iota  x (getEType x) z) p as)
-  where getEType x = if isUpper $ head x then
-                       To Ind Form
-                     else Ind
+         SetDecl n (foldr (\ x z -> Iota  x z) s as)
 
-------------- Parser for Formula, Set---------
-
-progMeta :: Parser Meta
-progMeta = do
+progPre :: Parser PreTerm
+progPre = do
   p <- prog
   return $ progTerm p
 
-setVarMeta :: Parser Meta
-setVarMeta = do
+setVarPre :: Parser PreTerm
+setVarPre = do
   n <- setVar
-  return $ MVar n (To Ind Form)
+  return $ PVar n 
   
-set :: Parser Meta
+set :: Parser PreTerm
 set = iotaClause <|> appClause <|> parens set
 
 iotaClause = do
   reserved "iota"
-  x <- termVar
+  xs <- many1 $ try termVar <|> setVar
   reservedOp "."
   f <- formula
-  return $ Iota x Ind f
+  return $ (foldr (\ x z -> Iota  x z) f xs)
 
--- has bugs... it 's all about how to infer
--- the right etype information..
 appClause = do 
-  n <- setVarMeta <|> parens set
+  n <- setVarPre <|> parens set
   as <- many $ indented >>
-         (try setVarMeta  <|> try progMeta <|>
+         (try setVarPre  <|> try progPre <|>
           parens set)
   if null as then return n
-    else return $ foldl' (\ z x -> In x z) n as
+    else return $ foldl' (\ z x -> helper z x) n as
+  where helper z x = if isTerm x then TApp z x
+                     else SApp z x
 
-formula :: Parser Meta
+formula :: Parser PreTerm
 formula = buildExpressionParser formulaOpTable atom
 
-atom :: Parser Meta
-atom = forallClause <|> inClause <|> parens atom
+atom :: Parser PreTerm
+atom = forallClause <|> try inClause <|> parens formula
 
 forallClause = do
   reserved "forall"
-  xs <- many1 $ var 
-  
-  
+  xs <- many1 $ try termVar <|> setVar
+  reservedOp "."
+  f <- formula
+  return $ (foldr (\ x z -> Forall x z) f xs)
+
 inClause = do
-  p <- progMeta
+  p <- progPre
   reservedOp "::"
   s <- set
   return $ In p s
--}
-{-
+
+------- Parser for Proofs ---------
+
 proofDecl :: Parser Decl
 proofDecl = do
   reserved "theorem"
@@ -282,9 +261,7 @@ proofDecl = do
   ps <- proofScripts
   return $ ProofDecl n ps f
 
-formula :: Parser Meta
-formula = 
--}
+
   
 -------------------------------
 

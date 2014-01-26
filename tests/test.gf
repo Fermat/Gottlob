@@ -1,37 +1,29 @@
 module vector where
 
-data Nat where
-   z :: Nat 
-   s :: Nat -> Nat 
+Eq a b = forall C . a :: C -> b ::C
 
-data Vec U a where
-     vnil :: Vec U z 
-     vcons ::  (n::Nat) -> U -> Vec U n -> Vec U (s n)
+Vec U a = iota x . forall P . vnil :: P U z -> 
+  (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
+          
+-- data Nat where
+--    z :: Nat 
+--    s :: Nat -> Nat 
 
-add n m = 
-  case (s n) of
-     z -> m
-     s n'-> s (add n' m) c q
+-- data Vec U a where
+--      vnil :: Vec U z 
+--      vcons ::  (n::Nat) -> U -> Vec U n -> Vec U (s n)
 
-data Ob A R where
-  ohead :: (A -> R) -> Ob A R -> Ob A R
-  otail :: Ob A R -> Ob A R
+-- add n m = 
+--   case (s n) of
+--      z -> m
+--      s n'-> s (add n' m) c q
+
+-- data Ob A R where
+--   ohead :: (A -> R) -> Ob A R -> Ob A R
+--   otail :: Ob A R -> Ob A R
   
+
 {-
-Vec :: 
-Vec U a = iota x . forall P : (Term -> Formula) -> Term -> Term -> Form . 
-          vnil :: P U z -> 
-          (forall y u n. u :: U -> y :: P U n -> vcons n u y :: P U (s n))
-          -> x :: P U a
-
-Vec U a = iota x . forall P :: (Term -> Formula) -> Term -> Term -> Form . 
-          vnil :: P U z -> 
-          (forall y u n. u :: U -> y :: P U n -> vcons n u y :: P U (s n))
-          -> x :: P U a
-
-Vec = iota U a x . forall P . vnil :: P U z -> 
-          (forall y u n. u :: U -> y :: P U n -> vcons n u y :: P U (s n))
-          -> x :: P U a
 -- annotated
 Vec = iota U:X0 a x . forall P:X1 . vnil :: P:X1 U:X0 z:I -> 
           (forall y u n. u :: U -> y :: P U n -> vcons n u y :: P U (s n))

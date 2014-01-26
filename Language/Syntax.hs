@@ -4,7 +4,7 @@ import qualified Data.Set as S
 import Control.Monad.Reader
 import Data.List
 import Control.Monad.State.Lazy
-
+import Data.Char
 type VName = String
 
 -- extensional type, type have interpretation as set in ZF.
@@ -36,6 +36,12 @@ data PreTerm = PVar VName
           | App PreTerm PreTerm -- t n
           | Lambda VName PreTerm -- \ x. t
           deriving (Show)
+
+isTerm :: PreTerm -> Bool
+isTerm (PVar x) = isLower $ head x
+isTerm (App t1 t2) = isTerm t1 && isTerm t2
+isTerm (Lambda x t) = isTerm t
+isTerm _ = False
 
 -- nameless meta term
 data PNameless = PV Int

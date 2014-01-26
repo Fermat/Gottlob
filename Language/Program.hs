@@ -1,7 +1,7 @@
 module Language.Program where
 import Language.Syntax
 import Data.List
-
+{-
 constrEType :: [EType] -> EType
 constrEType (x:l) = To x (constrEType l)
 constrEType [] = To Ind Form
@@ -58,9 +58,6 @@ abstr a n t = Iota (a++ show n) Ind (abstr a (n-1) t)
 getConstr :: Datatype -> [VName]
 getConstr (Data _ _ l)  = map fst l
 
-constr :: [VName] -> Meta -> Meta
-constr [] t = t
-constr (x:xs) t = Iota x Ind (constr xs t)
 
 -- scottization
 toScott :: Datatype -> Datatype  -> [(VName, Meta)]
@@ -75,20 +72,23 @@ toScott l (Data d _ ((c,t):xs)) =
 app :: Meta -> Meta -> Meta
 app m1 m2 = In m2 m1
 
+-}
 -- Translating Program to meta term
-progTerm :: Prog -> Meta
-progTerm (Name n) = MVar n Ind
-progTerm (Applica p1 p2) = In (progTerm p2) (progTerm p1)
+progTerm :: Prog -> PreTerm
+progTerm (Name n) = PVar n 
+progTerm (Applica p l) =
+  foldl' (\ z x -> App z (progTerm x)) (progTerm p) l 
 progTerm (Abs l p) = constr l (progTerm p)
 progTerm (Match v l) = appBranch l (progTerm v)
 
-appBranch :: [(VName, [VName], Prog)] -> Meta -> Meta
+constr :: [VName] -> PreTerm -> PreTerm
+constr [] t = t
+constr (x:xs) t = Lambda x (constr xs t)
+
+appBranch :: [(VName, [VName], Prog)] -> PreTerm -> PreTerm
 appBranch [] m = m
-appBranch ((v,l,p):xs) m = app m (constr l (progTerm p))
+appBranch ((v,l,p):xs) m = App m (constr l (progTerm p))
 
-set = To Ind Form
 
-nat = Data "Nat" [] [("Z", FVar "Nat" set), ("S", Arrow (FVar "Nat" set) (FVar "Nat" set))]
--- vec = Data "Vec" ["U","n"] [("Nil", Base "Vec" ["U", "Z"]), ("Cons", Dep "n"  (Base "Nat" []) (Arrow (Base "U" []) (Arrow (Base "Vec" ["U", "Z"]) (Base "Vec" ["U", "SZ"]))))]
-testS = toScott nat nat
+
 
