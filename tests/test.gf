@@ -1,14 +1,38 @@
 module vector where
 
-formula infix 2 ^
+special infix 4 ==
+special pre 5 !
 
-Eq a b = forall C . a :: C -> b ::C ^ e::C
+(==) a b = forall C . a :: C -> b :: C
 
-(^) A B = A -> B 
+Sym = a == b -> ! b == a
 
-Vec U a = iota x . forall P . vnil :: P U z -> 
-  (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
+-- prog infix 7 ||
 
+-- formula infix 7 ==
+
+-- O a = P a
+
+-- (==) a b = forall C . a :: C -> b:: C
+-- (||) a b = case a of
+--    tt -> tt
+--    ff -> b
+   
+-- add n m = 
+--   case (s n) of
+--      z -> m n || b
+--      s n'-> s (add n' m) c q
+
+-- formula infix 2 ^
+
+-- Eq a b = forall C . a :: C -> b ::C ^ e::C
+
+-- (^) A B = A -> B 
+
+-- Vec U a = iota x . forall P . vnil :: P U z -> 
+--   (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
+
+  
 {-
 theorem ind. forall C. z :: C -> (forall y. y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
@@ -37,10 +61,6 @@ qed
 --      vnil :: Vec U z 
 --      vcons ::  (n::Nat) -> U -> Vec U n -> Vec U (s n)
 
--- add n m = 
---   case (s n) of
---      z -> m
---      s n'-> s (add n' m) c q
 
 -- data Ob A R where
 --   ohead :: (A -> R) -> Ob A R -> Ob A R

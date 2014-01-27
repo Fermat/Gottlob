@@ -76,8 +76,8 @@ app m1 m2 = In m2 m1
 -- Translating Program to meta term
 progTerm :: Prog -> PreTerm
 progTerm (Name n) = PVar n 
-progTerm (Applica p l) =
-  foldl' (\ z x -> App z (progTerm x)) (progTerm p) l 
+progTerm (Applica p1 p2) = progTerm p1 `App` progTerm p2
+  
 progTerm (Abs l p) = constr l (progTerm p)
 progTerm (Match v l) = appBranch l (progTerm v)
 

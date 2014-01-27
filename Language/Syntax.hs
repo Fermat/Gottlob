@@ -70,7 +70,7 @@ data Proof = Assume VName
 type ProofScripts = [(VName, Proof, PreTerm)]
 
 data Prog = Name VName 
-          | Applica Prog [Prog]
+          | Applica Prog Prog
           | Abs [VName] Prog
           | Match Prog [(VName, [VName], Prog)]
           deriving (Show, Eq)
@@ -97,6 +97,9 @@ data Decl = ProgDecl VName Prog
           | DataDecl Datatype
           | SetDecl VName PreTerm
           | FormOperatorDecl String Int String
+          | ProgOperatorDecl String Int String
+          | SpecialOperatorDecl String Int String
+
           deriving Show
 
 {-
