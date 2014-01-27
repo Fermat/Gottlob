@@ -1,11 +1,13 @@
 module vector where
 
-special infix 4 ==
-special pre 5 !
+--special infix 4 ==
+--special pre 5 !
+-- special post 5 *
 
-(==) a b = forall C . a :: C -> b :: C
+-- (==) a b = forall C . a :: C -> b :: C
 
-Sym = a == b -> ! b == a
+--A = (a b)
+Sym = a == b -> b == a
 
 -- prog infix 7 ||
 

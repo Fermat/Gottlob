@@ -26,20 +26,20 @@ type Parser a = IndentParser String ParserState a
 
 data ParserState =
   ParserState {
-    specialParser :: IndentParser String ParserState PreTerm,
+--    specialParser :: IndentParser String ParserState PreTerm,
     progParser :: IndentParser String ParserState Prog,
     formulaParser :: IndentParser String ParserState PreTerm,
-    specialOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm],
+--    specialOp :: [String],
     progOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) Prog],
     formulaOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm]
     }
 
 initialParserState :: ParserState
 initialParserState = ParserState {
-  specialParser = parserZero,
+--  specialParser = parserZero,
   progParser = buildExpressionParser [] progA, --progPre,
   formulaParser = buildExpressionParser initialFormulaOpTable atom,
-  specialOpTable =  IM.fromAscList (zip [0 ..] [[]]),
+--  specialOpTable =  IM.fromAscList (zip [0 ..] [[]]),
   progOpTable =  IM.fromAscList (zip [0 ..] [[]]),
   formulaOpTable =  IM.fromAscList (zip [0 ..] initialFormulaOpTable)
   }
@@ -83,7 +83,7 @@ gModule = do
 gDecl :: Parser Decl
 gDecl = gDataDecl <|> proofDecl <|> try progDecl
         <|> setDecl <|> formOperatorDecl <|> progOperatorDecl
-        <|> specialOperatorDecl
+
 
 formOperatorDecl :: Parser Decl
 formOperatorDecl = do
@@ -97,7 +97,7 @@ formOperatorDecl = do
   st <- getState
   let table' = IM.insertWith (++) level [toOp op r] $ formulaOpTable st
       form' = buildExpressionParser (map snd (IM.toAscList table')) atom
-  putState $ ParserState (specialParser st) (progParser st) form' (specialOpTable st) (progOpTable st) table'
+  putState $ ParserState (progParser st) form' (progOpTable st) table'
   return (FormOperatorDecl op level r)
   where toOp op "infix" =
           binOp AssocNone op (binApp op)
@@ -108,7 +108,7 @@ formOperatorDecl = do
         toOp op "pre" =
           preOp op (SApp (PVar op))
         toOp op "post" =
-          preOp op (SApp (PVar op))
+          postOp op (SApp (PVar op))
         -- Unreachable, since we guard with 'choice' above...
         toOp _ fx = error (fx ++ " is not a valid operator fixity.")
         binApp op x y = SApp (SApp (PVar op) x) y
@@ -125,7 +125,7 @@ progOperatorDecl = do
   st <- getState
   let table' = IM.insertWith (++) level [toOp op r] $ progOpTable st
       prog' = buildExpressionParser (map snd (IM.toAscList table')) progA
-  putState $ ParserState (specialParser st) prog' (formulaParser st) (specialOpTable st) table' (formulaOpTable st) 
+  putState $ ParserState prog' (formulaParser st) table' (formulaOpTable st) 
   return (ProgOperatorDecl op level r)
   where toOp op "infix" =
           binOp AssocNone op (binApp op)
@@ -136,39 +136,10 @@ progOperatorDecl = do
         toOp op "pre" =
           preOp op (Applica (Name op))
         toOp op "post" =
-          preOp op (Applica (Name op))
+          postOp op (Applica (Name op))
         -- Unreachable, since we guard with 'choice' above...
         toOp _ fx = error (fx ++ " is not a valid operator fixity.")
         binApp op x y = Applica (Applica (Name op) x) y
-
-specialOperatorDecl :: Parser Decl
-specialOperatorDecl = do
-  reserved "special"
-  r <- choice [reserved i >> return i
-               | i <- ["infix","infixr","infixl","pre","post"]
-               ]
-  level <- fromInteger <$> integer
-  op <- operator
-  -- update the table
-  st <- getState
-  let table' = IM.insertWith (++) level [toOp op r] $ specialOpTable st
-      special' = buildExpressionParser (map snd (IM.toAscList table')) progPre
-  putState $ ParserState special' (progParser st) (formulaParser st) table' (progOpTable st) (formulaOpTable st) 
-  return (SpecialOperatorDecl op level r)
-  where toOp op "infix" =
-          binOp AssocNone op (binApp op)
-        toOp op "infixr" =
-          binOp AssocRight op (binApp op)
-        toOp op "infixl" =
-          binOp AssocLeft op (binApp op)
-        toOp op "pre" =
-          preOp op (TApp (PVar op))
-        toOp op "post" =
-          preOp op (TApp (PVar op))
-        -- Unreachable, since we guard with 'choice' above...
-        toOp _ fx = error (fx ++ " is not a valid operator fixity.")
-        binApp op x y = TApp (TApp (PVar op) x) y
-
 
 gDataDecl :: Parser Decl
 gDataDecl = do
@@ -340,13 +311,8 @@ formula = do
 
 atom :: Parser PreTerm
 atom = forallClause <|> try inClause
-       <|> try appClause <|> parens formula <|>
-       try special 
-       
-special = do
-  st <- getState
-  specialParser st
-  
+       <|> try appClause <|> parens formula 
+
 forallClause = do
   reserved "forall"
   xs <- many1 $ try termVar <|> setVar
@@ -470,7 +436,7 @@ gottlobStyle = Token.LanguageDef
                     "special"
                   ]
                , Token.reservedOpNames =
-                    ["\\", "->", "|", ".","=", "::", ":"]
+                    ["\\", "->", "|", ".","=", "::", ":", "=="]
                 }
 
 tokenizer :: Token.GenTokenParser String u (State SourcePos)
