@@ -1,41 +1,37 @@
 module vector where
 
---special infix 4 ==
---special pre 5 !
--- special post 5 *
+special infixl 7 ==
 
--- (==) a b = forall C . a :: C -> b :: C
+(==) a b = forall C . a :: C -> b :: C
 
---A = (a b)
 Sym = a == b -> b == a
 
--- prog infix 7 ||
+A = A -> A
 
--- formula infix 7 ==
+prog infix 7 ||
 
--- O a = P a
+O a = P a
 
--- (==) a b = forall C . a :: C -> b:: C
--- (||) a b = case a of
---    tt -> tt
---    ff -> b
+(||) a b = case a of
+   tt -> tt
+   ff -> b
    
--- add n m = 
---   case (s n) of
---      z -> m n || b
---      s n'-> s (add n' m) c q
+add n m = 
+  case (s n) of
+     z -> m n || b
+     s n'-> s (add n' m) c q
 
--- formula infix 2 ^
+formula infix 2 ^
 
--- Eq a b = forall C . a :: C -> b ::C ^ e::C
+Eq a b = forall C . a :: C -> b ::C ^ e::C
 
--- (^) A B = A -> B 
+(^) A B = A -> B 
 
--- Vec U a = iota x . forall P . vnil :: P U z -> 
---   (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
+Vec U a = iota x . forall P . vnil :: P U z -> 
+  (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
 
   
-{-
+
 theorem ind. forall C. z :: C -> (forall y. y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
        [a1] : z :: C
@@ -51,22 +47,22 @@ proof
        b8 = discharge a1 b7 : z::C -> (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
        b9 = ug C b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
 qed
--}
+
 
 
           
--- data Nat where
---    z :: Nat 
---    s :: Nat -> Nat 
+data Nat where
+   z :: Nat 
+   s :: Nat -> Nat 
 
--- data Vec U a where
---      vnil :: Vec U z 
---      vcons ::  (n::Nat) -> U -> Vec U n -> Vec U (s n)
+data Vec U a where
+     vnil :: Vec U z 
+     vcons ::  (n::Nat) -> U -> Vec U n -> Vec U (s n)
 
 
--- data Ob A R where
---   ohead :: (A -> R) -> Ob A R -> Ob A R
---   otail :: Ob A R -> Ob A R
+data Ob A R where
+  ohead :: (A -> R) -> Ob A R -> Ob A R
+  otail :: Ob A R -> Ob A R
   
 
 {-
