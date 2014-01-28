@@ -77,13 +77,15 @@ gModule = do
   modName <- identifier
   reserved "where"
   bs <- many1 gDecl
+--  os <- many 
   eof
   return $ Module modName bs
 
 gDecl :: Parser Decl
-gDecl = gDataDecl <|> proofDecl <|> try progDecl
+gDecl =  gDataDecl <|> proofDecl <|> try progDecl
         <|> setDecl <|> formOperatorDecl <|> progOperatorDecl <|>
         specialOperatorDecl
+
 
 
 formOperatorDecl :: Parser Decl

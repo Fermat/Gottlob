@@ -16,37 +16,44 @@ import Control.Monad.Reader
 import Control.Monad.Error
 
 newtype Global a =
-  Global {runGlobal :: ReaderT Env (StateT PrfEnv (ErrorT String IO)) a }
+  Global {runGlobal :: StateT Env (StateT PrfEnv (ErrorT String IO)) a }
   deriving (Functor, Applicative, Monad,
-            MonadReader Env, MonadState PrfEnv, MonadError String, MonadIO)
+             MonadState Env, MonadError String, MonadIO)
 
 data Env = Env{
-               def::M.Map VName (EType, Meta),
+               progDef::M.Map VName PreTerm,
+               setDef::M.Map VName PreTerm,
                gamma::M.Map VName EType,
-               proofCxt::M.Map VName (ProofScripts, Meta)
+               proofCxt::M.Map VName (ProofScripts, PreTerm)
               }
 
 data PrfEnv = PrfEnv {
-               assumption::[(VName, Meta)],
-               localProof :: M.Map VName (Proof, Meta)
+               assumption::[(VName, PreTerm)],
+               localProof :: M.Map VName (Proof, PreTerm)
                }
 
 emptyEnv :: Env
-emptyEnv = Env {def = M.empty, gamma = M.empty,
+emptyEnv = Env {progDef = M.empty, setDef = M.empty, gamma = M.empty,
                 proofCxt=M.empty}
 
 emptyPrfEnv :: PrfEnv
 emptyPrfEnv = PrfEnv { assumption = [],
                 localProof=M.empty}
 
+extendProgDef :: VName -> PreTerm -> Env -> Env
+extendProgDef v t e@(Env {progDef}) = e{progDef = M.insert v t progDef}
+
 extendGamma :: VName -> EType -> Env -> Env
 extendGamma v t e@(Env {gamma}) = e{gamma = M.insert v t gamma}
 
-pushAssump :: VName -> Meta -> PrfEnv -> PrfEnv
+extendSetDef :: VName -> PreTerm -> Env -> Env
+extendSetDef v t e@(Env {setDef}) = e{setDef = M.insert v t setDef}
+
+pushAssump :: VName -> PreTerm -> PrfEnv -> PrfEnv
 pushAssump v f e@(PrfEnv {assumption}) = e{assumption = (v,f):assumption}
 
 popAssump :: PrfEnv -> PrfEnv
 popAssump e@(PrfEnv {assumption}) = e{assumption = tail assumption}
 
-extendLocalProof :: VName -> Proof -> Meta -> PrfEnv -> PrfEnv
+extendLocalProof :: VName -> Proof -> PreTerm -> PrfEnv -> PrfEnv
 extendLocalProof v p f e@(PrfEnv {localProof}) = e{localProof = M.insert v (p,f) localProof}

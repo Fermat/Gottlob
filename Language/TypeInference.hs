@@ -1,4 +1,4 @@
-module TypeInference where
+module Language.TypeInference where
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Language.Syntax
@@ -7,11 +7,12 @@ import Control.Monad.State.Lazy
 import Control.Monad.Identity
 import Control.Monad.Reader
 import Data.Char
+
 type Constraints = [(EType, EType)]
 
-type InfCxt a =  StateT Int (StateT [(VName, EType)] IO) a
+type InfCxt a = StateT Int (StateT [(VName, EType)] Identity) a
 
-infer :: PreMeta -> InfCxt (EType, Constraints)
+infer :: PreTerm -> InfCxt (EType, Constraints)
 infer (PVar x) = do
   m <- lift get
   case lookup x m of
@@ -24,24 +25,24 @@ infer (PVar x) = do
         return (EVar $ "X"++ show n, [])
       else return (Ind, [])
 
-infer (PIn p1 p2) = do
+infer (In p1 p2) = do
   (a2, c2) <- infer p2
   return (Form, (a2, To Ind Form):c2) 
   
-infer (PSApp p1 p2) = do
+infer (SApp p1 p2) = do
   (a1, c1) <- infer p1 
   (a2, c2) <- infer p2 
   n <- get
   modify (+1)
   return (EVar $ "X"++ show n, (a1, To a2 (EVar $ "X"++ show n)):(c1 ++ c2)) 
 
-infer (PMApp p1 p2) = do
+infer (TApp p1 p2) = do
   (a1, c1) <- infer p1 
   n <- get
   modify (+1)
   return (EVar $ "X"++ show n, (a1, To Ind (EVar $ "X"++ show n)):c1) 
 
-infer (PIota x t) = 
+infer (Iota x t) = 
   if (isUpper $ head x) then do
     n <- get
     modify (+1)
@@ -52,7 +53,7 @@ infer (PIota x t) =
     (a, c) <- infer t
     return (To Ind a,c)
 
-infer (PForall x t) = 
+infer (Forall x t) = 
   if (isUpper $ head x) then do
     n <- get
     modify (+1)
@@ -63,18 +64,18 @@ infer (PForall x t) =
     (a, c) <- infer t
     return (Form,(a, Form):c)
 
-infer (PImply p1 p2) = do
+infer (Imply p1 p2) = do
   (a1, c1) <- infer p1 
   (a2, c2) <- infer p2 
   return (Form, (a2, Form):(a1, Form):(c1 ++ c2)) 
 
-test1 = do
- s <- runStateT (runStateT (infer $ PMApp (PSApp (PVar "Vec") (PVar "U")) (PVar "n")) 0) []
- putStrLn $ show s
+-- test1 = do
+--  s <- runStateT (runStateT (infer $ PMApp (PSApp (PVar "Vec") (PVar "U")) (PVar "n")) 0) []
+--  putStrLn $ show s
 
-test2 = do
- s <- runStateT (runStateT (infer $ PSApp (PVar "Vec") (PMApp (PVar "U") (PVar "n"))) 0) []
- putStrLn $ show s
+-- test2 = do
+--  s <- runStateT (runStateT (infer $ PSApp (PVar "Vec") (PMApp (PVar "U") (PVar "n"))) 0) []
+--  putStrLn $ show s
 
 -- single step solving, the order matters!
 step :: Constraints -> Constraints
@@ -114,6 +115,12 @@ solve l n | n == length l = l
                in solve l1 (n+1)
              else solve l0 0
 
+isSolvable :: Constraints -> Int -> Bool
+isSolvable ((EVar x, t):l) n | n /= length l +1 = if x `S.member` (S.union (lVars l) (vars t))
+                                                 then False
+                                              else isSolvable (l++[(EVar x, t)]) (n+1)
+                             | n == length l +1 = True
+isSolvable _ _ = False
 -- example by Prof. Stump's 
 test3 = solve
         [(To (To (EVar "Y") (EVar "Z")) (EVar "W"),To (EVar "X") (EVar "X")),(EVar "W",To (EVar "A") (EVar "A"))] 0
