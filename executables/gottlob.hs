@@ -2,7 +2,8 @@ module Main where
 import Language.Parser
 import Language.Syntax
 -- import Language.ProofChecking
--- import Language.Monad
+import Language.Monad
+import Language.Preprocess
 import Control.Monad.Error hiding (join)
 import Text.PrettyPrint(render)
 import System.Console.CmdArgs
@@ -23,7 +24,12 @@ main = do
       case parseModule filename cnts of
              Left e -> putStrLn $ show e
              Right a -> do putStrLn $ "Parsing success! \n"
-                           putStrLn $ show a
+                           putStrLn $ "Preprocessing.. \n"
+                           b <- checkDefs a
+                           case b of
+                             Left e1 -> putStrLn $ show e1
+                             Right env ->
+                               putStrLn $ show env
                            -- unknow <- runErrorT (runFreshMT (runStateT (typechecker a) (Data.Map.empty,Data.Map.empty)))
                            -- case unknow of
                            --   Left e -> do

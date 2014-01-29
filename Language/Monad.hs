@@ -25,6 +25,7 @@ data Env = Env{
                setDef::M.Map VName (PreTerm, EType),
                proofCxt::M.Map VName (ProofScripts, PreTerm)
               }
+         deriving Show
 
 data PrfEnv = PrfEnv {
                assumption::[(VName, PreTerm)],
