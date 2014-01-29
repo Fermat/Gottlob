@@ -124,7 +124,18 @@ isSolvable ((EVar x, t):l) n | n /= length l +1 = if x `S.member` (S.union (lVar
                                               else isSolvable (l++[(EVar x, t)]) (n+1)
                              | n == length l +1 = True
 isSolvable _ _ = False
--- example by Prof. Stump's 
+-- example by Prof. Stump's
+multiSub :: Constraints -> EType -> EType
+multiSub c (EVar x) =
+  let c1 = map (\ ((EVar y), t) -> (y, t)) c
+  in
+   case lookup x c1 of
+     Nothing -> EVar x
+     Just b -> b
+multiSub c Form = Form
+multiSub c Ind = Ind
+multiSub c (To a b) = To (multiSub c a) (multiSub c b)
+
 test3 = solve
         [(To (To (EVar "Y") (EVar "Z")) (EVar "W"),To (EVar "X") (EVar "X")),(EVar "W",To (EVar "A") (EVar "A"))] 0
 

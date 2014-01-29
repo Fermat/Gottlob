@@ -33,11 +33,23 @@ process ((DataDecl d):l) = do
       def = snd s
       res = solve c 0 in
     if isSolvable res 0 then do
-  --  st <- get
-      let s1 = extendSetDef (fst sd) (snd sd) t state
+      let s1 = extendSetDef (fst sd) (snd sd) (multiSub res t) state
           s3 = foldl' (\ z x -> extendProgDef (fst x) (snd x) z) s1 progs in
         put s3
     else throwError ("Illformed/Unsolvable set def for data type "++ show res ++
                     ":defs:" ++ show def ++ ":set: " ++ show sd)
   process l
 
+process ((SetDecl x set):l) = do
+  state <- get
+  let s = runIdentity $ runStateT (runStateT (infer set) 0) (map (\ x -> (fst x, (snd . snd) x)) (M.toList $ setDef state))
+      (t,c) = (fst. fst) s
+      def = snd s
+      res = solve c 0 in
+    if isSolvable res 0 then do
+      let s1 = extendSetDef x set (multiSub res t) state
+        in
+        put s1
+    else throwError ("Illformed/Unsolvable set def for data type "++ show res ++
+                    ":defs:" ++ show def ++ ":set: ")
+  process l
