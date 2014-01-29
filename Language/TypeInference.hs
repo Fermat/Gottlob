@@ -69,9 +69,12 @@ infer (Imply p1 p2) = do
   (a2, c2) <- infer p2 
   return (Form, (a2, Form):(a1, Form):(c1 ++ c2)) 
 
--- test1 = do
---  s <- runStateT (runStateT (infer $ PMApp (PSApp (PVar "Vec") (PVar "U")) (PVar "n")) 0) []
---  putStrLn $ show s
+test1 = 
+  let s = runIdentity $ runStateT (runStateT (infer $ TApp (SApp (PVar "Vec") (PVar "U")) (PVar "n")) 0) []
+      (t,c) = (fst . fst) s
+      def = snd s in
+  putStrLn $ show def
+
 
 -- test2 = do
 --  s <- runStateT (runStateT (infer $ PSApp (PVar "Vec") (PMApp (PVar "U") (PVar "n"))) 0) []
