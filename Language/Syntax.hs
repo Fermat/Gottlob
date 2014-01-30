@@ -99,17 +99,34 @@ data Decl = ProgDecl VName Prog
           | FormOperatorDecl String Int String
           | ProgOperatorDecl String Int String
           | SpecialOperatorDecl String Int String
-
           deriving Show
 
-{-
-fv :: Meta -> S.Set VName
-fv (MVar x _) = S.insert x S.empty
-fv (Imply f1 f2) = fv f1 `S.union` fv f2
-fv (Forall x _ f) = S.delete x (fv f)
-fv (In t s) = fv t `S.union` (fv s)
-fv (Iota x _ s) = S.delete x (fv s)
 
+fv :: PreTerm -> S.Set VName
+fv (PVar x) = S.insert x S.empty
+fv (Imply f1 f2) = fv f1 `S.union` fv f2
+fv (Forall x f) = S.delete x (fv f)
+fv (In t s) = fv t `S.union` (fv s)
+fv (Iota x s) = S.delete x (fv s)
+fv (Lambda x s) = S.delete x (fv s)
+fv (App f1 f2) = fv f1 `S.union` fv f2
+fv (SApp f1 f2) = fv f1 `S.union` fv f2
+fv (TApp f1 f2) = fv f1 `S.union` fv f2
+
+-- get the free set variables
+fVar :: PreTerm -> S.Set VName
+fVar (PVar x) = S.insert x S.empty
+fVar (Imply f1 f2) = fVar f1 `S.union` fVar f2
+fVar (Forall x f) = S.delete x (fVar f)
+fVar (In t s) = fVar s
+fVar (Iota x s) = S.delete x (fVar s)
+fVar (Lambda x s) = S.empty
+fVar (App f1 f2) = S.empty
+fVar (SApp f1 f2) = fVar f1 `S.union` fVar f2
+fVar (TApp f1 f2) = fVar f1 
+
+
+{-
 type GVar a = State Int a
 
 type BindCxt a = Reader [(VName, Int)] a

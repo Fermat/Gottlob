@@ -24,6 +24,7 @@ main = do
       case parseModule filename cnts of
              Left e -> putStrLn $ show e
              Right a -> do putStrLn $ "Parsing success! \n"
+                           putStrLn $ show a
                            putStrLn $ "Preprocessing.. \n"
                            b <- checkDefs a
                            case b of
