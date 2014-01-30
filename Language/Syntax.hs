@@ -125,7 +125,6 @@ fVar (App f1 f2) = S.empty
 fVar (SApp f1 f2) = fVar f1 `S.union` fVar f2
 fVar (TApp f1 f2) = fVar f1 
 
-
 {-
 type GVar a = State Int a
 

@@ -171,36 +171,34 @@ checkProof [] = do
 isFree :: VName -> [(VName, Meta)] -> Bool
 isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
 
-comp :: Meta -> Global Meta
-comp (Forall x t f) = do
+-- formula comprehension
+comp :: PreTerm -> Global PreTerm
+comp (Forall x f) = do
    f1 <- comp f
-   return $ Forall x t f1
+   return $ Forall x f1
 
 comp (Imply f1 f) = do
   a <- comp f1
   b <- comp f
   return $ Imply a b
 
-comp (In m1 (Iota x t m)) = do
-  a <- compEType (In m1 (Iota x t m))
-  case a of
-    Ind -> return $ In m1 (Iota x t m)
-    _ -> return $ fst (runState (subst m1 (MVar x t) m) 0)
+comp (In m1 (Iota x m)) = 
+  return $ fst (runState (subst m1 (PVar x) m) 0)
 
-comp (In m1 (MVar x t)) = do
-  e <- ask
-  let a = M.lookup x (def e)
+comp (In m1 (PVar x)) = do
+  e <- get
+  let a = M.lookup x (setDef e)
   case a of
-    Nothing -> return $ In m1 (MVar x t)
-    Just (et, t) -> return $ In m1 t
+    Nothing -> return $ In m1 (PVar x)
+    Just (s, t) -> return $ In m1 s
   
 comp (In m1 (In m2 m3)) = do
   a <- comp (In m2 m3)
   return $ In m1 a
 
-comp (Iota x t m) = do
+comp (Iota x m) = do
   a <- comp m
-  return $ Iota x t a
+  return $ Iota x a
   
 repeatComp :: Meta -> Global Meta
 repeatComp m = do

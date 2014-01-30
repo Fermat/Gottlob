@@ -43,7 +43,7 @@ emptyPrfEnv = PrfEnv { assumption = [],
 
 newPrfEnv :: [(VName, EType)] -> PrfEnv
 newPrfEnv e = PrfEnv { assumption = [],
-                localProof=M.empty, localEType=e}
+                localProof=M.empty, localEType=M.fromList e}
                   
 extendProgDef :: VName -> PreTerm -> Env -> Env
 extendProgDef v t e@(Env {progDef}) = e{progDef = M.insert v t progDef}

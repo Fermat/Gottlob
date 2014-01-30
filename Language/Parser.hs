@@ -370,7 +370,7 @@ proofDecl = do
   reservedOp "."
   f <- formula
   reserved "proof"
-  ps <- block $ assumption <|> proofDef
+  ps <- block $ assumption <|> proofDef 
   reserved "qed"
   return $ ProofDecl n ps f
 
@@ -391,8 +391,21 @@ proofDef = do
   return (b, p, f)
 
 proof :: Parser Proof
-proof = var <|> cmp <|> invcmp <|> mp <|> inst <|>
-        ug <|> beta <|> invbeta <|> discharge <|> parens proof
+proof = var <|> cmp <|> mp <|> inst <|>
+        ug <|> beta <|> discharge <|> parens proof
+        <|>invcmp <|> invbeta
+-- invcmp and invbeta are abrieviation
+invcmp = do
+  reserved "invcmp"
+  p <- proof
+  f <- lookAhead $ reservedOp ":" >> formula
+  return $ InvCmp p f
+
+invbeta = do
+  reserved "invbeta"
+  p <- proof
+  f <- lookAhead $ reservedOp ":" >> formula
+  return $ InvBeta p f
 
 var = do
   v <- termVar
@@ -403,10 +416,6 @@ cmp = do
   p <- proof
   return $ Cmp p
 
-invcmp = do
-  reserved "invcmp"
-  p <- proof
-  return $ InvCmp p
 
 mp = do
   reserved "mp"
@@ -437,10 +446,6 @@ beta = do
   p <- proof
   return $ Beta p
 
-invbeta = do
-  reserved "invbeta"
-  p <- proof
-  return $ InvBeta p
 
 -------------------------------
 
