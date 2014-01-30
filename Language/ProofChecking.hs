@@ -1,52 +1,37 @@
 module Language.ProofChecking where
 import Language.Syntax
 import Language.Monad
+import Language.TypeInference
 import Language.Eval
 import Control.Monad.State.Lazy
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Control.Monad.Reader
 import Control.Monad.Error
-compEType :: Meta -> Global EType
-compEType (MVar x t) = do
-  e <- ask
-  case M.lookup x (gamma e) of
-    Nothing -> return t
-    Just a -> if a == t then return a
-              else throwError ("type mismatch at " ++ show x)
 
-compEType (Iota x Ind m) = do
-  a <- local (extendGamma x Ind) (compEType m)
-  if a == Ind then return Ind
-    else return $ To Ind a
+proofCheck :: ProofScripts -> [(VName, EType)] -> Global ()
+proofCheck [] = return ()
+proofCheck ((n, p, f):l) = do
+  
+  
 
-compEType (Iota x t m) = do
-  a <- local (extendGamma x t) (compEType m)
-  if a == Ind then throwError ("unexpect type Ind from"++ show m)
-    else return $ To t a
+wellFormed :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
+wellFormed f = do
+  state <- get
+  let s = runIdentity $ runStateT (runStateT (infer $ f) 0) (map (\ x -> (fst x, (snd . snd) x)) (M.toList $ setDef state))
+      (t,c) = (fst. fst) s
+      def = snd s
+      res = solve c 0 in
+      if isSolvable res 0 then
+        return ((multiSub res t), res, def)
+      else throwError $ "Unsolvable formula or set definition for " ++ show f
 
-compEType (Forall x t m) = local (extendGamma x t) (compEType m)
-
-compEType (Imply m1 m2) = do
-  a1 <- compEType m1
-  a2 <- compEType m2
-  if a1 == a2 then return a1
-    else throwError ("EType mismatch at " ++ (show m1) ++ "and " ++ (show m2))
-
-compEType (In m1 m2) = do
-  a1 <- compEType m1
-  a2 <- compEType m2
-  case (a1, a2) of
-    (Ind, Ind) -> return Ind
-    (a3, To a c) ->
-      if a == a3 then return c
-      else throwError ("EType mismatch at " ++ (show m1) ++ "and " ++ (show m2))
-
-ensureForm :: Meta -> Global ()
+ensureForm :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
 ensureForm m = do
-  a <- compEType m
+  (a, b, c) <- wellFormed m
   unless (a == Form) $ throwError $ (show m) ++ " is not a well-formed formula"
-
+  return (a,b,c)
+  
 ensureTerm :: Meta -> Global ()
 ensureTerm m = do
   a <- compEType m

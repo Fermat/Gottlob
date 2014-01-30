@@ -119,9 +119,10 @@ solve l n | n == length l = l
              else solve l0 0
 
 isSolvable :: Constraints -> Int -> Bool
-isSolvable ((EVar x, t):l) n | n /= length l +1 = if x `S.member` (S.union (lVars l) (vars t))
-                                                 then False
-                                              else isSolvable (l++[(EVar x, t)]) (n+1)
+ -- for a relax notion of solvable, use:  x `S.member` (S.union (lVars l) (vars t))
+isSolvable ((EVar x, t):l) n | n /= length l +1 = if S.null $ vars t 
+                                                  then isSolvable (l++[(EVar x, t)]) (n+1)
+                                                  else False
                              | n == length l +1 = True
 isSolvable _ _ = False
 -- example by Prof. Stump's

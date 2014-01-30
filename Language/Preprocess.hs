@@ -1,5 +1,6 @@
 module Language.Preprocess where
 import Language.TypeInference
+import Language.ProofChecking
 import Language.Syntax
 import Language.Program
 import Language.Monad
@@ -32,34 +33,27 @@ process ((DataDecl d):l) =
       sd = toSet d in
   do
     wellDefined $ snd sd
-      -- get constraints and type from type inference, providing the current set-etype info
+    (t, res, _) <- wellFormed $ snd sd
     state <- get
-    let s = runIdentity $ runStateT (runStateT (infer $ snd sd) 0) (map (\ x -> (fst x, (snd . snd) x)) (M.toList $ setDef state))
-        (t,c) = (fst. fst) s
-        def = snd s
-        res = solve c 0 in
-      if isSolvable res 0 then do
-        let s1 = extendSetDef (fst sd) (snd sd) (multiSub res t) state
-            s3 = foldl' (\ z x -> extendProgDef (fst x) (snd x) z) s1 progs in
-          put s3
-      else throwError ("Illformed/Unsolvable set def for data type "++ show res ++
-                    ":defs:" ++ show def ++ ":set: " ++ show sd)
+    let s1 = extendSetDef (fst sd) (snd sd) t state
+        s3 = foldl' (\ z x -> extendProgDef (fst x) (snd x) z) s1 progs in
+      put s3
     process l
 
 process ((SetDecl x set):l) = do
+  when (isTerm $ set) $ throwError ("Improper set definition for " ++ show x)  
   wellDefined set
+  (t, res, _) <- wellFormed set
   state <- get
-  let s = runIdentity $ runStateT (runStateT (infer set) 0) (map (\ x -> (fst x, (snd . snd) x)) (M.toList $ setDef state))
-      (t,c) = (fst. fst) s
-      def = snd s
-      res = solve c 0 in
-    if isSolvable res 0 then do
-      let s1 = extendSetDef x set (multiSub res t) state
-        in
-        put s1
-    else throwError ("Illformed/Unsolvable set def for data type "++ show res ++
-                    ":defs:" ++ show def ++ ":set: ")
+  put $ extendSetDef x set t state
   process l
+
+process ((ProofDecl n ps f):l) = do
+  wellDefined f
+  (t, c, d) <- ensureForm f
+  lift $ put $ newPrfEnv d -- default type def for the proofs.
+  proofCheck ps 
+
 
 wellDefined :: PreTerm -> Global ()
 wellDefined t = do
