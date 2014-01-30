@@ -55,16 +55,3 @@ process ((ProofDecl n ps f):l) = do
   proofCheck ps 
 
 
-wellDefined :: PreTerm -> Global ()
-wellDefined t = do
-  env <- get
-  let l = S.toList $ fVar t 
-      rs = map (\ x -> helper x env) l
-      fs = [c | c <- rs, fst c == False]
-      ffs = map (\ x -> snd x) fs in
-    if null ffs then return ()
-    else throwError $ "undefine set variables: " ++ (show $ unwords ffs)
-  where helper x env =
-          case M.lookup x (setDef env) of
-            Just a -> (True, x)
-            _ -> (False, x)

@@ -61,9 +61,9 @@ data Proof = Assume VName
            | Inst Proof PreTerm 
            | UG VName Proof 
            | Cmp Proof 
-           | InvCmp Proof 
+           | InvCmp Proof PreTerm
            | Beta Proof 
-           | InvBeta Proof 
+           | InvBeta Proof PreTerm 
            | Discharge VName Proof 
            deriving (Show)
 

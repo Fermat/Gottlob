@@ -11,9 +11,30 @@ import Control.Monad.Error
 
 proofCheck :: ProofScripts -> [(VName, EType)] -> Global ()
 proofCheck [] = return ()
+proofCheck ((n, (Assume x), f):l) = do
+  wellDefined f
+  insertAssumption x f
+  proofCheck l
+
 proofCheck ((n, p, f):l) = do
+  f0 <- checkFormula p
+  ensureEq f0 f
+  wellFormed f 
+  proofCheck l
   
-  
+wellDefined :: PreTerm -> Global ()
+wellDefined t = do
+  env <- get
+  let l = S.toList $ fVar t 
+      rs = map (\ x -> helper x env) l
+      fs = [c | c <- rs, fst c == False]
+      ffs = map (\ x -> snd x) fs in
+    if null ffs then return ()
+    else throwError $ "undefine set variables: " ++ (show $ unwords ffs)
+  where helper x env =
+          case M.lookup x (setDef env) of
+            Just a -> (True, x)
+            _ -> (False, x)
 
 wellFormed :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
 wellFormed f = do
@@ -32,125 +53,105 @@ ensureForm m = do
   unless (a == Form) $ throwError $ (show m) ++ " is not a well-formed formula"
   return (a,b,c)
   
-ensureTerm :: Meta -> Global ()
+ensureTerm :: PreTerm -> Global ()
 ensureTerm m = do
-  a <- compEType m
-  unless (a == Ind) $ throwError $ (show m) ++ " is not a lambda term"
+  unless (isTerm m) $ throwError $ (show m) ++ " is not a lambda term"
 
 ensureEq :: (Eq a, Show a) => a -> a -> Global ()
 ensureEq m1 m2 = 
   unless (m1 == m2) $ throwError $ "In compatible meta term " ++ show m1 ++ "and " ++ show m2
 
-checkFormula :: Proof -> Global Meta
+checkFormula :: Proof -> Global PreTerm
 checkFormula (PrVar v)  = do
-  e <- ask
+  e <- get
   case M.lookup v (proofCxt e) of
     Just a -> return $ snd a
     Nothing -> do 
-      s <- get
+      s <- lift get
       case lookup v (assumption s) of
         Just a1 ->
           return a1
-        _ -> 
-          throwError $ "Can't find variable" ++ v
+        _ ->
+          case lookup v (localProof s) of
+            Just a2 -> return $ snd a2
+            _ -> 
+              throwError $ "Can't find variable" ++ v
 
-checkFormula (Assume x m) = do
-  ensureForm m
-  e <- get
-  put $ pushAssump x m e
-  return m
-
-checkFormula (MP p1 p2 m) = do
+checkFormula (MP p1 p2) = do
  f1 <- checkFormula p1 
- ensureForm f1
+-- ensureForm f1
  f2 <- checkFormula p2
- ensureForm f2
+-- ensureForm f2
  case f1 of
    Imply a1 a2 -> do
      if a1 == f2 then do
-       ensureEq a2 m
+       ensureForm a2
        return a2
        else throwError "Modus Ponens Matching Error."
    _ -> throwError "Wrong use of Mondus Ponens"
 
-
-checkFormula (Discharge x p m) = do
-  e <- get
-  if fst (head (assumption e)) == x then do
-    f <- checkFormula p
-    put $ popAssump e
-    let f2 = snd (head (assumption e)) in
-      do
-        ensureForm (Imply f2 f)
-        ensureEq (Imply f2 f) m
-        return $ (Imply f2 f)
+checkFormula (Discharge x p) = do
+  e <- lift get
+  let h = head (assumption e) in
+    if fst h == x then do
+      f <- checkFormula p
+      ensureForm (Imply (snd h) f)
+      put $ popAssump e
+      return $ (Imply (snd h) f)
     else throwError "Wrong use of implication introduction"
 
-checkFormula (Inst p m form) = do
+checkFormula (Inst p m) = do
   f <- checkFormula p
-  ensureForm f
-  t <- compEType m
   case f of
-    Forall x t1 f1 ->
-      if t == t1 then 
-        let a = fst (runState (subst m (MVar x t1) f1) 0)
+    Forall x f1 ->
+      let a = fst (runState (subst m (PVar x) f1) 0)
         in
          do
            ensureForm a
-           ensureEq a form
            return a
-      else throwError $ "Type mismatch for "++(show m)
+--      else throwError $ "Type mismatch for "++(show m)
     _ -> throwError "Wrong use of Instantiation"
 
-checkFormula (UG x t p m) = do
-  e <- get
+checkFormula (UG x p)  = do
+  e <- lift get
   if isFree x (assumption e)
     then throwError "Wrong use of universal generalization"
     else do
     f <- checkFormula p
-    ensureForm (Forall x t f)
-    ensureEq (Forall x t f) m
-    return $ (Forall x t f)
+    ensureForm (Forall x f)
+    return $ (Forall x f)
 
-checkFormula (Cmp p1 m) = do
+checkFormula (Cmp p1) = do
   f1 <- checkFormula p1
-  ensureForm f1
   a <- repeatComp f1
   ensureForm a
-  ensureEq a m
   return a
 
 checkFormula (InvCmp p1 m1) = do
   f1 <- checkFormula p1
-  ensureForm f1
   a <- repeatComp m1
-  ensureForm a
   ensureEq a f1
   return m1
 
-checkFormula (Beta p1 form) = do
+checkFormula (Beta p1) = do
   f1 <- checkFormula p1
-  ensureForm f1
   case f1 of
     In t m -> do
       ensureTerm t
       t1 <- reduce t
-      ensureForm $ In t1 m
-      ensureEq (In t1 m) form
       return $ In t1 m
     _ -> throwError "This form of extensionality is not supported"
 
 checkFormula (InvBeta p1 form) = do
   f1 <- checkFormula p1
-  ensureForm f1
   case form of
     In t m -> do
       ensureTerm t
       t1 <- reduce t
-      ensureForm $ In t1 m
       ensureEq (In t1 m) f1
       return $ In t1 m
     _ -> throwError "This form of extensionality is not supported"
+
 
 checkProof :: ProofScripts -> Global String
 checkProof ((n,p,f):xs) = do

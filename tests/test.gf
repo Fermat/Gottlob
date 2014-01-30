@@ -46,8 +46,9 @@ proof
        b9 = ug C b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
 qed
 
-
-
+a3 : F0
+a4 = invcmp a3 : F1 -- F1 --> F0
+invcmp (invcmp a3) : F2 -- F2 --> F1
           
 data Nat where
    z :: Nat 
