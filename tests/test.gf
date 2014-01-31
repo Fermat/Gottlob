@@ -1,34 +1,24 @@
 module vector where
 
-special infixl 7 ==
+-- prog infix 7 ||
 
-(==) a b = forall C . a :: C -> b :: C
+-- (||) a b = case a of
+--    tt -> tt
+--    ff -> b
 
-Sym = a == b -> b == a
-
-A = A -> A
-
-prog infix 7 ||
-
-O a = P a
-
-(||) a b = case a of
-   tt -> tt
-   ff -> b
+data Nat where
+   z :: Nat 
+   s :: Nat -> Nat 
    
-add n m = 
-  case (s n) of
-     z -> m n || b
-     s n'-> s (add n' m) c q
+-- add n m = 
+--   case (s n) of
+--      z -> m n || b
+--      s n'-> s (add n' m) c q
 
-formula infix 2 ^
 
-Eq a b = forall C . a :: C -> b ::C ^ e::C
+-- Vec U a = iota x . forall P . vnil :: P U z -> 
+--   (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
 
-(^) A B = A -> B 
-
-Vec U a = iota x . forall P . vnil :: P U z -> 
-  (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
 
 theorem ind. forall C. z :: C -> (forall y. y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
@@ -36,32 +26,27 @@ proof
        [a2] : forall y . y :: C -> s y :: C
        [a3] : m :: Nat
        b1 = cmp a3 : forall C . z :: C -> (forall y . y :: C -> s y :: C) -> m :: C
-       b2 = inst b1 C : z :: C -> (forall y . y :: C -> s y :: C) -> m :: C
-       b3 = mp b2 a1 : (forall y. y :: C -> s y :: C) -> m :: C
-       b4 = mp b3 a2 : m :: C
-       b5 = discharge a3 b4 : m :: Nat -> m :: C
-       b6 = ug m b5 : forall m. m :: Nat -> m :: C
-       b7 = discharge a2 b6 : (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
-       b8 = discharge a1 b7 : z::C -> (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
-       b9 = ug C b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
+--       b2 = inst b1 C : z :: C -> (forall y . y :: C -> s y :: C) -> m :: C
+       -- b3 = mp b2 a1 : (forall y. y :: C -> s y :: C) -> m :: C
+       -- b4 = mp b3 a2 : m :: C
+       -- b5 = discharge a3 b4 : m :: Nat -> m :: C
+       -- b6 = ug m b5 : forall m. m :: Nat -> m :: C
+       -- b7 = discharge a2 b6 : (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
+       -- b8 = discharge a1 b7 : z::C -> (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
+       -- b9 = ug C b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
 qed
 
-a3 : F0
-a4 = invcmp a3 :  F1   -- F1 --> F0
-invcmp (invcmp a3) F2 : F2 -- F2 --> F1
+-- a4 = invcmp a3 :  F1   -- F1 --> F0
+-- invcmp (invcmp a3:F1) F2 : F2 -- F2 --> F1
           
-data Nat where
-   z :: Nat 
-   s :: Nat -> Nat 
-
-data Vec U a where
-     vnil :: Vec U z 
-     vcons ::  (n::Nat) -> U -> Vec U n -> Vec U (s n)
+-- data Vec U a where
+--      vnil :: Vec U z 
+--      vcons ::  (n::Nat) -> U -> Vec U n -> Vec U (s n)
 
 
-data Ob A R where
-  ohead :: (A -> R) -> Ob A R -> Ob A R
-  otail :: Ob A R -> Ob A R
+-- data Ob A R where
+--   ohead :: (A -> R) -> Ob A R -> Ob A R
+--   otail :: Ob A R -> Ob A R
   
 
 {-

@@ -32,6 +32,8 @@ data PrfEnv = PrfEnv {
                localProof :: M.Map VName (Proof, PreTerm),
                localEType :: M.Map VName EType
                }
+            deriving Show
+
 
 emptyEnv :: Env
 emptyEnv = Env {progDef = M.empty, setDef = M.empty,

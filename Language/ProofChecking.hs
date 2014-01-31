@@ -14,13 +14,15 @@ proofCheck :: ProofScripts -> Global ()
 
 proofCheck ((n, (Assume x), f):l) = do
   wellDefined f
+  wellFormed f
   insertAssumption x f
   proofCheck l
 
 proofCheck ((n, p, f):l) = do
   f0 <- checkFormula p
   ensureEq f0 f
-  wellFormed f 
+  wellFormed f
+  
   proofCheck l
 
 proofCheck [] = return ()
@@ -34,27 +36,37 @@ insertAssumption x f = do
 wellDefined :: PreTerm -> Global ()
 wellDefined t = do
   env <- get
+  e <- lift get
   let l = S.toList $ fVar t 
-      rs = map (\ x -> helper x env) l
+      rs = map (\ x -> helper x env e) l
       fs = [c | c <- rs, fst c == False]
       ffs = map (\ x -> snd x) fs in
     if null ffs then return ()
     else throwError $ "undefine set variables: " ++ (show $ unwords ffs)
-  where helper x env =
+  where helper x env e =
           case M.lookup x (setDef env) of
             Just a -> (True, x)
-            _ -> (False, x)
+            _ -> 
+              case M.lookup x (localEType e) of
+                Just b -> (True, x)
+                _ -> (False, x)
 
 wellFormed :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
 wellFormed f = do
   state <- get
-  let s = runIdentity $ runStateT (runStateT (infer $ f) 0) (map (\ x -> (fst x, (snd . snd) x)) (M.toList $ setDef state))
+  st <- lift get
+  let s = runIdentity $ runStateT (runStateT (infer $ f) 0) ((map (\ x -> (fst x, (snd . snd) x)) (M.toList $ setDef state))++(M.toList $ localEType st))
       (t,c) = (fst. fst) s
       def = snd s
       res = solve c 0 in
       if isSolvable res 0 then
-        return ((multiSub res t), res, def)
-      else throwError $ "Unsolvable formula or set definition for " ++ show f
+        return ((multiSub res t), res, (subDef res def)) 
+      else throwError $ "Unsolvable formula or set definition for " ++ show f ++ show res
+
+subDef :: Constraints -> [(VName, EType)] -> [(VName, EType)]
+subDef res ((x,t):l) = (x, multiSub res t):(subDef res l)
+subDef res [] = []
+  
 
 ensureForm :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
 ensureForm m = do

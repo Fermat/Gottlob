@@ -11,12 +11,12 @@ import Control.Monad.Error
 import qualified Data.Map as M
 import qualified Data.Set as S
 -- process parsing data 
-checkDefs :: Module -> IO (Either String Env)
+checkDefs :: Module -> IO (Either String (Env, PrfEnv))
 checkDefs (Module mod l) = do
  a <- runErrorT $ runStateT (runStateT (process l) emptyEnv) emptyPrfEnv
  case a of
    Left e -> return $ Left e
-   Right b -> return $ Right ((snd.fst) b)
+   Right b -> return $ Right ((snd.fst) b, snd b)
    
 process :: [Decl] -> Global ()
 process [] = return ()
@@ -52,6 +52,7 @@ process ((ProofDecl n ps f):l) = do
   wellDefined f
   (t, c, d) <- ensureForm f
   lift $ put $ newPrfEnv d -- default type def for the proofs.
-  proofCheck ps 
+  proofCheck ps
+  process l
 
 
