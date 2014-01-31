@@ -13,7 +13,6 @@ import Control.Monad.Identity
 proofCheck :: ProofScripts -> Global ()
 
 proofCheck ((n, (Assume x), f):l) = do
-
   wellDefined f
   wellFormed f
   insertAssumption x f
@@ -23,8 +22,9 @@ proofCheck ((n, (Assume x), f):l) = do
 proofCheck ((n, p, f):l) = do
   emit $ "begin to check proof " ++ show p
   f0 <- checkFormula p
---  ensureEq f0 f
---  wellFormed f
+  ensureEq f0 f
+  wellFormed f
+  insertPrVar n p f
   emit $ "checked non-assump"
   proofCheck l
 
@@ -35,7 +35,13 @@ insertAssumption x f = do
   env <- lift get
   lift $ put $ pushAssump x f env
   return ()
-  
+
+insertPrVar :: VName -> Proof -> PreTerm -> Global ()
+insertPrVar x p f = do
+  env <- lift get
+  lift $ put $ extendLocalProof x p f env
+  return ()
+
 wellDefined :: PreTerm -> Global ()
 wellDefined t = do
   env <- get
@@ -201,80 +207,88 @@ isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
 
 -- formula comprehension
 -- severe bug found, need to fix
-comp :: PreTerm -> Global PreTerm
-comp (Forall x f) = do
-   f1 <- comp f
+comp :: PreTerm -> S.Set VName  -> Global PreTerm
+comp (Forall x f) s = do
+   f1 <- comp f s
    return $ Forall x f1
 
-comp (Imply f1 f) = do
-  a <- comp f1
-  b <- comp f
+comp (Imply f1 f) s = do
+  a <- comp f1 s
+  b <- comp f s
   return $ Imply a b
 
-comp (In m1 (Iota x m)) = 
+comp (In m1 (Iota x m)) s = 
   return $ fst (runState (subst m1 (PVar x) m) 0)
 
-comp (In m1 (PVar x)) = do
-  e <- get
-  let a = M.lookup x (setDef e)
-  case a of
-    Nothing -> return $ In m1 (PVar x)
-    Just (s, t) -> return $ In m1 s
+comp (In m1 (PVar x)) s = 
+  if x `S.member` s then 
+    do
+      e <- get
+      let a = M.lookup x (setDef e)
+      case a of
+        Nothing -> throwError "Impossible situation in comp."
+        Just (s, t) -> return $ In m1 s
+  else return $ In m1 (PVar x)
 
-comp (SApp (Iota x m) m1) = 
+comp (SApp (Iota x m) m1) s = 
   return $ fst (runState (subst m1 (PVar x) m) 0)
 
-comp (SApp (PVar x) m1) = do
-  e <- get
-  let a = M.lookup x (setDef e)
-  case a of
-    Nothing -> return $ SApp (PVar x) m1
-    Just (s, t) -> return $ SApp s m1
-
-comp (TApp (Iota x m) m1) = 
+comp (SApp (PVar x) m1) s =
+  if x `S.member` s then 
+    do
+      e <- get
+      let a = M.lookup x (setDef e)
+      case a of
+        Nothing -> throwError "Impossible situation in comp."
+        Just (s, t) -> return $ SApp s m1
+  else return $ SApp (PVar x) m1
+       
+comp (TApp (Iota x m) m1) s = 
   return $ fst (runState (subst m1 (PVar x) m) 0)
 
-comp (TApp (PVar x) m1) = do
-  e <- get
-  let a = M.lookup x (setDef e)
-  case a of
-    Nothing -> return $ TApp (PVar x) m1
-    Just (s, t) -> return $ TApp s m1
-
+comp (TApp (PVar x) m1) s =
+  if x `S.member` s then 
+    do
+      e <- get
+      let a = M.lookup x (setDef e)
+      case a of
+        Nothing -> throwError "Impossible situation in comp."
+        Just (s, t) -> return $ TApp s m1
+  else return $ TApp (PVar x) m1
 -- t :: (a :: C ) 
-comp (SApp (SApp m3 m2) m1) = do
-  a <- comp (SApp m3 m2)
+comp (SApp (SApp m3 m2) m1) s = do
+  a <- comp (SApp m3 m2) s
   return $ SApp a m1
 
-comp (TApp (SApp m3 m2) m1) = do
-  a <- comp (SApp m3 m2)
+comp (TApp (SApp m3 m2) m1) s = do
+  a <- comp (SApp m3 m2) s
   return $ TApp a m1
 
-comp (SApp (TApp m3 m2) m1) = do
-  a <- comp (TApp m3 m2)
+comp (SApp (TApp m3 m2) m1) s = do
+  a <- comp (TApp m3 m2) s
   return $ SApp a m1
 
-comp (TApp (TApp m3 m2) m1) = do
-  a <- comp (TApp m3 m2)
+comp (TApp (TApp m3 m2) m1) s = do
+  a <- comp (TApp m3 m2) s
   return $ TApp a m1
 
-comp (Iota x m) = do
-  a <- comp m
+comp (Iota x m) s = do
+  a <- comp m s
   return $ Iota x a
   
 repeatComp :: PreTerm -> Global PreTerm
 repeatComp m = do
-  n <- comp m
-  emit $ "single comp, get " ++ show n
-  n1 <- comp n
-  emit $ "1next comp, get " ++ show n1
-  n2 <- comp n1
-  emit $ "2next comp, get " ++ show n2
-  n3 <- comp n2
-  emit $ "3next comp, get " ++ show n3
-  if n3 == n2 then return n
-    else do
-    throwError "So n2 and n3 are not eq. Stop now"
+  n <- comp m (fv m)
+--  emit $ "single comp, get " ++ show n
+  n1 <- comp n (fv n)
+  -- emit $ "1next comp, get " ++ show n1
+  -- n2 <- comp n1
+  -- emit $ "2next comp, get " ++ show n2
+  -- n3 <- comp n2
+  -- emit $ "3next comp, get " ++ show n3
+  if n == n1 then return n
+    else 
+  --  throwError "So n2 and n3 are not eq. Stop now"
     repeatComp n1
 
 tr = In (PVar "m") (Iota "x" (Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (In (PVar "s") (Iota "f" (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "f") (PVar "x")) (PVar "Nat")))))) (In (PVar "x") (PVar "Nat"))))))

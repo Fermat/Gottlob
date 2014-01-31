@@ -56,6 +56,10 @@ process ((ProofDecl n ps f):l) = do
   (t, c, d) <- ensureForm f
   lift $ put $ newPrfEnv d -- default type def for the proofs.
   proofCheck ps
+  let (_,_, f0)= last ps
+  ensureEq f0 f
+  
+-- don't forget to set the prf env to empty  
   process l
 
 

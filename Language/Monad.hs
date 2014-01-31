@@ -14,7 +14,7 @@ import qualified Data.Map as M
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.Error
-
+-- PrfEnv should be a reader?
 type Global a = StateT Env (StateT PrfEnv (ErrorT String IO)) a
   -- Global {runGlobal ::  }
   -- deriving (Functor, Applicative, Monad,

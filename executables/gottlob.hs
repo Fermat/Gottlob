@@ -29,7 +29,8 @@ main = do
                            b <- checkDefs a
                            case b of
                              Left e1 -> putStrLn $ show e1
-                             Right (env, e) ->
+                             Right (env, e) -> do
+                               putStrLn "ProofChecking success!"
                                putStrLn $ show env ++ ":prf:"++ show e
                            -- unknow <- runErrorT (runFreshMT (runStateT (typechecker a) (Data.Map.empty,Data.Map.empty)))
                            -- case unknow of
