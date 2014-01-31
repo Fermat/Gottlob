@@ -15,10 +15,10 @@ import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.Error
 
-newtype Global a =
-  Global {runGlobal :: StateT Env (StateT PrfEnv (ErrorT String IO)) a }
-  deriving (Functor, Applicative, Monad,
-             MonadState Env, MonadError String, MonadIO)
+type Global a = StateT Env (StateT PrfEnv (ErrorT String IO)) a
+  -- Global {runGlobal ::  }
+  -- deriving (Functor, Applicative, Monad,
+  --            MonadState Env, MonadError String, MonadIO)
 
 data Env = Env{
                progDef::M.Map VName PreTerm,

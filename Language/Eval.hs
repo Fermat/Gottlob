@@ -4,6 +4,7 @@ import Language.Monad
 import Control.Monad.State.Lazy
 import qualified Data.Map as M
 import Control.Monad.Reader
+import Control.Monad.Error
 
 step :: PreTerm -> Global PreTerm
 step (App (Lambda x t1) t2 ) = 
@@ -22,6 +23,7 @@ step (PVar x) = do
   case M.lookup x (progDef e) of
     Nothing -> return $ PVar x
     Just t -> return t
+
 step _ = throwError "Wrong use of eval/reduction."
 reduce :: PreTerm -> Global PreTerm
 reduce t = do

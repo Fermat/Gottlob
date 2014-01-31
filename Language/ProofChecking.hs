@@ -8,9 +8,10 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Control.Monad.Reader
 import Control.Monad.Error
+import Control.Monad.Identity
 
-proofCheck :: ProofScripts -> [(VName, EType)] -> Global ()
-proofCheck [] = return ()
+proofCheck :: ProofScripts -> Global ()
+
 proofCheck ((n, (Assume x), f):l) = do
   wellDefined f
   insertAssumption x f
@@ -21,6 +22,14 @@ proofCheck ((n, p, f):l) = do
   ensureEq f0 f
   wellFormed f 
   proofCheck l
+
+proofCheck [] = return ()
+
+insertAssumption :: VName -> PreTerm -> Global ()
+insertAssumption x f = do
+  env <- lift get
+  lift $ put $ pushAssump x f env
+  return ()
   
 wellDefined :: PreTerm -> Global ()
 wellDefined t = do
@@ -59,7 +68,7 @@ ensureTerm m = do
 
 ensureEq :: (Eq a, Show a) => a -> a -> Global ()
 ensureEq m1 m2 = 
-  unless (m1 == m2) $ throwError $ "In compatible meta term " ++ show m1 ++ "and " ++ show m2
+  unless (m1 == m2) $ throwError $ "In compatible preterm " ++ show m1 ++ "and " ++ show m2
 
 checkFormula :: Proof -> Global PreTerm
 checkFormula (PrVar v)  = do
@@ -72,7 +81,7 @@ checkFormula (PrVar v)  = do
         Just a1 ->
           return a1
         _ ->
-          case lookup v (localProof s) of
+          case M.lookup v (localProof s) of
             Just a2 -> return $ snd a2
             _ -> 
               throwError $ "Can't find variable" ++ v
@@ -96,7 +105,7 @@ checkFormula (Discharge x p) = do
     if fst h == x then do
       f <- checkFormula p
       ensureForm (Imply (snd h) f)
-      put $ popAssump e
+      lift $ put $ popAssump e
       return $ (Imply (snd h) f)
     else throwError "Wrong use of implication introduction"
 
@@ -153,22 +162,22 @@ checkFormula (InvBeta p1 form) = do
     _ -> throwError "This form of extensionality is not supported"
 
 
-checkProof :: ProofScripts -> Global String
-checkProof ((n,p,f):xs) = do
- a <- checkFormula p
- e <- get
- case p of
-   Assume _ _ -> checkProof xs
-   _ -> do
-     put $ extendLocalProof n p f e
-     checkProof xs
+-- checkProof :: ProofScripts -> Global String
+-- checkProof ((n,p,f):xs) = do
+--  a <- checkFormula p
+--  e <- get
+--  case p of
+--    Assume _ _ -> checkProof xs
+--    _ -> do
+--      put $ extendLocalProof n p f e
+--      checkProof xs
 
-checkProof [] = do
-  put $ emptyPrfEnv
-  return $ "Passed proof check."
+-- checkProof [] = do
+--   put $ emptyPrfEnv
+--   return $ "Passed proof check."
 
 
-isFree :: VName -> [(VName, Meta)] -> Bool
+isFree :: VName -> [(VName, PreTerm)] -> Bool
 isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
 
 -- formula comprehension
@@ -191,40 +200,73 @@ comp (In m1 (PVar x)) = do
   case a of
     Nothing -> return $ In m1 (PVar x)
     Just (s, t) -> return $ In m1 s
-  
-comp (In m1 (In m2 m3)) = do
-  a <- comp (In m2 m3)
-  return $ In m1 a
+
+comp (SApp (Iota x m) m1) = 
+  return $ fst (runState (subst m1 (PVar x) m) 0)
+
+comp (SApp (PVar x) m1) = do
+  e <- get
+  let a = M.lookup x (setDef e)
+  case a of
+    Nothing -> return $ SApp (PVar x) m1
+    Just (s, t) -> return $ SApp s m1
+
+comp (TApp (Iota x m) m1) = 
+  return $ fst (runState (subst m1 (PVar x) m) 0)
+
+comp (TApp (PVar x) m1) = do
+  e <- get
+  let a = M.lookup x (setDef e)
+  case a of
+    Nothing -> return $ TApp (PVar x) m1
+    Just (s, t) -> return $ TApp s m1
+
+-- t :: (a :: C ) 
+comp (SApp (SApp m3 m2) m1) = do
+  a <- comp (SApp m3 m2)
+  return $ SApp a m1
+
+comp (TApp (SApp m3 m2) m1) = do
+  a <- comp (SApp m3 m2)
+  return $ TApp a m1
+
+comp (SApp (TApp m3 m2) m1) = do
+  a <- comp (TApp m3 m2)
+  return $ SApp a m1
+
+comp (TApp (TApp m3 m2) m1) = do
+  a <- comp (TApp m3 m2)
+  return $ TApp a m1
 
 comp (Iota x m) = do
   a <- comp m
   return $ Iota x a
   
-repeatComp :: Meta -> Global Meta
+repeatComp :: PreTerm -> Global PreTerm
 repeatComp m = do
   n <- comp m
   n1 <- comp n
   if n1 == n then return n
     else repeatComp n1
 
-tr = (In (MVar "x" Ind) (In (MVar "y" Ind) (Iota "y" Ind (Iota "z2" Ind (In (MVar "y" Ind) (In (MVar "z2" Ind) (MVar "q" (To Ind (To Ind Form)))))))))
+-- tr = (In (PVar "x") (In (PVar "y" ) (Iota "y"  (Iota "z2"  (In (PVar "y" Ind) (In (PVar "z2") (PVar "q" )))))))
 
-compTest :: IO ()
-compTest = do
-  b <- runErrorT $ runStateT (runReaderT (runGlobal (ensureForm tr )) emptyEnv) emptyPrfEnv
-  case b of
-    Left e -> putStrLn e
-    Right a -> do
-      c <- runErrorT $ runStateT (runReaderT (runGlobal (repeatComp tr )) emptyEnv) emptyPrfEnv 
-      case c of
-        Left e -> putStrLn e
-        Right a -> putStrLn $ show $ fst a
+-- compTest :: IO ()
+-- compTest = do
+--   b <- runErrorT $ runStateT (runReaderT (runGlobal (ensureForm tr )) emptyEnv) emptyPrfEnv
+--   case b of
+--     Left e -> putStrLn e
+--     Right a -> do
+--       c <- runErrorT $ runStateT (runReaderT (runGlobal (repeatComp tr )) emptyEnv) emptyPrfEnv 
+--       case c of
+--         Left e -> putStrLn e
+--         Right a -> putStrLn $ show $ fst a
 
-tr1 = In (MVar "n" Ind) (In (MVar "U" (To Ind Form)) (MVar "Vec" (To (To Ind Form) (To Ind (To Ind Form)))))
-compTest1 :: IO ()
-compTest1 = do
-  b <- runErrorT $ runStateT (runReaderT (runGlobal (compEType tr1 )) emptyEnv) emptyPrfEnv
-  case b of
-    Left e -> putStrLn e
-    Right a ->
-      putStrLn $ show $ fst a
+--tr1 = In (MVar "n" Ind) (In (MVar "U" (To Ind Form)) (MVar "Vec" (To (To Ind Form) (To Ind (To Ind Form)))))
+-- compTest1 :: IO ()
+-- compTest1 = do
+--   b <- runErrorT $ runStateT (runReaderT (runGlobal (compEType tr1 )) emptyEnv) emptyPrfEnv
+--   case b of
+--     Left e -> putStrLn e
+--     Right a ->
+--       putStrLn $ show $ fst a

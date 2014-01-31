@@ -13,7 +13,7 @@ import qualified Data.Set as S
 -- process parsing data 
 checkDefs :: Module -> IO (Either String Env)
 checkDefs (Module mod l) = do
- a <- runErrorT $ runStateT (runStateT (runGlobal (process l)) emptyEnv) emptyPrfEnv
+ a <- runErrorT $ runStateT (runStateT (process l) emptyEnv) emptyPrfEnv
  case a of
    Left e -> return $ Left e
    Right b -> return $ Right ((snd.fst) b)
