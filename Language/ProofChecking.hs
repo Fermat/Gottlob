@@ -13,16 +13,19 @@ import Control.Monad.Identity
 proofCheck :: ProofScripts -> Global ()
 
 proofCheck ((n, (Assume x), f):l) = do
+
   wellDefined f
   wellFormed f
   insertAssumption x f
+  emit $ "checked assumption"
   proofCheck l
 
 proofCheck ((n, p, f):l) = do
+  emit $ "begin to check proof " ++ show p
   f0 <- checkFormula p
-  ensureEq f0 f
-  wellFormed f
-  
+--  ensureEq f0 f
+--  wellFormed f
+  emit $ "checked non-assump"
   proofCheck l
 
 proofCheck [] = return ()
@@ -84,13 +87,15 @@ ensureEq m1 m2 =
 
 checkFormula :: Proof -> Global PreTerm
 checkFormula (PrVar v)  = do
+  emit $ "entering var case"
   e <- get
   case M.lookup v (proofCxt e) of
     Just a -> return $ snd a
     Nothing -> do 
       s <- lift get
       case lookup v (assumption s) of
-        Just a1 ->
+        Just a1 -> do
+          emit $ "var found in assumption" ++ show a1
           return a1
         _ ->
           case M.lookup v (localProof s) of
@@ -144,8 +149,10 @@ checkFormula (UG x p)  = do
 
 checkFormula (Cmp p1) = do
   f1 <- checkFormula p1
+  emit $ "going in with formula" ++ show f1
   a <- repeatComp f1
-  ensureForm a
+  emit $ "done with comprehension"
+--  ensureForm a
   return a
 
 checkFormula (InvCmp p1 m1) = do
@@ -193,6 +200,7 @@ isFree :: VName -> [(VName, PreTerm)] -> Bool
 isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
 
 -- formula comprehension
+-- severe bug found, need to fix
 comp :: PreTerm -> Global PreTerm
 comp (Forall x f) = do
    f1 <- comp f
@@ -257,22 +265,30 @@ comp (Iota x m) = do
 repeatComp :: PreTerm -> Global PreTerm
 repeatComp m = do
   n <- comp m
+  emit $ "single comp, get " ++ show n
   n1 <- comp n
-  if n1 == n then return n
-    else repeatComp n1
+  emit $ "1next comp, get " ++ show n1
+  n2 <- comp n1
+  emit $ "2next comp, get " ++ show n2
+  n3 <- comp n2
+  emit $ "3next comp, get " ++ show n3
+  if n3 == n2 then return n
+    else do
+    throwError "So n2 and n3 are not eq. Stop now"
+    repeatComp n1
 
--- tr = (In (PVar "x") (In (PVar "y" ) (Iota "y"  (Iota "z2"  (In (PVar "y" Ind) (In (PVar "z2") (PVar "q" )))))))
+tr = In (PVar "m") (Iota "x" (Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (In (PVar "s") (Iota "f" (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "f") (PVar "x")) (PVar "Nat")))))) (In (PVar "x") (PVar "Nat"))))))
 
--- compTest :: IO ()
--- compTest = do
---   b <- runErrorT $ runStateT (runReaderT (runGlobal (ensureForm tr )) emptyEnv) emptyPrfEnv
---   case b of
---     Left e -> putStrLn e
---     Right a -> do
---       c <- runErrorT $ runStateT (runReaderT (runGlobal (repeatComp tr )) emptyEnv) emptyPrfEnv 
---       case c of
---         Left e -> putStrLn e
---         Right a -> putStrLn $ show $ fst a
+tr1 = Forall "C" (Imply (In (PVar "z") (PVar "C")) (Imply (Forall "y" (Imply (In (PVar "y") (PVar "C")) (In (App (PVar "s") (PVar "y")) (PVar "C")))) (In (PVar "m") (PVar "C"))))
+
+tr2 = Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "s") (PVar "x")) (PVar "Nat")))) (In (PVar "m") (PVar "Nat"))))
+
+compTest :: IO ()
+compTest = do
+  c <- runErrorT $ runStateT (runStateT (repeatComp tr) emptyEnv) emptyPrfEnv 
+  case c of
+    Left e -> putStrLn e
+    Right a -> putStrLn $ show $ fst a
 
 --tr1 = In (MVar "n" Ind) (In (MVar "U" (To Ind Form)) (MVar "Vec" (To (To Ind Form) (To Ind (To Ind Form)))))
 -- compTest1 :: IO ()

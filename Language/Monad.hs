@@ -34,6 +34,8 @@ data PrfEnv = PrfEnv {
                }
             deriving Show
 
+emit :: (Show a, MonadIO m) => a -> m ()
+emit m = liftIO $ print m
 
 emptyEnv :: Env
 emptyEnv = Env {progDef = M.empty, setDef = M.empty,
