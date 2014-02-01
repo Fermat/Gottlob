@@ -25,6 +25,7 @@ proof
        [a1] : z :: C
        [a2] : forall y . y :: C -> s y :: C
        [a3] : m :: Nat
+--       a4 = invcmp a3 F : F
        b1 = cmp a3 : forall C . z :: C -> (forall y . y :: C -> s y :: C) -> m :: C
        b2 = inst b1 C : z :: C -> (forall y . y :: C -> s y :: C) -> m :: C
        b3 = mp b2 a1 : (forall y. y :: C -> s y :: C) -> m :: C

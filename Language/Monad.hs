@@ -52,6 +52,9 @@ newPrfEnv e = PrfEnv { assumption = [],
 extendProgDef :: VName -> PreTerm -> Env -> Env
 extendProgDef v t e@(Env {progDef}) = e{progDef = M.insert v t progDef}
 
+extendProofCxt :: VName -> ProofScripts -> PreTerm -> Env -> Env
+extendProofCxt v ps f e@(Env {proofCxt}) = e{proofCxt = M.insert v (ps,f) proofCxt}
+
 extendSetDef :: VName -> PreTerm -> EType -> Env -> Env
 extendSetDef v t t1 e@(Env {setDef}) = e{setDef = M.insert v (t, t1) setDef}
 

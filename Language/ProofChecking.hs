@@ -227,7 +227,7 @@ comp (In m1 (PVar x)) s =
       let a = M.lookup x (setDef e)
       case a of
         Nothing -> throwError "Impossible situation in comp."
-        Just (s, t) -> return $ In m1 s
+        Just (s1, t) -> return $ In m1 s1
   else return $ In m1 (PVar x)
 
 comp (SApp (Iota x m) m1) s = 
@@ -240,7 +240,7 @@ comp (SApp (PVar x) m1) s =
       let a = M.lookup x (setDef e)
       case a of
         Nothing -> throwError "Impossible situation in comp."
-        Just (s, t) -> return $ SApp s m1
+        Just (s1, t) -> return $ SApp s1 m1
   else return $ SApp (PVar x) m1
        
 comp (TApp (Iota x m) m1) s = 
@@ -253,7 +253,7 @@ comp (TApp (PVar x) m1) s =
       let a = M.lookup x (setDef e)
       case a of
         Nothing -> throwError "Impossible situation in comp."
-        Just (s, t) -> return $ TApp s m1
+        Just (s1, t) -> return $ TApp s1 m1
   else return $ TApp (PVar x) m1
 -- t :: (a :: C ) 
 comp (SApp (SApp m3 m2) m1) s = do
@@ -275,7 +275,18 @@ comp (TApp (TApp m3 m2) m1) s = do
 comp (Iota x m) s = do
   a <- comp m s
   return $ Iota x a
-  
+
+comp (PVar x) s = 
+  if x `S.member` s then 
+    do
+      e <- get
+      let a = M.lookup x (setDef e)
+      case a of
+        Nothing -> return $ PVar x
+        Just (s1, t) -> return $ s1
+  else return $ PVar x
+
+
 repeatComp :: PreTerm -> Global PreTerm
 repeatComp m = do
   n <- comp m (fv m)

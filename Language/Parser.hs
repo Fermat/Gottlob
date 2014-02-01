@@ -398,13 +398,13 @@ proof = var <|> cmp <|> mp <|> inst <|>
 invcmp = do
   reserved "invcmp"
   p <- proof
-  f <- lookAhead $ reservedOp ":" >> formula
+  f <- try (lookAhead $ reservedOp ":" >> formula) <|> formula
   return $ InvCmp p f
 
 invbeta = do
   reserved "invbeta"
   p <- proof
-  f <- lookAhead $ reservedOp ":" >> formula
+  f <- try (lookAhead $ reservedOp ":" >> formula) <|> formula
   return $ InvBeta p f
 
 var = do

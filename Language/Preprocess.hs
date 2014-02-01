@@ -58,8 +58,18 @@ process ((ProofDecl n ps f):l) = do
   proofCheck ps
   let (_,_, f0)= last ps
   ensureEq f0 f
-  
--- don't forget to set the prf env to empty  
+  updateProofCxt n ps f
+  emptyLocalProof
   process l
 
+emptyLocalProof :: Global()
+emptyLocalProof = do
+  lift $ put emptyPrfEnv
+  return ()
+  
+updateProofCxt :: VName -> ProofScripts -> PreTerm -> Global()
+updateProofCxt n ps f = do
+  env <- get
+  put $ extendProofCxt n ps f env
+  return ()
 
