@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances  #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Language.PrettyPrint where
 import Language.Syntax
 import Text.PrettyPrint

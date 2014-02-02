@@ -1,4 +1,3 @@
-
 module Language.Syntax where
 import qualified Data.Set as S
 import Control.Monad.Reader

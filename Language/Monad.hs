@@ -1,26 +1,21 @@
-{-# LANGUAGE DeriveDataTypeable         #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE NamedFieldPuns             #-}
-{-# LANGUAGE PackageImports             #-}
-{-# LANGUAGE ParallelListComp           #-}
-{-# LANGUAGE TypeSynonymInstances       #-}
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE NamedFieldPuns, DeriveDataTypeable  #-}
 module Language.Monad where
 import Language.Syntax
 import Language.PrettyPrint
 import Text.PrettyPrint
+import Data.Typeable
 import Control.Monad.State
 import Control.Monad.Error
 import qualified Data.Map as M
 import Control.Applicative hiding (empty)
 import Control.Monad.Reader
 import Control.Monad.Error
--- PrfEnv should be a reader?
-type Global a = StateT Env (StateT PrfEnv (ErrorT String IO)) a
-  -- Global {runGlobal ::  }
-  -- deriving (Functor, Applicative, Monad,
-  --            MonadState Env, MonadError String, MonadIO)
+import Text.Parsec.Pos
+import Control.Exception(Exception)
+
+type Global a =StateT Env (StateT PrfEnv (ErrorT TypeError IO)) a
+                 -- deriving (Functor, Applicative, Monad,
+                 --           MonadState Env, MonadError TypeError, MonadIO)
 
 data Env = Env{
                progDef::M.Map VName PreTerm,
@@ -88,3 +83,42 @@ instance Disp PrfEnv where
                                            [disp n <+> text"="<+> disp p <+> text ":" <+> disp f | (n,(p,f)) <- M.toList $ localProof env]) $$
              hang (text "Local EType Assigments") 2 (vcat
                 [ disp n <+> text ":" <+> disp t | (n,t) <- M.toList $ localEType env])
+----------------
+-- error handling, came from Garrin's code
+
+data TypeError = ErrMsg [ErrInfo]
+               deriving (Show, Typeable)
+
+data ErrInfo = ErrInfo Doc -- A Summary
+               [(Doc,Doc)] -- A list of details
+             | ErrLocPre SourcePos PreTerm
+             | ErrLocProg SourcePos Prog
+             | ErrLocProof SourcePos Proof
+             deriving (Show, Typeable)
+
+instance Error TypeError where
+  strMsg s = ErrMsg [ErrInfo (text s) []]
+  noMsg = strMsg "<unknown>"
+
+
+instance Exception TypeError
+
+instance Disp TypeError where
+  disp (ErrMsg rinfo) =
+       hang (pos positions) 2 (summary $$ nest 2 detailed $$  vcat terms)
+    where info = reverse rinfo
+          positions = [el | el@(ErrLoc _ _) <- info]
+          messages = [ei | ei@(ErrInfo _ _) <- info]
+          details = concat [ds | ErrInfo _ ds <- info]
+
+          pos ((ErrLoc sp _):_) = disp sp
+          pos _ = text "unknown" <> colon
+          summary = vcat [s | ErrInfo s _ <- messages]
+          detailed = vcat [(int i <> colon <+> brackets label) <+> d |
+                           (label,d) <- details | i <- [1..]]
+          terms = [hang (text "In the term") 2 (disp t) | ErrLoc _ t <- take 4 positions]
+
+
+addErrorPos ::  SourcePos -> Expr -> TypeError -> TCMonad a
+addErrorPos p t (ErrMsg ps) = throwError (ErrMsg (ErrLoc p t:ps))
+
