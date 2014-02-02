@@ -32,7 +32,9 @@ main = do
                              Left e1 -> putStrLn $ show e1
                              Right (env, e) -> do
                                putStrLn "ProofChecking success!"
-                               putStrLn $ show env ++ ":prf:"++ show e
+                               print $ disp env
+-- look at local variable                              print $ disp e
+
                            -- unknow <- runErrorT (runFreshMT (runStateT (typechecker a) (Data.Map.empty,Data.Map.empty)))
                            -- case unknow of
                            --   Left e -> do

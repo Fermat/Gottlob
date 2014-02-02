@@ -8,6 +8,8 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Language.Monad where
 import Language.Syntax
+import Language.PrettyPrint
+import Text.PrettyPrint
 import Control.Monad.State
 import Control.Monad.Error
 import qualified Data.Map as M
@@ -69,3 +71,20 @@ extendLocalProof v p f e@(PrfEnv {localProof}) = e{localProof = M.insert v (p,f)
 
 extendLocalEType :: VName -> EType -> PrfEnv -> PrfEnv
 extendLocalEType v p e@(PrfEnv {localEType}) = e{localEType = M.insert v p localEType}
+--------------
+
+instance Disp Env where
+  disp env = hang (text "Program Definitions") 2 (vcat
+                [disp n <+> text "=" <+> disp t | (n, t) <- M.toList $ progDef env])  $$
+             hang (text "Set/Formula Definitions") 2 (vcat
+                                                      [disp n <+> text":"<+> disp t <+> text "=" <+> disp f | (n,(f,t)) <- M.toList $ setDef env]) $$
+             hang (text "Proofs Context") 2 (vcat
+                [ disp (ProofDecl n ps f) | (n,(ps,f)) <- M.toList $ proofCxt env])
+
+instance Disp PrfEnv where
+  disp env = hang (text "Current Local Assumptions") 2 (vcat
+                [parens (disp n) <+> text ":" <+> disp t | (n, t) <- assumption env])  $$
+             hang (text "Local Proofs") 2 (vcat
+                                           [disp n <+> text"="<+> disp p <+> text ":" <+> disp f | (n,(p,f)) <- M.toList $ localProof env]) $$
+             hang (text "Local EType Assigments") 2 (vcat
+                [ disp n <+> text ":" <+> disp t | (n,t) <- M.toList $ localEType env])
