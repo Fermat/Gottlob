@@ -15,7 +15,7 @@ data Nat where
 --      z -> m n || b
 --      s n'-> s (add n' m) c q
 
-
+-- add :: Nat -> Nat
 -- Vec U a = iota x . forall P . vnil :: P U z -> 
 --   (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
 
