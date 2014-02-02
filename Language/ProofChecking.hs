@@ -1,246 +1,325 @@
 module Language.ProofChecking where
 import Language.Syntax
 import Language.Monad
+import Language.TypeInference
 import Language.Eval
 import Control.Monad.State.Lazy
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Control.Monad.Reader
 import Control.Monad.Error
-compEType :: Meta -> Global EType
-compEType (MVar x t) = do
-  e <- ask
-  case M.lookup x (gamma e) of
-    Nothing -> return t
-    Just a -> if a == t then return a
-              else throwError ("type mismatch at " ++ show x)
+import Control.Monad.Identity
 
-compEType (Iota x Ind m) = do
-  a <- local (extendGamma x Ind) (compEType m)
-  if a == Ind then return Ind
-    else return $ To Ind a
+proofCheck :: ProofScripts -> Global ()
 
-compEType (Iota x t m) = do
-  a <- local (extendGamma x t) (compEType m)
-  if a == Ind then throwError ("unexpect type Ind from"++ show m)
-    else return $ To t a
+proofCheck ((n, (Assume x), f):l) = do
+  wellDefined f
+  wellFormed f
+  insertAssumption x f
+  emit $ "checked assumption"
+  proofCheck l
 
-compEType (Forall x t m) = local (extendGamma x t) (compEType m)
+proofCheck ((n, p, f):l) = do
+  emit $ "begin to check proof " ++ show p
+  f0 <- checkFormula p
+  ensureEq f0 f
+  wellFormed f
+  insertPrVar n p f
+  emit $ "checked non-assump"
+  proofCheck l
 
-compEType (Imply m1 m2) = do
-  a1 <- compEType m1
-  a2 <- compEType m2
-  if a1 == a2 then return a1
-    else throwError ("EType mismatch at " ++ (show m1) ++ "and " ++ (show m2))
+proofCheck [] = return ()
 
-compEType (In m1 m2) = do
-  a1 <- compEType m1
-  a2 <- compEType m2
-  case (a1, a2) of
-    (Ind, Ind) -> return Ind
-    (a3, To a c) ->
-      if a == a3 then return c
-      else throwError ("EType mismatch at " ++ (show m1) ++ "and " ++ (show m2))
+insertAssumption :: VName -> PreTerm -> Global ()
+insertAssumption x f = do
+  env <- lift get
+  lift $ put $ pushAssump x f env
+  return ()
 
-ensureForm :: Meta -> Global ()
+insertPrVar :: VName -> Proof -> PreTerm -> Global ()
+insertPrVar x p f = do
+  env <- lift get
+  lift $ put $ extendLocalProof x p f env
+  return ()
+
+wellDefined :: PreTerm -> Global ()
+wellDefined t = do
+  env <- get
+  e <- lift get
+  let l = S.toList $ fVar t 
+      rs = map (\ x -> helper x env e) l
+      fs = [c | c <- rs, fst c == False]
+      ffs = map (\ x -> snd x) fs in
+    if null ffs then return ()
+    else throwError $ "undefine set variables: " ++ (show $ unwords ffs)
+  where helper x env e =
+          case M.lookup x (setDef env) of
+            Just a -> (True, x)
+            _ -> 
+              case M.lookup x (localEType e) of
+                Just b -> (True, x)
+                _ -> (False, x)
+
+wellFormed :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
+wellFormed f = do
+  state <- get
+  st <- lift get
+  let s = runIdentity $ runStateT (runStateT (infer $ f) 0) ((map (\ x -> (fst x, (snd . snd) x)) (M.toList $ setDef state))++(M.toList $ localEType st))
+      (t,c) = (fst. fst) s
+      def = snd s
+      res = solve c 0 in
+      if isSolvable res 0 then
+        return ((multiSub res t), res, (subDef res def)) 
+      else throwError $ "Unsolvable formula or set definition for " ++ show f ++ show res
+
+subDef :: Constraints -> [(VName, EType)] -> [(VName, EType)]
+subDef res ((x,t):l) = (x, multiSub res t):(subDef res l)
+subDef res [] = []
+  
+
+ensureForm :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
 ensureForm m = do
-  a <- compEType m
+  (a, b, c) <- wellFormed m
   unless (a == Form) $ throwError $ (show m) ++ " is not a well-formed formula"
-
-ensureTerm :: Meta -> Global ()
+  return (a,b,c)
+  
+ensureTerm :: PreTerm -> Global ()
 ensureTerm m = do
-  a <- compEType m
-  unless (a == Ind) $ throwError $ (show m) ++ " is not a lambda term"
+  unless (isTerm m) $ throwError $ (show m) ++ " is not a lambda term"
 
 ensureEq :: (Eq a, Show a) => a -> a -> Global ()
 ensureEq m1 m2 = 
-  unless (m1 == m2) $ throwError $ "In compatible meta term " ++ show m1 ++ "and " ++ show m2
+  unless (m1 == m2) $ throwError $ "In compatible preterm " ++ show m1 ++ "and " ++ show m2
 
-checkFormula :: Proof -> Global Meta
+checkFormula :: Proof -> Global PreTerm
 checkFormula (PrVar v)  = do
-  e <- ask
+  emit $ "entering var case"
+  e <- get
   case M.lookup v (proofCxt e) of
     Just a -> return $ snd a
     Nothing -> do 
-      s <- get
+      s <- lift get
       case lookup v (assumption s) of
-        Just a1 ->
+        Just a1 -> do
+          emit $ "var found in assumption" ++ show a1
           return a1
-        _ -> 
-          throwError $ "Can't find variable" ++ v
+        _ ->
+          case M.lookup v (localProof s) of
+            Just a2 -> return $ snd a2
+            _ -> 
+              throwError $ "Can't find variable" ++ v
 
-checkFormula (Assume x m) = do
-  ensureForm m
-  e <- get
-  put $ pushAssump x m e
-  return m
-
-checkFormula (MP p1 p2 m) = do
+checkFormula (MP p1 p2) = do
  f1 <- checkFormula p1 
- ensureForm f1
+-- ensureForm f1
  f2 <- checkFormula p2
- ensureForm f2
+-- ensureForm f2
  case f1 of
    Imply a1 a2 -> do
      if a1 == f2 then do
-       ensureEq a2 m
+       ensureForm a2
        return a2
        else throwError "Modus Ponens Matching Error."
    _ -> throwError "Wrong use of Mondus Ponens"
 
-
-checkFormula (Discharge x p m) = do
-  e <- get
-  if fst (head (assumption e)) == x then do
-    f <- checkFormula p
-    put $ popAssump e
-    let f2 = snd (head (assumption e)) in
-      do
-        ensureForm (Imply f2 f)
-        ensureEq (Imply f2 f) m
-        return $ (Imply f2 f)
+checkFormula (Discharge x p) = do
+  e <- lift get
+  let h = head (assumption e) in
+    if fst h == x then do
+      f <- checkFormula p
+      ensureForm (Imply (snd h) f)
+      lift $ put $ popAssump e
+      return $ (Imply (snd h) f)
     else throwError "Wrong use of implication introduction"
 
-checkFormula (Inst p m form) = do
+checkFormula (Inst p m) = do
   f <- checkFormula p
-  ensureForm f
-  t <- compEType m
   case f of
-    Forall x t1 f1 ->
-      if t == t1 then 
-        let a = fst (runState (subst m (MVar x t1) f1) 0)
+    Forall x f1 ->
+      let a = fst (runState (subst m (PVar x) f1) 0)
         in
          do
            ensureForm a
-           ensureEq a form
            return a
-      else throwError $ "Type mismatch for "++(show m)
+--      else throwError $ "Type mismatch for "++(show m)
     _ -> throwError "Wrong use of Instantiation"
 
-checkFormula (UG x t p m) = do
-  e <- get
+checkFormula (UG x p)  = do
+  e <- lift get
   if isFree x (assumption e)
     then throwError "Wrong use of universal generalization"
     else do
     f <- checkFormula p
-    ensureForm (Forall x t f)
-    ensureEq (Forall x t f) m
-    return $ (Forall x t f)
+    ensureForm (Forall x f)
+    return $ (Forall x f)
 
-checkFormula (Cmp p1 m) = do
+checkFormula (Cmp p1) = do
   f1 <- checkFormula p1
-  ensureForm f1
+  emit $ "going in with formula" ++ show f1
   a <- repeatComp f1
-  ensureForm a
-  ensureEq a m
+  emit $ "done with comprehension"
+--  ensureForm a
   return a
 
 checkFormula (InvCmp p1 m1) = do
   f1 <- checkFormula p1
-  ensureForm f1
   a <- repeatComp m1
-  ensureForm a
   ensureEq a f1
   return m1
 
-checkFormula (Beta p1 form) = do
+checkFormula (Beta p1) = do
   f1 <- checkFormula p1
-  ensureForm f1
   case f1 of
     In t m -> do
       ensureTerm t
       t1 <- reduce t
-      ensureForm $ In t1 m
-      ensureEq (In t1 m) form
       return $ In t1 m
     _ -> throwError "This form of extensionality is not supported"
 
 checkFormula (InvBeta p1 form) = do
   f1 <- checkFormula p1
-  ensureForm f1
   case form of
     In t m -> do
       ensureTerm t
       t1 <- reduce t
-      ensureForm $ In t1 m
       ensureEq (In t1 m) f1
       return $ In t1 m
     _ -> throwError "This form of extensionality is not supported"
 
-checkProof :: ProofScripts -> Global String
-checkProof ((n,p,f):xs) = do
- a <- checkFormula p
- e <- get
- case p of
-   Assume _ _ -> checkProof xs
-   _ -> do
-     put $ extendLocalProof n p f e
-     checkProof xs
 
-checkProof [] = do
-  put $ emptyPrfEnv
-  return $ "Passed proof check."
+-- checkProof :: ProofScripts -> Global String
+-- checkProof ((n,p,f):xs) = do
+--  a <- checkFormula p
+--  e <- get
+--  case p of
+--    Assume _ _ -> checkProof xs
+--    _ -> do
+--      put $ extendLocalProof n p f e
+--      checkProof xs
+
+-- checkProof [] = do
+--   put $ emptyPrfEnv
+--   return $ "Passed proof check."
 
 
-isFree :: VName -> [(VName, Meta)] -> Bool
+isFree :: VName -> [(VName, PreTerm)] -> Bool
 isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
 
-comp :: Meta -> Global Meta
-comp (Forall x t f) = do
-   f1 <- comp f
-   return $ Forall x t f1
+-- formula comprehension
+-- severe bug found, need to fix
+comp :: PreTerm -> S.Set VName  -> Global PreTerm
+comp (Forall x f) s = do
+   f1 <- comp f s
+   return $ Forall x f1
 
-comp (Imply f1 f) = do
-  a <- comp f1
-  b <- comp f
+comp (Imply f1 f) s = do
+  a <- comp f1 s
+  b <- comp f s
   return $ Imply a b
 
-comp (In m1 (Iota x t m)) = do
-  a <- compEType (In m1 (Iota x t m))
-  case a of
-    Ind -> return $ In m1 (Iota x t m)
-    _ -> return $ fst (runState (subst m1 (MVar x t) m) 0)
+comp (In m1 (Iota x m)) s = 
+  return $ fst (runState (subst m1 (PVar x) m) 0)
 
-comp (In m1 (MVar x t)) = do
-  e <- ask
-  let a = M.lookup x (def e)
-  case a of
-    Nothing -> return $ In m1 (MVar x t)
-    Just (et, t) -> return $ In m1 t
-  
-comp (In m1 (In m2 m3)) = do
-  a <- comp (In m2 m3)
-  return $ In m1 a
+comp (In m1 (PVar x)) s = 
+  if x `S.member` s then 
+    do
+      e <- get
+      let a = M.lookup x (setDef e)
+      case a of
+        Nothing -> throwError "Impossible situation in comp."
+        Just (s1, t) -> return $ In m1 s1
+  else return $ In m1 (PVar x)
 
-comp (Iota x t m) = do
-  a <- comp m
-  return $ Iota x t a
-  
-repeatComp :: Meta -> Global Meta
+comp (SApp (Iota x m) m1) s = 
+  return $ fst (runState (subst m1 (PVar x) m) 0)
+
+comp (SApp (PVar x) m1) s =
+  if x `S.member` s then 
+    do
+      e <- get
+      let a = M.lookup x (setDef e)
+      case a of
+        Nothing -> throwError "Impossible situation in comp."
+        Just (s1, t) -> return $ SApp s1 m1
+  else return $ SApp (PVar x) m1
+       
+comp (TApp (Iota x m) m1) s = 
+  return $ fst (runState (subst m1 (PVar x) m) 0)
+
+comp (TApp (PVar x) m1) s =
+  if x `S.member` s then 
+    do
+      e <- get
+      let a = M.lookup x (setDef e)
+      case a of
+        Nothing -> throwError "Impossible situation in comp."
+        Just (s1, t) -> return $ TApp s1 m1
+  else return $ TApp (PVar x) m1
+-- t :: (a :: C ) 
+comp (SApp (SApp m3 m2) m1) s = do
+  a <- comp (SApp m3 m2) s
+  return $ SApp a m1
+
+comp (TApp (SApp m3 m2) m1) s = do
+  a <- comp (SApp m3 m2) s
+  return $ TApp a m1
+
+comp (SApp (TApp m3 m2) m1) s = do
+  a <- comp (TApp m3 m2) s
+  return $ SApp a m1
+
+comp (TApp (TApp m3 m2) m1) s = do
+  a <- comp (TApp m3 m2) s
+  return $ TApp a m1
+
+comp (Iota x m) s = do
+  a <- comp m s
+  return $ Iota x a
+
+comp (PVar x) s = 
+  if x `S.member` s then 
+    do
+      e <- get
+      let a = M.lookup x (setDef e)
+      case a of
+        Nothing -> return $ PVar x
+        Just (s1, t) -> return $ s1
+  else return $ PVar x
+
+
+repeatComp :: PreTerm -> Global PreTerm
 repeatComp m = do
-  n <- comp m
-  n1 <- comp n
-  if n1 == n then return n
-    else repeatComp n1
+  n <- comp m (fv m)
+--  emit $ "single comp, get " ++ show n
+  n1 <- comp n (fv n)
+  -- emit $ "1next comp, get " ++ show n1
+  -- n2 <- comp n1
+  -- emit $ "2next comp, get " ++ show n2
+  -- n3 <- comp n2
+  -- emit $ "3next comp, get " ++ show n3
+  if n == n1 then return n
+    else 
+  --  throwError "So n2 and n3 are not eq. Stop now"
+    repeatComp n1
 
-tr = (In (MVar "x" Ind) (In (MVar "y" Ind) (Iota "y" Ind (Iota "z2" Ind (In (MVar "y" Ind) (In (MVar "z2" Ind) (MVar "q" (To Ind (To Ind Form)))))))))
+tr = In (PVar "m") (Iota "x" (Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (In (PVar "s") (Iota "f" (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "f") (PVar "x")) (PVar "Nat")))))) (In (PVar "x") (PVar "Nat"))))))
+
+tr1 = Forall "C" (Imply (In (PVar "z") (PVar "C")) (Imply (Forall "y" (Imply (In (PVar "y") (PVar "C")) (In (App (PVar "s") (PVar "y")) (PVar "C")))) (In (PVar "m") (PVar "C"))))
+
+tr2 = Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "s") (PVar "x")) (PVar "Nat")))) (In (PVar "m") (PVar "Nat"))))
 
 compTest :: IO ()
 compTest = do
-  b <- runErrorT $ runStateT (runReaderT (runGlobal (ensureForm tr )) emptyEnv) emptyPrfEnv
-  case b of
+  c <- runErrorT $ runStateT (runStateT (repeatComp tr) emptyEnv) emptyPrfEnv 
+  case c of
     Left e -> putStrLn e
-    Right a -> do
-      c <- runErrorT $ runStateT (runReaderT (runGlobal (repeatComp tr )) emptyEnv) emptyPrfEnv 
-      case c of
-        Left e -> putStrLn e
-        Right a -> putStrLn $ show $ fst a
+    Right a -> putStrLn $ show $ fst a
 
-tr1 = In (MVar "n" Ind) (In (MVar "U" (To Ind Form)) (MVar "Vec" (To (To Ind Form) (To Ind (To Ind Form)))))
-compTest1 :: IO ()
-compTest1 = do
-  b <- runErrorT $ runStateT (runReaderT (runGlobal (compEType tr1 )) emptyEnv) emptyPrfEnv
-  case b of
-    Left e -> putStrLn e
-    Right a ->
-      putStrLn $ show $ fst a
+--tr1 = In (MVar "n" Ind) (In (MVar "U" (To Ind Form)) (MVar "Vec" (To (To Ind Form) (To Ind (To Ind Form)))))
+-- compTest1 :: IO ()
+-- compTest1 = do
+--   b <- runErrorT $ runStateT (runReaderT (runGlobal (compEType tr1 )) emptyEnv) emptyPrfEnv
+--   case b of
+--     Left e -> putStrLn e
+--     Right a ->
+--       putStrLn $ show $ fst a

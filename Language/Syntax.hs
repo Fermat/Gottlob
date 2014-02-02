@@ -4,7 +4,7 @@ import qualified Data.Set as S
 import Control.Monad.Reader
 import Data.List
 import Control.Monad.State.Lazy
-
+import Data.Char
 type VName = String
 
 -- extensional type, type have interpretation as set in ZF.
@@ -13,7 +13,6 @@ data EType = Ind
            | EVar VName
            | To EType EType
            deriving (Show, Eq)
-
 
 vars :: EType -> S.Set VName
 vars (EVar x) = S.insert x S.empty
@@ -27,90 +26,104 @@ sub a x Form = Form
 sub a x (EVar y) = if x == y then a else EVar y
 sub a x (To t1 t2) = To (sub a x t1) (sub a x t2)
 
--- meta term, represent Church's simple type theory,
--- the only difference here is we don't have simple type
--- for lambda calculus, so we have \x.x : ind, not ind -> ind
-
--- PreMeta is the unannotated meta.
-
-data PreMeta = PVar VName             
-             | PForall VName PreMeta  -- forall x.F
-             | PImply PreMeta PreMeta -- F1 -> F2
-             | PIota VName PreMeta -- iota x.F
-             | PIn PreMeta PreMeta -- t :: S
-             | PSApp PreMeta PreMeta -- Vec U
-             | PMApp PreMeta PreMeta -- (Vec U) n
-             | PTApp PreMeta PreMeta -- t n
-             | PLambda VName PreMeta -- \ x. t
-             deriving (Show)
-  
-data Meta = MVar VName EType
-          | Forall VName EType Meta
-          | Imply Meta Meta
-          | Iota VName EType Meta
-          | In Meta Meta
+data PreTerm = PVar VName             
+          | Forall VName PreTerm  -- forall x.F
+          | Imply PreTerm PreTerm -- F1 -> F2
+          | Iota VName PreTerm -- iota x.F
+          | In PreTerm PreTerm -- t :: S
+          | SApp PreTerm PreTerm -- Vec U
+          | TApp PreTerm PreTerm -- (Vec U) n
+          | App PreTerm PreTerm -- t n
+          | Lambda VName PreTerm -- \ x. t
           deriving (Show)
 
+isTerm :: PreTerm -> Bool
+isTerm (PVar x) = isLower $ head x
+isTerm (App t1 t2) = isTerm t1 && isTerm t2
+isTerm (Lambda x t) = isTerm t
+isTerm _ = False
+
 -- nameless meta term
-data MNameless = MV Int
-             | FA MNameless
-             | IN MNameless MNameless
-             | IMP MNameless MNameless
-             | IA MNameless
+data PNameless = PV Int
+             | FA PNameless
+             | IMP PNameless PNameless
+             | IA PNameless
+             | IN PNameless PNameless
+             | SAP PNameless PNameless
+             | TAP PNameless PNameless
+             | AP PNameless PNameless
+             | LM PNameless
              deriving (Show, Eq)
 
-data Proof = Assume VName Meta
+data Proof = Assume VName
            | PrVar VName
-           | MP Proof Proof Meta
-           | Inst Proof Meta Meta
-           | UG VName EType Proof Meta
-           | Cmp Proof Meta
-           | InvCmp Proof Meta
-           | Beta Proof Meta
-           | InvBeta Proof Meta
-           | Discharge VName Proof Meta
+           | MP Proof Proof 
+           | Inst Proof PreTerm 
+           | UG VName Proof 
+           | Cmp Proof 
+           | InvCmp Proof PreTerm
+           | Beta Proof 
+           | InvBeta Proof PreTerm 
+           | Discharge VName Proof 
            deriving (Show)
 
-type ProofScripts = [(VName, Proof, Meta)]
+type ProofScripts = [(VName, Proof, PreTerm)]
 
 data Prog = Name VName 
           | Applica Prog Prog
           | Abs [VName] Prog
           | Match Prog [(VName, [VName], Prog)]
-          deriving Show
+          deriving (Show, Eq)
 
 -- formal type for program
-
-data Mix = FT FType
-         | TM Meta -- for terms that appears in FTypes
-         deriving (Show, Eq)
-                  
-data FType = FVar VName EType
-           | Base VName [(Mix, EType)]
+data Args = ArgType FType
+          | ArgProg Prog
+          deriving (Show, Eq)
+                   
+data FType = FVar VName 
+           | FCons VName [Args]
            | Arrow FType FType
            | Pi VName FType FType
            deriving (Show, Eq)
 
-
 data Datatype =
-  Data VName [(VName, EType)] [(VName,FType)]    
+  Data VName [VName] [(VName,FType)]    
   deriving (Show)
 
 data Module = Module VName [Decl] deriving (Show)
 
 data Decl = ProgDecl VName Prog
-          | ProofDecl VName ProofScripts Meta
+          | ProofDecl VName ProofScripts PreTerm
           | DataDecl Datatype
-          | SetDecl VName Meta
-          | OperatorDecl String Int String
+          | SetDecl VName PreTerm
+          | FormOperatorDecl String Int String
+          | ProgOperatorDecl String Int String
+          | SpecialOperatorDecl String Int String
           deriving Show
 
-fv :: Meta -> S.Set VName
-fv (MVar x _) = S.insert x S.empty
+
+fv :: PreTerm -> S.Set VName
+fv (PVar x) = S.insert x S.empty
 fv (Imply f1 f2) = fv f1 `S.union` fv f2
-fv (Forall x _ f) = S.delete x (fv f)
+fv (Forall x f) = S.delete x (fv f)
 fv (In t s) = fv t `S.union` (fv s)
-fv (Iota x _ s) = S.delete x (fv s)
+fv (Iota x s) = S.delete x (fv s)
+fv (Lambda x s) = S.delete x (fv s)
+fv (App f1 f2) = fv f1 `S.union` fv f2
+fv (SApp f1 f2) = fv f1 `S.union` fv f2
+fv (TApp f1 f2) = fv f1 `S.union` fv f2
+
+-- get the free set variables
+fVar :: PreTerm -> S.Set VName
+fVar (PVar x) = S.insert x S.empty
+fVar (Imply f1 f2) = fVar f1 `S.union` fVar f2
+fVar (Forall x f) = S.delete x (fVar f)
+fVar (In t s) = fVar s
+fVar (Iota x s) = S.delete x (fVar s)
+fVar (Lambda x s) = S.empty
+fVar (App f1 f2) = S.empty
+fVar (SApp f1 f2) = fVar f1 `S.union` fVar f2
+fVar (TApp f1 f2) = fVar f1 
 
 type GVar a = State Int a
 
@@ -118,12 +131,12 @@ type BindCxt a = Reader [(VName, Int)] a
 
 plus1 = Data.List.map (\x ->(fst x,snd x + 1))
 
-debruijn :: Meta -> BindCxt MNameless
-debruijn (MVar x _) = do 
+debruijn :: PreTerm -> BindCxt PNameless
+debruijn (PVar x) = do 
   Just n <- asks (lookup x) 
-  return $ MV n
+  return $ PV n
 
-debruijn (Forall x t f) = do 
+debruijn (Forall x f) = do 
   a <- local (((x,0):) . plus1) $ debruijn f 
   return $ FA a
 
@@ -137,70 +150,118 @@ debruijn (In b1 b2) = do
   a1 <- debruijn b2
   return $ IN a a1
 
-debruijn (Iota x t f) = do
+debruijn (SApp b1 b2) = do
+  a <- debruijn b1
+  a1 <- debruijn b2
+  return $ SAP a a1
+
+debruijn (TApp b1 b2) = do
+  a <- debruijn b1
+  a1 <- debruijn b2
+  return $ TAP a a1
+
+debruijn (App b1 b2) = do
+  a <- debruijn b1
+  a1 <- debruijn b2
+  return $ AP a a1
+
+debruijn (Iota x f) = do
   a <- local (((x,0):) . plus1) $ debruijn f 
   return $ IA a
 
-alphaMeta :: Meta -> Meta -> Bool
-alphaMeta t1 t2 =
+debruijn (Lambda x f) = do
+  a <- local (((x,0):) . plus1) $ debruijn f 
+  return $ LM a
+
+alphaEq :: PreTerm -> PreTerm -> Bool
+alphaEq t1 t2 =
   if fv t1 == fv t2
   then
-    let t1' = S.foldl' (\t x -> Forall x Ind t) t1 (fv t1)
-        t2' = S.foldl' (\t x -> Forall x Ind t) t2 (fv t1) in
+    let t1' = S.foldl' (\t x -> Forall x t) t1 (fv t1)
+        t2' = S.foldl' (\t x -> Forall x t) t2 (fv t1) in
     runReader (debruijn t1') [] == runReader (debruijn t2') []
   else False
 
-instance Eq Meta where
-  t1 == t2 = t1 `alphaMeta` t2
+instance Eq PreTerm where
+  t1 == t2 = t1 `alphaEq` t2
 
---testform = In (MVar "y" Ind) (MVar "nat" (To Ind Form)) == In (MVar "x" Ind) (MVar "nat" (To Ind Form))
+--testform = Lambda "y" (PVar "y") == Lambda "x" (PVar "nat")
+
 
 -- [M/X]M
-subst :: Meta -> Meta -> Meta -> GVar Meta
-subst s (MVar x _) (MVar y t) =
+subst :: PreTerm -> PreTerm -> PreTerm -> GVar PreTerm
+subst s (PVar x) (PVar y) =
   if x == y
-  then return s else return $ MVar y t
+  then return s else return $ PVar y
                                
-subst s (MVar x u) (Imply f1 f2) = do
-  c1 <- subst s (MVar x u) f1
-  c2 <- subst s (MVar x u) f2
+subst s (PVar x) (Imply f1 f2) = do
+  c1 <- subst s (PVar x) f1
+  c2 <- subst s (PVar x) f2
   return $ Imply c1 c2
 
-subst s (MVar x u) (In t1 bin) =  do
-  b <- subst s (MVar x u) t1
-  c <- subst s (MVar x u) bin
+subst s (PVar x) (TApp f1 f2) = do
+  c1 <- subst s (PVar x) f1
+  c2 <- subst s (PVar x) f2
+  return $ TApp c1 c2
+
+subst s (PVar x) (SApp f1 f2) = do
+  c1 <- subst s (PVar x) f1
+  c2 <- subst s (PVar x) f2
+  return $ SApp c1 c2
+
+subst s (PVar x) (App f1 f2) = do
+  c1 <- subst s (PVar x) f1
+  c2 <- subst s (PVar x) f2
+  return $ App c1 c2
+
+subst s (PVar x) (In t1 bin) =  do
+  b <- subst s (PVar x) t1
+  c <- subst s (PVar x) bin
   return $ In b c
 
-subst s (MVar x u) (Forall a t1 f) =
+subst s (PVar x) (Forall a f) =
   if x == a 
-  then return $ Forall a t1 f
+  then return $ Forall a f
   else
     if not (x `S.member` fv f) || not (a `S.member` fv s)
     then do
-      c <- subst s (MVar x u) f
-      return $ Forall a t1 c
+      c <- subst s (PVar x) f
+      return $ Forall a c
     else
       do
         n <- get
         modify (+1)
-        c1 <- subst (MVar (a++ show n) u) (MVar a u) f
-        c2 <- subst s (MVar x u) c1
-        return $ Forall (a++ show n) t1 c2
+        c1 <- subst (PVar (a++ show n)) (PVar a) f
+        c2 <- subst s (PVar x) c1
+        return $ Forall (a++ show n) c2
 
-subst s (MVar x u) (Iota a t1 f) =
-  if x == a then return $ Iota a t1 f
+subst s (PVar x) (Iota a f) =
+  if x == a then return $ Iota a f
   else if not (x `S.member` fv f) || not (a `S.member` fv s)
        then do
-         c <- subst s (MVar x u) f
-         return $ Iota a t1 c
+         c <- subst s (PVar x) f
+         return $ Iota a c
        else
          do
            n <- get
            modify (+1)
-           c1 <- subst (MVar (a++ show n) u) (MVar a u) f
-           c2 <- subst s (MVar x u) c1
-           return $ Iota (a++ show n) t1 c2
+           c1 <- subst (PVar (a++ show n)) (PVar a) f
+           c2 <- subst s (PVar x) c1
+           return $ Iota (a++ show n) c2
 
+subst s (PVar x) (Lambda a f) =
+  if x == a then return $ Lambda a f
+  else if not (x `S.member` fv f) || not (a `S.member` fv s)
+       then do
+         c <- subst s (PVar x) f
+         return $ Lambda a c
+       else
+         do
+           n <- get
+           modify (+1)
+           c1 <- subst (PVar (a++ show n)) (PVar a) f
+           c2 <- subst s (PVar x) c1
+           return $ Lambda (a++ show n) c2
 
 
 

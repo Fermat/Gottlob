@@ -4,28 +4,28 @@ import Language.Monad
 import Control.Monad.State.Lazy
 import qualified Data.Map as M
 import Control.Monad.Reader
+import Control.Monad.Error
 
-step :: Meta -> Global Meta       
-step (In t2 (Iota x t t1)) = do
-  let a = fst $ runState (subst t2 (MVar x t) t1) 0 
-  return a
+step :: PreTerm -> Global PreTerm
+step (App (Lambda x t1) t2 ) = 
+  return $ fst $ runState (subst t2 (PVar x) t1) 0 
 
-step (In t2 t1) = do
+step (App t1 t2) = do
   a <- step t1
-  return $ In t2 a
+  return $ App a t2
 
-step (Iota x c t) = do
+step (Lambda x t) = do
   a <- step t
-  return $ Iota x c a
+  return $ Lambda x a
 
-step (MVar x t1) = do
-  e <- ask
-  let a = M.lookup x (def e)
-  case a of
-    Nothing -> return $ MVar x t1
-    Just (et, t) -> return t
+step (PVar x) = do
+  e <- get
+  case M.lookup x (progDef e) of
+    Nothing -> return $ PVar x
+    Just t -> return t
 
-reduce :: Meta -> Global Meta       
+step _ = throwError "Wrong use of eval/reduction."
+reduce :: PreTerm -> Global PreTerm
 reduce t = do
   m <- step t
   n <- step m
