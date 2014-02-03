@@ -156,14 +156,14 @@ checkFormula (UG x p)  = do
 checkFormula (Cmp p1) = do
   f1 <- checkFormula p1
   emit $ "going in with formula" ++ show f1
-  a <- repeatComp f1
+  a <- repeatComp $ erased f1
   emit $ "done with comprehension"
 --  ensureForm a
   return a
 
 checkFormula (InvCmp p1 m1) = do
   f1 <- checkFormula p1
-  a <- repeatComp m1
+  a <- repeatComp $ erased m1
   ensureEq a f1
   return m1
 
@@ -172,7 +172,7 @@ checkFormula (Beta p1) = do
   case f1 of
     In t m -> do
       ensureTerm t
-      t1 <- reduce t
+      t1 <- reduce $ erased t
       return $ In t1 m
     _ -> throwError "This form of extensionality is not supported"
 
@@ -181,7 +181,7 @@ checkFormula (InvBeta p1 form) = do
   case form of
     In t m -> do
       ensureTerm t
-      t1 <- reduce t
+      t1 <- reduce $ erased t
       ensureEq (In t1 m) f1
       return $ In t1 m
     _ -> throwError "This form of extensionality is not supported"
@@ -200,7 +200,18 @@ checkFormula (InvBeta p1 form) = do
 -- checkProof [] = do
 --   put $ emptyPrfEnv
 --   return $ "Passed proof check."
-
+-- erased positions
+erased :: PreTerm -> PreTerm
+erased (Pos p t) = erased t
+erased (PVar x) = PVar x
+erased (Forall x p) = Forall x (erased p)
+erased (Imply p1 p2) = Imply (erased p1) (erased p2)
+erased (Iota x p) = Iota x (erased p)
+erased (In p1 p2) = In (erased p1) (erased p2)
+erased (SApp p1 p2) = SApp (erased p1) (erased p2)
+erased (TApp p1 p2) = TApp (erased p1) (erased p2)
+erased (App p1 p2) = App (erased p1) (erased p2)
+erased (Lambda x p) = Lambda x (erased p)
 
 isFree :: VName -> [(VName, PreTerm)] -> Bool
 isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))

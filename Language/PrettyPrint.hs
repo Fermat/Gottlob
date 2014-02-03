@@ -35,7 +35,8 @@ instance Disp PreTerm where
   disp (s@(TApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(App s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (Lambda x t) = text "\\" <+> text x <+> text "." <+> disp t
-
+  disp (Pos _ t) = disp t
+  precedence (Pos _ t) = precedence t
   precedence (PVar _) = 12
   precedence (TApp _ _) = 10
   precedence (SApp _ _) = 10
@@ -64,6 +65,8 @@ instance Disp Proof where
   disp (a@(Discharge x p1)) = text "discharge" <+> text x <+> dParen (precedence a) p1 
   disp (a@(InvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text ":" <+> disp f
   disp (a@(InvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text ":" <+> disp f
+  disp (PPos p pr) = disp pr
+  precedence (PPos _ pr) = precedence pr
   precedence (PrVar _) = 12
   precedence _ = 4
 
@@ -75,6 +78,8 @@ instance Disp Prog where
                         nest 2 (vcat (map dAlt alts))
     where dAlt (c, args, p) =
             fsep [text c <+> hsep (map text args) <+> text "->", nest 2 $ disp p]
+  disp (ProgPos p pr) = disp pr
+  precedence (ProgPos _ pr) = precedence pr
   precedence (Name _) = 12
   precedence (Applica _ _) = 8
   precedence _ = 0
@@ -92,7 +97,8 @@ instance Disp FType where
   disp (a@(Arrow t1 t2)) = dParen (precedence a) t1 <+> text "->" <+> dParen (precedence a - 1) t2
   disp (a@(Pi x t1 t2)) = parens (text x <+> text "::"<+> disp t1) <+>
                       text "->" <+> dParen (precedence a - 1) t2
-                      
+  disp (FTPos p pr) = disp pr
+  precedence (FTPos _ pr) = precedence pr
   precedence (FCons _ _) = 10
   precedence (FVar _) = 12
   precedence (Arrow _ _) = 4
