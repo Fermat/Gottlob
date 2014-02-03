@@ -4,6 +4,8 @@ import Control.Monad.Reader
 import Data.List
 import Control.Monad.State.Lazy
 import Data.Char
+import Text.Parsec.Pos
+
 type VName = String
 
 -- extensional type, type have interpretation as set in ZF.
@@ -34,12 +36,14 @@ data PreTerm = PVar VName
           | TApp PreTerm PreTerm -- (Vec U) n
           | App PreTerm PreTerm -- t n
           | Lambda VName PreTerm -- \ x. t
+          | Pos SourcePos PreTerm  
           deriving (Show)
 
 isTerm :: PreTerm -> Bool
 isTerm (PVar x) = isLower $ head x
 isTerm (App t1 t2) = isTerm t1 && isTerm t2
 isTerm (Lambda x t) = isTerm t
+isTerm (Pos _ t) = isTerm t
 isTerm _ = False
 
 -- nameless meta term
@@ -63,7 +67,8 @@ data Proof = Assume VName
            | InvCmp Proof PreTerm
            | Beta Proof 
            | InvBeta Proof PreTerm 
-           | Discharge VName Proof 
+           | Discharge VName Proof
+           | PPos SourcePos Proof
            deriving (Show)
 
 type ProofScripts = [(VName, Proof, PreTerm)]
@@ -72,6 +77,7 @@ data Prog = Name VName
           | Applica Prog Prog
           | Abs [VName] Prog
           | Match Prog [(VName, [VName], Prog)]
+          | ProgPos SourcePos Prog
           deriving (Show, Eq)
 
 -- formal type for program
@@ -83,6 +89,7 @@ data FType = FVar VName
            | FCons VName [Args]
            | Arrow FType FType
            | Pi VName FType FType
+           | FTPos SourcePos FType
            deriving (Show, Eq)
 
 data Datatype =
@@ -111,6 +118,7 @@ fv (Lambda x s) = S.delete x (fv s)
 fv (App f1 f2) = fv f1 `S.union` fv f2
 fv (SApp f1 f2) = fv f1 `S.union` fv f2
 fv (TApp f1 f2) = fv f1 `S.union` fv f2
+fv (Pos _ p) = fv p
 
 -- get the free set variables
 fVar :: PreTerm -> S.Set VName
@@ -122,7 +130,8 @@ fVar (Iota x s) = S.delete x (fVar s)
 fVar (Lambda x s) = S.empty
 fVar (App f1 f2) = S.empty
 fVar (SApp f1 f2) = fVar f1 `S.union` fVar f2
-fVar (TApp f1 f2) = fVar f1 
+fVar (TApp f1 f2) = fVar f1
+fVar (Pos _ f) = fVar f 
 
 type GVar a = State Int a
 
@@ -172,6 +181,8 @@ debruijn (Lambda x f) = do
   a <- local (((x,0):) . plus1) $ debruijn f 
   return $ LM a
 
+debruijn (Pos _ f) = debruijn f
+
 alphaEq :: PreTerm -> PreTerm -> Bool
 alphaEq t1 t2 =
   if fv t1 == fv t2
@@ -182,8 +193,9 @@ alphaEq t1 t2 =
   else False
 
 instance Eq PreTerm where
+  (Pos _ t1) == t2 = t1 `alphaEq` t2
+  t1 == (Pos _ t2) = t1 `alphaEq` t2
   t1 == t2 = t1 `alphaEq` t2
-
 --testform = Lambda "y" (PVar "y") == Lambda "x" (PVar "nat")
 
 
@@ -262,6 +274,7 @@ subst s (PVar x) (Lambda a f) =
            c2 <- subst s (PVar x) c1
            return $ Lambda (a++ show n) c2
 
+subst s (PVar x) (Pos _ f) = subst s (PVar x) f
 
 
               

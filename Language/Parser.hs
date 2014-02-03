@@ -305,7 +305,7 @@ setDecl = do
 
 progPre :: Parser PreTerm
 progPre = do
-  p <- prog
+  p <- wrapProgPos prog
   return $ progTerm p
 
 setVarPre :: Parser PreTerm
@@ -336,13 +336,13 @@ appClause = do
 formula :: Parser PreTerm
 formula = do
   st <- getState
-  formulaParser st
+  wrapFPos $ formulaParser st
 
 
 atom :: Parser PreTerm
-atom = forallClause <|> try inClause
-       <|> try appClause <|> parens formula <|>
-       try special
+atom = wrapFPos (forallClause <|> try inClause
+                 <|> try appClause <|> parens formula <|>
+                 try special)
 
 special = do
   st <- getState
@@ -391,9 +391,9 @@ proofDef = do
   return (b, p, f)
 
 proof :: Parser Proof
-proof = var <|> cmp <|> mp <|> inst <|>
-        ug <|> beta <|> discharge <|> parens proof
-        <|>invcmp <|> invbeta
+proof = wrapPPos (var <|> cmp <|> mp <|> inst <|>
+                  ug <|> beta <|> discharge <|> parens proof
+                  <|>invcmp <|> invbeta)
 -- invcmp and invbeta are abrieviation
 invcmp = do
   reserved "invcmp"
@@ -415,7 +415,6 @@ cmp = do
   reserved "cmp"
   p <- proof
   return $ Cmp p
-
 
 mp = do
   reserved "mp"
@@ -445,6 +444,21 @@ beta = do
   reserved "beta"
   p <- proof
   return $ Beta p
+-----------------------Positions -------
+wrapFPos :: Parser PreTerm -> Parser PreTerm
+wrapFPos p = pos <$> getPosition <*> p
+  where pos x (Pos y e) | x==y = (Pos y e)
+        pos x y = Pos x y
+
+wrapPPos :: Parser Proof -> Parser Proof
+wrapPPos p = pos <$> getPosition <*> p
+  where pos x (PPos y e) | x==y = (PPos y e)
+        pos x y = PPos x y
+
+wrapProgPos :: Parser Prog -> Parser Prog
+wrapProgPos p = pos <$> getPosition <*> p
+  where pos x (ProgPos y e) | x==y = (ProgPos y e)
+        pos x y = ProgPos x y
 
 
 -------------------------------

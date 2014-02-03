@@ -27,6 +27,7 @@ interp (Arrow t1 t2) =
 interp (Pi x t1 t2) =
   Iota "f" (Forall x (Imply (In (PVar x) (interp t1)) (In (App (PVar "f") (PVar x)) (interp t2))))
 
+interp (FTPos pos ftype) = Pos pos (interp ftype)
 
 constrIota :: [VName] -> PreTerm -> PreTerm
 constrIota [] m = m
@@ -47,6 +48,7 @@ toSet (Data d l branches) =
 arity :: FType -> Int
 arity (Arrow _ t) = 1 + (arity t)
 arity (Pi _ _ t) = 1 + (arity t)
+arity (FTPos p t) = arity t
 arity _ = 0
 
 args :: VName -> Int -> PreTerm -> PreTerm
@@ -77,6 +79,7 @@ progTerm (Applica p1 p2) = progTerm p1 `App` progTerm p2
   
 progTerm (Abs l p) = constr l (progTerm p)
 progTerm (Match v l) = appBranch l (progTerm v)
+progTerm (ProgPos pos p) = Pos pos (progTerm p)
 
 constr :: [VName] -> PreTerm -> PreTerm
 constr [] t = t
