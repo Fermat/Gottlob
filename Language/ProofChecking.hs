@@ -11,21 +11,23 @@ import Control.Monad.Error
 import Control.Monad.Identity
 
 proofCheck :: ProofScripts -> Global ()
-
+-- proofCheck ((n, (PPos pos p ), f):l) = 
+--   proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
+  
 proofCheck ((n, (Assume x), f):l) = do
   wellDefined f
   wellFormed f
   insertAssumption x f
-  emit $ "checked assumption"
+--  emit $ "checked assumption"
   proofCheck l
 
 proofCheck ((n, p, f):l) = do
-  emit $ "begin to check proof " ++ show p
+--  emit $ "begin to check proof " ++ show p
   f0 <- checkFormula p
-  ensureEq f0 f
+  sameFormula f0 f
   wellFormed f
   insertPrVar n p f
-  emit $ "checked non-assump"
+--  emit $ "checked non-assump"
   proofCheck l
 
 proofCheck [] = return ()
@@ -43,6 +45,8 @@ insertPrVar x p f = do
   return ()
 
 wellDefined :: PreTerm -> Global ()
+wellDefined (Pos pos p) =
+  wellDefined p `catchError` addPreErrorPos pos p
 wellDefined t = do
   env <- get
   e <- lift get
@@ -51,7 +55,7 @@ wellDefined t = do
       fs = [c | c <- rs, fst c == False]
       ffs = map (\ x -> snd x) fs in
     if null ffs then return ()
-    else throwError $ "undefine set variables: " ++ (show $ unwords ffs)
+    else die $ "Undefined set variables: " <++> (unwords ffs)
   where helper x env e =
           case M.lookup x (setDef env) of
             Just a -> (True, x)
@@ -61,6 +65,8 @@ wellDefined t = do
                 _ -> (False, x)
 
 wellFormed :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
+wellFormed (Pos pos f) =
+  wellFormed f `catchError` addPreErrorPos pos f
 wellFormed f = do
   state <- get
   st <- lift get
@@ -70,7 +76,8 @@ wellFormed f = do
       res = solve c 0 in
       if isSolvable res 0 then
         return ((multiSub res t), res, (subDef res def)) 
-      else throwError $ "Unsolvable formula or set definition for " ++ show f ++ show res
+      else pcError $ "Ill-formed formula or set definition."
+           [(disp "Unsolvable constraints", disp res)]
 
 subDef :: Constraints -> [(VName, EType)] -> [(VName, EType)]
 subDef res ((x,t):l) = (x, multiSub res t):(subDef res l)
@@ -78,36 +85,42 @@ subDef res [] = []
   
 
 ensureForm :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
+ensureForm (Pos pos f) =
+  ensureForm f `catchError` addPreErrorPos pos f
 ensureForm m = do
   (a, b, c) <- wellFormed m
-  unless (a == Form) $ throwError $ (show m) ++ " is not a well-formed formula"
+  unless (a == Form) $ die " Ill-formed formula."
   return (a,b,c)
   
 ensureTerm :: PreTerm -> Global ()
 ensureTerm m = do
-  unless (isTerm m) $ throwError $ (show m) ++ " is not a lambda term"
+  unless (isTerm m) $ die $ m <++> " is not a lambda term"
 
-ensureEq :: (Eq a, Show a) => a -> a -> Global ()
-ensureEq m1 m2 = 
-  unless (m1 == m2) $ throwError $ "In compatible preterm " ++ show m1 ++ "and " ++ show m2
+-- ensureEq :: (Eq a, Show a) => a -> a -> Global ()
+-- ensureEq m1 m2 = 
+--   unless (m1 == m2) $ throwError $ "In compatible preterm " ++ show m1 ++ "and " ++ show m2
 
 checkFormula :: Proof -> Global PreTerm
+
+checkFormula (PPos pos p) =
+  checkFormula p `catchError` addProofErrorPos pos p
+
 checkFormula (PrVar v)  = do
-  emit $ "entering var case"
+--  emit $ "entering var case"
   e <- get
   case M.lookup v (proofCxt e) of
     Just a -> return $ snd a
     Nothing -> do 
       s <- lift get
       case lookup v (assumption s) of
-        Just a1 -> do
-          emit $ "var found in assumption" ++ show a1
+        Just a1 -> 
+--          emit $ "var found in assumption" ++ show a1
           return a1
         _ ->
           case M.lookup v (localProof s) of
             Just a2 -> return $ snd a2
             _ -> 
-              throwError $ "Can't find variable" ++ v
+              die $ "Can't find proof variable" <++> v
 
 checkFormula (MP p1 p2) = do
  f1 <- checkFormula p1 
@@ -116,11 +129,11 @@ checkFormula (MP p1 p2) = do
 -- ensureForm f2
  case f1 of
    Imply a1 a2 -> do
-     if a1 == f2 then do
-       ensureForm a2
-       return a2
-       else throwError "Modus Ponens Matching Error."
-   _ -> throwError "Wrong use of Mondus Ponens"
+     sameFormula a1 f2 
+     ensureForm a2
+     return a2
+   _ -> pcError "Wrong use of mondus ponens."
+        [(disp "At the proof", disp p1)]
 
 checkFormula (Discharge x p) = do
   e <- lift get
@@ -130,7 +143,9 @@ checkFormula (Discharge x p) = do
       ensureForm (Imply (snd h) f)
       lift $ put $ popAssump e
       return $ (Imply (snd h) f)
-    else throwError "Wrong use of implication introduction"
+    else pcError "Wrong use of implication introduction, can't not discarge
+the assumption."
+         [(disp "At the variable", disp x)]
 
 checkFormula (Inst p m) = do
   f <- checkFormula p
@@ -142,12 +157,14 @@ checkFormula (Inst p m) = do
            ensureForm a
            return a
 --      else throwError $ "Type mismatch for "++(show m)
-    _ -> throwError "Wrong use of Instantiation"
+    _ -> pcError "Wrong use of Instantiation."
+         [(disp "At the proof", disp p)]
 
 checkFormula (UG x p)  = do
   e <- lift get
   if isFree x (assumption e)
-    then throwError "Wrong use of universal generalization"
+    then pcError "Wrong use of universal generalization."
+         [(disp "generalized variable" <+> disp x, disp "appears in the assumptions")]
     else do
     f <- checkFormula p
     ensureForm (Forall x f)
@@ -155,16 +172,16 @@ checkFormula (UG x p)  = do
 
 checkFormula (Cmp p1) = do
   f1 <- checkFormula p1
-  emit $ "going in with formula" ++ show f1
+--  emit $ "going in with formula" ++ show f1
   a <- repeatComp $ erased f1
-  emit $ "done with comprehension"
+--  emit $ "done with comprehension"
 --  ensureForm a
   return a
 
 checkFormula (InvCmp p1 m1) = do
   f1 <- checkFormula p1
   a <- repeatComp $ erased m1
-  ensureEq a f1
+  sameFormula a f1
   return m1
 
 checkFormula (Beta p1) = do
@@ -174,7 +191,8 @@ checkFormula (Beta p1) = do
       ensureTerm t
       t1 <- reduce $ erased t
       return $ In t1 m
-    _ -> throwError "This form of extensionality is not supported"
+    _ -> pcError "beta must be use on formula of the form: <term> :: <Set>"
+    [(disp "of the proof", disp p1), (disp "In the formula", disp f1)]
 
 checkFormula (InvBeta p1 form) = do
   f1 <- checkFormula p1
@@ -182,10 +200,10 @@ checkFormula (InvBeta p1 form) = do
     In t m -> do
       ensureTerm t
       t1 <- reduce $ erased t
-      ensureEq (In t1 m) f1
+      sameFormula (In t1 m) f1
       return $ In t1 m
-    _ -> throwError "This form of extensionality is not supported"
-
+    _ -> pcError "invbeta must be use on formula of the form: <term> :: <Set>"
+         [(disp "In the formula", disp form)]
 
 -- checkProof :: ProofScripts -> Global String
 -- checkProof ((n,p,f):xs) = do

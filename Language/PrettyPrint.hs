@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Language.PrettyPrint where
 import Language.Syntax
+import Language.TypeInference
 import Text.PrettyPrint
 import Text.Parsec.Pos
 import Text.Parsec.Error(ParseError,showErrorMessages,errorPos,errorMessages)
@@ -132,5 +133,9 @@ instance Disp Decl where
   disp (SpecialOperatorDecl s1 i s2) = text "special" <+> text s1 <+>
                                     disp i <+> disp s2
 
+instance Disp Constraints where
+  disp l = vcat $ map dispPair l
+    where dispPair (t1,t2) = disp t1 <+> text "=" disp t2
+  
 test = disp (Pi "n" (FVar "Nat") (Arrow (FVar "U") (Arrow (FCons "Vec" [ArgType (FVar "U"),ArgProg (Name "n")]) (FCons "Vec" [ArgType (FVar "U"),ArgProg (Applica (Name "s") (Name "n"))]))))
 test1 = disp (Data "Nat" [] [("z",FVar "Nat"),("s",Arrow (FVar "Nat") (FVar "Nat"))])

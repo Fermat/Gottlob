@@ -1,6 +1,7 @@
 module Language.Eval where
 import Language.Syntax
 import Language.Monad
+import Language.PrettyPrint
 import Control.Monad.State.Lazy
 import qualified Data.Map as M
 import Control.Monad.Reader
@@ -21,10 +22,12 @@ step (Lambda x t) = do
 step (PVar x) = do
   e <- get
   case M.lookup x (progDef e) of
-    Nothing -> return $ PVar x
+    Nothing -> do
+      emit $ "continuing reduction with free prog variable" <++> x
+      return $ PVar x
     Just t -> return t
 
-step _ = throwError "Wrong use of eval/reduction."
+step _ = die "Wrong use of eval/reduction."
 reduce :: PreTerm -> Global PreTerm
 reduce t = do
   m <- step t

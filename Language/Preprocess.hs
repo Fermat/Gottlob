@@ -24,6 +24,7 @@ process((FormOperatorDecl _ _ _):l) = process l
 process((SpecialOperatorDecl _ _ _):l) = process l
 process((ProgOperatorDecl _ _ _):l) = process l
 process ((ProgDecl x p):l) = do
+  emit $ "processing prog decl" <++> x
   st <- get
   put $ extendProgDef x (progTerm p) st
   process l
@@ -32,7 +33,7 @@ process ((DataDecl d):l) =
   let progs = toScott d d   
       sd = toSet d in
   do
-    emit $ "processing data decl"
+    emit $ "processing data decl" <++> (fst sd)
     wellDefined $ snd sd
     (t, res, _) <- wellFormed $ snd sd
     state <- get
@@ -42,17 +43,18 @@ process ((DataDecl d):l) =
     process l
 
 process ((SetDecl x set):l) = do
-  emit $ "processing set decl"
-  when (isTerm $ set) $ throwError ("Improper set definition for " ++ show x)  
-  wellDefined set
+  emit $ "processing set decl" <++> x
+  when (isTerm $ set) $ pcError "Improper set definition." [(disp "Definiendum",disp x),
+                                                            (disp "Definien", disp set)]   
+  wellDefined set 
   (t, res, _) <- wellFormed set
   state <- get
   put $ extendSetDef x set t state
   process l
 
 process ((ProofDecl n ps f):l) = do
-  emit $ "processing proof decl"
-  wellDefined f
+  emit $ "processing proof decl" <++> n
+  wellDefined f 
   (t, c, d) <- ensureForm f
   lift $ put $ newPrfEnv d -- default type def for the proofs.
   proofCheck ps

@@ -113,7 +113,7 @@ instance Disp PCError where
           details = concat [ds | ErrInfo _ ds <- info]
           pos ((ErrLocPre sp _):_) = disp sp
           pos ((ErrLocProof sp _):_) = disp sp
-          pos _ = text "unknown" <> colon
+          pos _ = text "unknown position" <> colon
           summary = vcat [s | ErrInfo s _ <- messages]
           detailed = vcat [(int i <> colon <+> brackets label) <+> d |
                            (label,d) <- details | i <- [1..]]
@@ -147,9 +147,8 @@ withErrorInfo summary details m = m `catchError` (throwError . addErrorInfo summ
 emit :: (Show a, MonadIO m) => a -> m ()
 emit m = liftIO $ print m
 
-sameFormula :: PreTerm -> Maybe PreTerm -> Global ()
-_ `sameFormula` Nothing = return ()
-actual `sameFormula` (Just expected) = actual `expectFormula` expected
+sameFormula :: PreTerm -> PreTerm -> Global ()
+actual `sameFormula` expected = actual `expectFormula` expected
 
 expectFormula :: PreTerm -> PreTerm -> Global ()
 actual `expectFormula` expected = 
