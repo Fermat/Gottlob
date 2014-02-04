@@ -148,7 +148,10 @@ emit :: (Show a, MonadIO m) => a -> m ()
 emit m = liftIO $ print m
 
 sameFormula :: PreTerm -> PreTerm -> Global ()
-actual `sameFormula` expected = actual `expectFormula` expected
+actual `sameFormula` (Pos pos expected) =
+  (actual `sameFormula` expected) `catchError` addPreErrorPos pos expected
+actual `sameFormula` expected =
+  actual `expectFormula` expected
 
 expectFormula :: PreTerm -> PreTerm -> Global ()
 actual `expectFormula` expected = 

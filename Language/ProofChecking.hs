@@ -3,6 +3,9 @@ import Language.Syntax
 import Language.Monad
 import Language.TypeInference
 import Language.Eval
+import Language.PrettyPrint
+
+import Text.PrettyPrint
 import Control.Monad.State.Lazy
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -76,7 +79,7 @@ wellFormed f = do
       res = solve c 0 in
       if isSolvable res 0 then
         return ((multiSub res t), res, (subDef res def)) 
-      else pcError $ "Ill-formed formula or set definition."
+      else pcError "Ill-formed formula or set definition."
            [(disp "Unsolvable constraints", disp res)]
 
 subDef :: Constraints -> [(VName, EType)] -> [(VName, EType)]
@@ -143,8 +146,7 @@ checkFormula (Discharge x p) = do
       ensureForm (Imply (snd h) f)
       lift $ put $ popAssump e
       return $ (Imply (snd h) f)
-    else pcError "Wrong use of implication introduction, can't not discarge
-the assumption."
+    else pcError "Wrong use of implication introduction, can't not discarge the assumption."
          [(disp "At the variable", disp x)]
 
 checkFormula (Inst p m) = do
@@ -192,7 +194,7 @@ checkFormula (Beta p1) = do
       t1 <- reduce $ erased t
       return $ In t1 m
     _ -> pcError "beta must be use on formula of the form: <term> :: <Set>"
-    [(disp "of the proof", disp p1), (disp "In the formula", disp f1)]
+         [(disp "of the proof", disp p1), (disp "In the formula", disp f1)]
 
 checkFormula (InvBeta p1 form) = do
   f1 <- checkFormula p1
@@ -255,7 +257,7 @@ comp (In m1 (PVar x)) s =
       e <- get
       let a = M.lookup x (setDef e)
       case a of
-        Nothing -> throwError "Impossible situation in comp."
+        Nothing -> die $ "Impossible situation during comprhension."
         Just (s1, t) -> return $ In m1 s1
   else return $ In m1 (PVar x)
 
@@ -268,7 +270,7 @@ comp (SApp (PVar x) m1) s =
       e <- get
       let a = M.lookup x (setDef e)
       case a of
-        Nothing -> throwError "Impossible situation in comp."
+        Nothing -> die $ "Impossible situation during comprhension."
         Just (s1, t) -> return $ SApp s1 m1
   else return $ SApp (PVar x) m1
        
@@ -281,7 +283,7 @@ comp (TApp (PVar x) m1) s =
       e <- get
       let a = M.lookup x (setDef e)
       case a of
-        Nothing -> throwError "Impossible situation in comp."
+        Nothing -> die $ "Impossible situation during comprhension."
         Just (s1, t) -> return $ TApp s1 m1
   else return $ TApp (PVar x) m1
 -- t :: (a :: C ) 
@@ -341,8 +343,8 @@ compTest :: IO ()
 compTest = do
   c <- runErrorT $ runStateT (runStateT (repeatComp tr) emptyEnv) emptyPrfEnv 
   case c of
-    Left e -> putStrLn e
-    Right a -> putStrLn $ show $ fst a
+    Left e -> print $ disp e
+    Right a -> print $ disp ((fst . fst) a)
 
 --tr1 = In (MVar "n" Ind) (In (MVar "U" (To Ind Form)) (MVar "Vec" (To (To Ind Form) (To Ind (To Ind Form)))))
 -- compTest1 :: IO ()

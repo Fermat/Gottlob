@@ -1,6 +1,7 @@
 module Language.Preprocess where
 import Language.TypeInference
 import Language.ProofChecking
+import Language.PrettyPrint
 import Language.Syntax
 import Language.Program
 import Language.Monad
@@ -11,7 +12,7 @@ import Control.Monad.Error
 import qualified Data.Map as M
 import qualified Data.Set as S
 -- process parsing data 
-checkDefs :: Module -> IO (Either String (Env, PrfEnv))
+checkDefs :: Module -> IO (Either PCError (Env, PrfEnv))
 checkDefs (Module mod l) = do
  a <- runErrorT $ runStateT (runStateT (process l) emptyEnv) emptyPrfEnv
  case a of
@@ -44,8 +45,8 @@ process ((DataDecl d):l) =
 
 process ((SetDecl x set):l) = do
   emit $ "processing set decl" <++> x
-  when (isTerm $ set) $ pcError "Improper set definition." [(disp "Definiendum",disp x),
-                                                            (disp "Definien", disp set)]   
+  when (isTerm $ set) $ pcError
+    "Improper set definition." [(disp "Definiendum",disp x),(disp "Defininen", disp set)]
   wellDefined set 
   (t, res, _) <- wellFormed set
   state <- get
@@ -59,7 +60,7 @@ process ((ProofDecl n ps f):l) = do
   lift $ put $ newPrfEnv d -- default type def for the proofs.
   proofCheck ps
   let (_,_, f0)= last ps
-  ensureEq f0 f
+  sameFormula f0 f
   updateProofCxt n ps f
   emptyLocalProof
   process l

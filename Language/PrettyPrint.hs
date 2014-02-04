@@ -135,7 +135,7 @@ instance Disp Decl where
 
 instance Disp Constraints where
   disp l = vcat $ map dispPair l
-    where dispPair (t1,t2) = disp t1 <+> text "=" disp t2
+    where dispPair (t1,t2) = disp t1 <+> text "=" <+> disp t2
   
 test = disp (Pi "n" (FVar "Nat") (Arrow (FVar "U") (Arrow (FCons "Vec" [ArgType (FVar "U"),ArgProg (Name "n")]) (FCons "Vec" [ArgType (FVar "U"),ArgProg (Applica (Name "s") (Name "n"))]))))
 test1 = disp (Data "Nat" [] [("z",FVar "Nat"),("s",Arrow (FVar "Nat") (FVar "Nat"))])
