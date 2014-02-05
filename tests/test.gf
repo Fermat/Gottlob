@@ -1,6 +1,6 @@
 module vector where
 
--- prog infix 7 ||
+special infix 7 ||
 
 -- (||) a b = case a of
 --    tt -> tt
@@ -20,8 +20,8 @@ data Vec U a where
 --      z -> m n || b
 --      s n'-> s (add n' m) c q
 
-Empty = Nat
-E = Vec Nat u a c
+-- Empty = a b
+-- E = Vec Nat u a c
 
 -- add :: Nat -> Nat
 -- Vec U a = iota x . forall P . vnil :: P U z -> 
@@ -42,7 +42,7 @@ proof
        b6 = ug m b5 : forall m. m :: Nat -> m :: C
        b7 = discharge a2 b6 : (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
        b8 = discharge a1 b7 : z::C -> (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
-       b9 = ug C b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
+--       b9 = ug C b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
 qed
 
 -- a4 = invcmp a3 :  F1   -- F1 --> F0

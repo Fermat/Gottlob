@@ -176,10 +176,11 @@ gDataDecl :: Parser Decl
 gDataDecl = do
   reserved "data"
   n <- setVar
+  pos <- getPosition
   ps <- params
   reserved "where"
   cs <- block cons 
-  return $ DataDecl (Data n ps cs)
+  return $ DataDecl pos (Data n ps cs)
   where cons = do
           c <- termVar
           reservedOp "::"
@@ -456,10 +457,10 @@ wrapFPos p = pos <$> getPosition <*> p
   where pos x (Pos y e) | x==y = (Pos y e)
         pos x y = Pos x y
 
-wrapDPos :: Parser Decl -> Parser Decl
-wrapDPos p = pos <$> getPosition <*> p
-  where pos x (DeclPos y e) | x==y = (DeclPos y e)
-        pos x y = DeclPos x y
+-- wrapDPos :: Parser Decl -> Parser Decl
+-- wrapDPos p = pos <$> getPosition <*> p
+--   where pos x (DeclPos y e) | x==y = (DeclPos y e)
+--         pos x y = DeclPos x y
 
 wrapPPos :: Parser Proof -> Parser Proof
 wrapPPos p = pos <$> getPosition <*> p

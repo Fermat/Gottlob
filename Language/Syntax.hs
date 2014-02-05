@@ -100,12 +100,11 @@ data Module = Module VName [Decl] deriving (Show)
 
 data Decl = ProgDecl VName Prog
           | ProofDecl VName ProofScripts PreTerm
-          | DataDecl Datatype
+          | DataDecl SourcePos Datatype
           | SetDecl VName PreTerm
           | FormOperatorDecl String Int String
           | ProgOperatorDecl String Int String
           | SpecialOperatorDecl String Int String
-          | DeclPos SourcePos Decl
           deriving Show
 
 

@@ -5,6 +5,7 @@ import Language.PrettyPrint
 import Language.Syntax
 import Language.Program
 import Language.Monad
+import Text.Parsec.Pos
 import Control.Monad.Identity
 import Control.Monad.State
 import Data.List
@@ -32,13 +33,15 @@ process ((ProgDecl x p):l) = do
   put $ extendProgDef x (progTerm p) st
   process l
 
-process ((DataDecl d):l) =
+process ((DataDecl pos d):l) =
   let progs = toScott d d   
-      sd = toSet d in
+      sd = toSet d
+  in
   do
     emit $ "processing data decl" <++> (fst sd)
-    wellDefined $ snd sd
-    (t, res, _) <- withErrorInfo "During the set transformation" [(disp "The target set", disp (snd sd))] (wellFormed $ snd sd)
+    (wellDefined $ snd sd) `catchError` addPreErrorPos pos (snd sd)
+    (t, res, _) <- (withErrorInfo "During the set transformation" [(disp "The target set", disp (snd sd))] (wellFormed $ snd sd))
+                   `catchError` addPreErrorPos pos (snd sd)
     state <- get
     let s1 = extendSetDef (fst sd) (snd sd) t state
         s3 = foldl' (\ z x -> extendProgDef (fst x) (snd x) z) s1 progs in
@@ -46,11 +49,13 @@ process ((DataDecl d):l) =
     process l
 
 process ((SetDecl x set):l) = do
+  let pos = getFirstPos set
   emit $ "processing set decl" <++> x
-  when (isTerm $ set) $ pcError
-    "Improper set definition." [(disp "Definiendum",disp x),(disp "Defininen", disp set)]
-  wellDefined set 
-  (t, res, _) <- wellFormed set
+  when (isTerm $ set) $ (pcError
+    "Improper set definition. Can't define a set as a term" [(disp "Definiendum",disp x),(disp "Defininen", disp set)])
+    `catchError` addPreErrorPos pos set
+  (wellDefined set) `catchError` addPreErrorPos pos set
+  (t, res, _) <- (wellFormed set) `catchError` addPreErrorPos pos set
   state <- get
   put $ extendSetDef x set t state
   process l
@@ -61,8 +66,8 @@ process ((ProofDecl n ps f):l) = do
   (t, c, d) <- ensureForm f
   lift $ put $ newPrfEnv d -- default type def for the proofs.
   proofCheck ps
-  let (_,_, f0)= last ps
-  sameFormula f0 f
+  let (_,_, (Pos pos f0))= last ps
+  (sameFormula f0 f) `catchError` addPreErrorPos pos f0
   updateProofCxt n ps f
   emptyLocalProof
   process l
@@ -78,3 +83,7 @@ updateProofCxt n ps f = do
   put $ extendProofCxt n ps f env
   return ()
 
+getFirstPos :: PreTerm -> SourcePos
+getFirstPos (Pos pos p) =  pos
+getFirstPos (Iota x p) =  getFirstPos p
+getFirstPos (_) = error "Fail to get First Position"
