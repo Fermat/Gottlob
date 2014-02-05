@@ -13,6 +13,7 @@ type Constraints = [(EType, EType)]
 type InfCxt a = StateT Int (StateT [(VName, EType)] Identity) a
 
 infer :: PreTerm -> InfCxt (EType, Constraints)
+infer (Pos _ p) = infer p
 infer (PVar x) = do
   m <- lift get
   case lookup x m of

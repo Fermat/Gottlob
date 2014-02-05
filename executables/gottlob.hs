@@ -29,7 +29,7 @@ main = do
                            putStrLn $ "Preprocessing.. \n"
                            b <- checkDefs a
                            case b of
-                             Left e1 -> putStrLn $ show e1
+                             Left e1 -> print $ disp e1
                              Right (env, e) -> do
                                putStrLn "ProofChecking success!"
                                print $ disp env

@@ -18,7 +18,7 @@ proofCheck :: ProofScripts -> Global ()
 --   proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
   
 proofCheck ((n, (Assume x), f):l) = do
-  wellDefined f
+--  wellDefined f
   wellFormed f
   insertAssumption x f
 --  emit $ "checked assumption"
@@ -27,7 +27,7 @@ proofCheck ((n, (Assume x), f):l) = do
 proofCheck ((n, p, f):l) = do
 --  emit $ "begin to check proof " ++ show p
   f0 <- checkFormula p
-  sameFormula f0 f
+  sameFormula f0 f -- this can be handle by passing to checkformula
   wellFormed f
   insertPrVar n p f
 --  emit $ "checked non-assump"
@@ -130,9 +130,9 @@ checkFormula (MP p1 p2) = do
 -- ensureForm f1
  f2 <- checkFormula p2
 -- ensureForm f2
- case f1 of
+ case down f1 of
    Imply a1 a2 -> do
-     sameFormula a1 f2 
+     sameFormula f2 a1
      ensureForm a2
      return a2
    _ -> pcError "Wrong use of mondus ponens."
@@ -151,7 +151,7 @@ checkFormula (Discharge x p) = do
 
 checkFormula (Inst p m) = do
   f <- checkFormula p
-  case f of
+  case down f of
     Forall x f1 ->
       let a = fst (runState (subst m (PVar x) f1) 0)
         in
@@ -159,8 +159,10 @@ checkFormula (Inst p m) = do
            ensureForm a
            return a
 --      else throwError $ "Type mismatch for "++(show m)
+--    Pos pos f1 -> die $ "for postion"
     _ -> pcError "Wrong use of Instantiation."
-         [(disp "At the proof", disp p)]
+         [(disp "At the proof", disp p),
+          (disp "With the formula", disp f)]
 
 checkFormula (UG x p)  = do
   e <- lift get
@@ -188,7 +190,7 @@ checkFormula (InvCmp p1 m1) = do
 
 checkFormula (Beta p1) = do
   f1 <- checkFormula p1
-  case f1 of
+  case down f1 of
     In t m -> do
       ensureTerm t
       t1 <- reduce $ erased t
@@ -198,7 +200,7 @@ checkFormula (Beta p1) = do
 
 checkFormula (InvBeta p1 form) = do
   f1 <- checkFormula p1
-  case form of
+  case down form of
     In t m -> do
       ensureTerm t
       t1 <- reduce $ erased t
@@ -220,6 +222,10 @@ checkFormula (InvBeta p1 form) = do
 -- checkProof [] = do
 --   put $ emptyPrfEnv
 --   return $ "Passed proof check."
+
+down :: PreTerm -> PreTerm
+down (Pos _ t) = down t
+down t = t
 -- erased positions
 erased :: PreTerm -> PreTerm
 erased (Pos p t) = erased t
@@ -257,7 +263,7 @@ comp (In m1 (PVar x)) s =
       e <- get
       let a = M.lookup x (setDef e)
       case a of
-        Nothing -> die $ "Impossible situation during comprhension."
+        Nothing -> return $ In m1 (PVar x)
         Just (s1, t) -> return $ In m1 s1
   else return $ In m1 (PVar x)
 
@@ -270,7 +276,7 @@ comp (SApp (PVar x) m1) s =
       e <- get
       let a = M.lookup x (setDef e)
       case a of
-        Nothing -> die $ "Impossible situation during comprhension."
+        Nothing -> return $ SApp (PVar x) m1
         Just (s1, t) -> return $ SApp s1 m1
   else return $ SApp (PVar x) m1
        
@@ -283,7 +289,7 @@ comp (TApp (PVar x) m1) s =
       e <- get
       let a = M.lookup x (setDef e)
       case a of
-        Nothing -> die $ "Impossible situation during comprhension."
+        Nothing -> return $ TApp (PVar x) m1
         Just (s1, t) -> return $ TApp s1 m1
   else return $ TApp (PVar x) m1
 -- t :: (a :: C ) 

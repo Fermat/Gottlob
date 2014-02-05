@@ -21,6 +21,8 @@ checkDefs (Module mod l) = do
    
 process :: [Decl] -> Global ()
 process [] = return ()
+process ((DeclPos pos d):l) =
+  process (d:l) `catchError` addDeclErrorPos pos d
 process((FormOperatorDecl _ _ _):l) = process l
 process((SpecialOperatorDecl _ _ _):l) = process l
 process((ProgOperatorDecl _ _ _):l) = process l
@@ -36,7 +38,7 @@ process ((DataDecl d):l) =
   do
     emit $ "processing data decl" <++> (fst sd)
     wellDefined $ snd sd
-    (t, res, _) <- wellFormed $ snd sd
+    (t, res, _) <- withErrorInfo "During the set transformation" [(disp "The target set", disp (snd sd))] (wellFormed $ snd sd)
     state <- get
     let s1 = extendSetDef (fst sd) (snd sd) t state
         s3 = foldl' (\ z x -> extendProgDef (fst x) (snd x) z) s1 progs in

@@ -132,7 +132,7 @@ instance Disp Decl where
                                     disp i <+> disp s2
   disp (SpecialOperatorDecl s1 i s2) = text "special" <+> text s1 <+>
                                     disp i <+> disp s2
-
+  disp (DeclPos _ d) = disp d
 instance Disp Constraints where
   disp l = vcat $ map dispPair l
     where dispPair (t1,t2) = disp t1 <+> text "=" <+> disp t2

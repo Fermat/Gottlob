@@ -105,6 +105,7 @@ data Decl = ProgDecl VName Prog
           | FormOperatorDecl String Int String
           | ProgOperatorDecl String Int String
           | SpecialOperatorDecl String Int String
+          | DeclPos SourcePos Decl
           deriving Show
 
 

@@ -82,9 +82,9 @@ gModule = do
   return $ Module modName bs
 
 gDecl :: Parser Decl
-gDecl =  gDataDecl <|> proofDecl <|> try progDecl
+gDecl =  wrapDPos (gDataDecl <|> proofDecl <|> try progDecl
         <|> setDecl <|> formOperatorDecl <|> progOperatorDecl <|>
-        specialOperatorDecl
+        specialOperatorDecl)
 
 
 
@@ -314,7 +314,7 @@ setVarPre = do
   return $ PVar n 
   
 set :: Parser PreTerm
-set = iotaClause <|> appClause <|> parens set
+set = wrapFPos $ (iotaClause <|> appClause <|> parens set)
 
 iotaClause = do
   reserved "iota"
@@ -449,6 +449,11 @@ wrapFPos :: Parser PreTerm -> Parser PreTerm
 wrapFPos p = pos <$> getPosition <*> p
   where pos x (Pos y e) | x==y = (Pos y e)
         pos x y = Pos x y
+
+wrapDPos :: Parser Decl -> Parser Decl
+wrapDPos p = pos <$> getPosition <*> p
+  where pos x (DeclPos y e) | x==y = (DeclPos y e)
+        pos x y = DeclPos x y
 
 wrapPPos :: Parser Proof -> Parser Proof
 wrapPPos p = pos <$> getPosition <*> p

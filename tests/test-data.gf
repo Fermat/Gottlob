@@ -3,7 +3,7 @@ module vector where
 special infix 7 == 
 
 data Nat where
-   z :: Nat 
+   z :: Nat
    s :: Nat -> Nat 
 
 add n m = case n of
@@ -14,7 +14,7 @@ data Vec U a where
      vnil :: Vec U z 
      vcons ::  (n::Nat) -> U -> Vec U n -> Vec U (s n)
 
-(==) a b = forall C. a ::C-> b::C
+(==) a b = forall C. a -> b::C
 
 Sym = a == b -> b == a
 

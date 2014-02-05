@@ -1,33 +1,37 @@
 module vector where
 
--- prog infix 7 ||
+prog infix 7 ||
 
--- (||) a b = case a of
---    tt -> tt
---    ff -> b
+(||) a b = case a of
+   tt -> tt
+   ff -> b
 
 data Nat where
-   z :: Nat 
+   z :: Nat
    s :: Nat -> Nat 
-   
--- add n m = 
---   case (s n) of
---      z -> m n || b
---      s n'-> s (add n' m) c q
+
+
+
+add n m = 
+  case (s n) of
+     z -> m n || b
+     s n'-> s (add n' m) c q
+
+Empty = E a
 
 -- add :: Nat -> Nat
 -- Vec U a = iota x . forall P . vnil :: P U z -> 
 --   (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
-
+--       a4 = invcmp a3 F : F
 
 theorem ind. forall C. z :: C -> (forall y. y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
        [a1] : z :: C
        [a2] : forall y . y :: C -> s y :: C
        [a3] : m :: Nat
---       a4 = invcmp a3 F : F
+--       b0 = cmp a1 : forall C . z :: C -> (forall y . y :: C -> s y :: C) -> m :: C
        b1 = cmp a3 : forall C . z :: C -> (forall y . y :: C -> s y :: C) -> m :: C
-       b2 = inst b1 C : z :: C -> (forall y . y :: C -> s y :: C) -> m :: C
+       b2 = inst b1 C : z :: C -> (forall y .y:: C  -> s y :: C) -> m :: C
        b3 = mp b2 a1 : (forall y. y :: C -> s y :: C) -> m :: C
        b4 = mp b3 a2 : m :: C
        b5 = discharge a3 b4 : m :: Nat -> m :: C
