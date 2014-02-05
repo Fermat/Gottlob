@@ -21,8 +21,8 @@ checkDefs (Module mod l) = do
    
 process :: [Decl] -> Global ()
 process [] = return ()
-process ((DeclPos pos d):l) =
-  process (d:l) `catchError` addDeclErrorPos pos d
+-- process ((DeclPos pos d):l) =
+--   process (d:l) `catchError` addDeclErrorPos pos d
 process((FormOperatorDecl _ _ _):l) = process l
 process((SpecialOperatorDecl _ _ _):l) = process l
 process((ProgOperatorDecl _ _ _):l) = process l

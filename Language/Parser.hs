@@ -82,9 +82,9 @@ gModule = do
   return $ Module modName bs
 
 gDecl :: Parser Decl
-gDecl =  wrapDPos (gDataDecl <|> proofDecl <|> try progDecl
+gDecl = gDataDecl <|> proofDecl <|> try progDecl
         <|> setDecl <|> formOperatorDecl <|> progOperatorDecl <|>
-        specialOperatorDecl)
+        specialOperatorDecl
 
 
 
@@ -308,6 +308,12 @@ progPre = do
   p <- wrapProgPos prog
   return $ progTerm p
 
+
+termVarPre :: Parser PreTerm
+termVarPre = do
+  n <- termVar
+  return $ PVar n 
+
 setVarPre :: Parser PreTerm
 setVarPre = do
   n <- setVar
@@ -323,10 +329,10 @@ iotaClause = do
   f <- formula
   return $ (foldr (\ x z -> Iota  x z) f xs)
 
-appClause = do 
+appClause = do
   n <- setVarPre <|> parens set
   as <- many $ indented >>
-         (try setVarPre  <|> try progPre <|>
+         (try setVarPre  <|> try termVarPre <|> try progPre <|>
           parens set)
   if null as then return n
     else return $ foldl' (\ z x -> helper z x) n as

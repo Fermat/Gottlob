@@ -1,23 +1,27 @@
 module vector where
 
-prog infix 7 ||
+-- prog infix 7 ||
 
-(||) a b = case a of
-   tt -> tt
-   ff -> b
+-- (||) a b = case a of
+--    tt -> tt
+--    ff -> b
 
 data Nat where
    z :: Nat
    s :: Nat -> Nat 
 
+data Vec U a where
+     vnil :: Vec U z 
+     vcons ::  (n::Nat) -> U -> Vec U n -> Vec U (s n)
 
 
-add n m = 
-  case (s n) of
-     z -> m n || b
-     s n'-> s (add n' m) c q
+-- add n m = 
+--   case (s n) of
+--      z -> m n || b
+--      s n'-> s (add n' m) c q
 
-Empty = E a
+Empty = Nat
+E = Vec Nat u a c
 
 -- add :: Nat -> Nat
 -- Vec U a = iota x . forall P . vnil :: P U z -> 
