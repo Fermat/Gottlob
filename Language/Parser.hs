@@ -2,20 +2,24 @@
 module Language.Parser where
 import Language.Syntax
 import Language.Program
+
 import Text.Parsec hiding (ParseError,Empty, State)
 import qualified Text.Parsec as P
 import Text.Parsec.Language
 import Text.Parsec.Expr(Operator(..),Assoc(..),buildExpressionParser)
 import qualified Text.Parsec.Token as Token
 import Text.Parsec.Indent
+
 import Control.Applicative hiding ((<|>),many)
 import Control.Monad.State.Lazy
 import "mtl" Control.Monad.Identity
-import qualified Data.IntMap as IM
 import Control.Exception(Exception)
+
+import qualified Data.IntMap as IM
 import Data.Typeable
 import Data.Char
 import Data.List
+
 parseModule :: String -> String -> Either P.ParseError Module
 parseModule srcName cnts = runIndent srcName $
                            runParserT gModule initialParserState srcName cnts

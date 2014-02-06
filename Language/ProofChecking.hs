@@ -339,6 +339,13 @@ repeatComp m = do
   --  throwError "So n2 and n3 are not eq. Stop now"
     repeatComp n1
 
+isTerm :: PreTerm -> Bool
+isTerm (PVar x) = not $ isUpper $ head x
+isTerm (App t1 t2) = isTerm t1 && isTerm t2
+isTerm (Lambda x t) = isTerm t
+isTerm (Pos _ t) = isTerm t
+isTerm _ = False
+
 tr = In (PVar "m") (Iota "x" (Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (In (PVar "s") (Iota "f" (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "f") (PVar "x")) (PVar "Nat")))))) (In (PVar "x") (PVar "Nat"))))))
 
 tr1 = Forall "C" (Imply (In (PVar "z") (PVar "C")) (Imply (Forall "y" (Imply (In (PVar "y") (PVar "C")) (In (App (PVar "s") (PVar "y")) (PVar "C")))) (In (PVar "m") (PVar "C"))))
