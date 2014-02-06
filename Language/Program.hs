@@ -1,18 +1,23 @@
-module Language.Program where
+module Language.Program
+       (progTerm, toSet, toScott) where
 import Language.Syntax
 import Data.List
+import Data.Char
 
--- constrEType :: [EType] -> EType
--- constrEType (x:l) = To x (constrEType l)
--- constrEType [] = To Ind Form
-  -- constrApp (map helper l) (PVar x)
-  -- where helper (ArgType tf) = interp tf
-  --       helper (ArgProg t) = progTerm t
+-- Translating Program to meta term
+progTerm :: Prog -> PreTerm
+progTerm (Name n) = PVar n 
+progTerm (Applica p1 p2) = App (progTerm p1) (progTerm p2)
+progTerm (Abs l p) = constrAbs l (progTerm p)
+progTerm (Match v l) = appBranch l (progTerm v)
+progTerm (ProgPos pos p) = Pos pos (progTerm p)
 
--- constrApp :: [PreTerm] -> PreTerm -> PreTerm
--- constrApp [] t = t
--- constrApp (x:l) t = if isTerm x then constrApp l (TApp t x)
---                     else constrApp l (SApp t x)
+constrAbs :: [VName] -> PreTerm -> PreTerm
+constrAbs l t = foldr (\ x z -> Lambda x z) t l
+
+appBranch :: [(VName, [VName], Prog)] -> PreTerm -> PreTerm
+appBranch l m = foldl' (\ z x -> App z (helper x)) m l
+  where helper (v,l,p) = constrAbs l (progTerm p)
 
 -- Translating Formal-Type to Set
 interp :: FType -> PreTerm
@@ -30,23 +35,26 @@ template x p1 p2 = Iota "f" (Forall x
                              (Imply (In (PVar x) p1)
                               (In (App (PVar "f") (PVar x)) p2)))
   
+-- Translate data type decl to set
 
-{-
+-- Iota x1. (Iota x2. ...t)
 constrIota :: [VName] -> PreTerm -> PreTerm
-constrIota [] m = m
-constrIota (x:l) m = Iota x (constrIota l m)
+constrIota l t = foldr (\ x z -> Iota x z) t l
 
+-- A1 -> (A2 -> ... m)
 constrBranches :: [(VName,FType)] -> PreTerm -> PreTerm
-constrBranches ((x,t):l) m =
-  Imply (In (PVar x) (interp t)) (constrBranches l m)
-constrBranches [] m = m
+constrBranches l m =
+  foldr (\ x z -> Imply (helper x) z) m l 
+  where helper (x,t) = In (PVar x) (interp t)
 
 toSet :: Datatype -> (VName, PreTerm)
 toSet (Data d l branches) =
-  let --t = constrEType (map snd l)
-      final = In (PVar "x") (constrApp (map (\ x -> PVar x) l) (PVar d))
+  let final = In (PVar "x") (interp (FCons d (map helper l)))
       body = Iota "x" (Forall d (constrBranches branches final)) in
   (d, constrIota l body)
+  where helper x = if (isUpper $ head x)
+                   then ArgType (FVar x)
+                   else ArgProg (Name x)
 
 arity :: FType -> Int
 arity (Arrow _ t) = 1 + (arity t)
@@ -62,33 +70,21 @@ abstr :: VName -> Int -> PreTerm -> PreTerm
 abstr a 0 t = t
 abstr a n t = Lambda (a++ show n) (abstr a (n-1) t)
 
-getConstr :: Datatype -> [VName]
-getConstr (Data _ _ l)  = map fst l
+-- scottization, get the scott encoded constructors
+toScott :: Datatype -> [(VName, PreTerm)]
+toScott (Data d l cons) =
+  let l1 = map fst cons in
+  map (helper l1) cons
+  where helper l1 (c, t) =
+          let n = arity t
+              a = args "a" n (PVar c)
+              b = constrAbs l1 a
+              e = abstr "a" n b in (c, e)
 
--- scottization
-toScott :: Datatype -> Datatype  -> [(VName, PreTerm)]
-toScott l (Data d _ []) = []
-toScott l (Data d _ ((c,t):xs)) =
-  let n = arity t
-      a = args "a" n (PVar c)
-      b = constr (getConstr l) a
-      e = abstr "a" n b in
-  (c, e):(toScott l (Data d [] xs))
--}
--- Translating Program to meta term
-progTerm :: Prog -> PreTerm
-progTerm (Name n) = PVar n 
-progTerm (Applica p1 p2) = App (progTerm p1) (progTerm p2)
-progTerm (Abs l p) = constrAbs l (progTerm p)
-progTerm (Match v l) = appBranch l (progTerm v)
-progTerm (ProgPos pos p) = Pos pos (progTerm p)
+-- a small test on nat
+-- nat = Data "Nat" [] [("z", FVar "Nat"), ("s", Arrow (FVar "Nat") (FVar "Nat"))]      
 
-constrAbs :: [VName] -> PreTerm -> PreTerm
-constrAbs l t = foldr (\ x z -> Lambda x z) t l
 
-appBranch :: [(VName, [VName], Prog)] -> PreTerm -> PreTerm
-appBranch l m = foldl' (\ z x -> App z (helper x)) m l
-  where helper (v,l,p) = constrAbs l (progTerm p)
 
 
 
