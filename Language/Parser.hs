@@ -1,7 +1,8 @@
 {-# LANGUAGE StandaloneDeriving, DeriveDataTypeable, PackageImports,ParallelListComp, FlexibleContexts #-}
-module Language.Parser where
+module Language.Parser
+       (parseModule) where
 import Language.Syntax
-import Language.Program
+import Language.Program (progTerm)
 
 import Text.Parsec hiding (ParseError,Empty, State)
 import qualified Text.Parsec as P
@@ -35,8 +36,7 @@ data ParserState =
     formulaParser :: IndentParser String ParserState PreTerm,
     specialOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm],
     progOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) Prog],
-    formulaOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm]
-    }
+    formulaOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm]}
 
 initialParserState :: ParserState
 initialParserState = ParserState {
@@ -45,24 +45,15 @@ initialParserState = ParserState {
   formulaParser = buildExpressionParser initialFormulaOpTable atom,
   specialOpTable =  IM.fromAscList (zip [0 ..] [[]]),
   progOpTable =  IM.fromAscList (zip [0 ..] [[]]),
-  formulaOpTable =  IM.fromAscList (zip [0 ..] initialFormulaOpTable)
-  }
+  formulaOpTable =  IM.fromAscList (zip [0 ..] initialFormulaOpTable)}
 
 initialFormulaOpTable :: [[Operator String u (State SourcePos) PreTerm]]
-initialFormulaOpTable =
-  [[], [], []
-    ,[binOp AssocRight "->" Imply]]
-  
--- etypeOpTable :: [[Operator String u (State SourcePos) EType]]
--- etypeOpTable =
---   [[binOp AssocRight "->" To]]
+initialFormulaOpTable = [[], [], [], [binOp AssocRight "->" Imply]]
 
 ftypeOpTable :: [[Operator String u (State SourcePos) FType]]
-ftypeOpTable =
-  [[binOp AssocRight "->" Arrow]]
+ftypeOpTable = [[binOp AssocRight "->" Arrow]]
 
-binOp
-  :: Assoc -> String -> (a -> a -> a) -> Operator String u (State SourcePos) a
+binOp :: Assoc -> String -> (a -> a -> a) -> Operator String u (State SourcePos) a
 binOp assoc op f = Infix (reservedOp op >> return f) assoc
 
 postOp :: String -> (a -> a) -> Operator String u (State SourcePos) a
@@ -71,9 +62,23 @@ postOp op f = Postfix (reservedOp op >> return f)
 preOp :: String -> (a -> a) -> Operator String u (State SourcePos) a
 preOp op f = Prefix (reservedOp op >> return f)
 
+toOp op "infix" app var = binOp AssocNone op (binApp op app var)
+toOp op "infixr" app var = binOp AssocRight op (binApp op app var)
+toOp op "infixl" app var = binOp AssocLeft op (binApp op app var)
+toOp op "pre" app var = preOp op (preApp op app var)
+toOp op "post" app var = postOp op (postApp op app var) 
+toOp _ fx app var = error (fx ++ " is not a valid operator fixity.")
+
+postApp op app var x = app (var op) x
+
+preApp op app var x = app (var op) x
+
+binApp op app var x y = app (app (var op) x) y
+
 deriving instance Typeable P.ParseError
 instance Exception P.ParseError where
 
+-- parse module
 gModule :: Parser Module
 gModule = do
   whiteSpace
@@ -81,100 +86,52 @@ gModule = do
   modName <- identifier
   reserved "where"
   bs <- many1 gDecl
---  os <- many 
   eof
   return $ Module modName bs
 
 gDecl :: Parser Decl
 gDecl = gDataDecl <|> proofDecl <|> try progDecl
-        <|> setDecl <|> formOperatorDecl <|> progOperatorDecl <|>
-        specialOperatorDecl
-
-
-
+        <|> setDecl <|> formOperatorDecl <|>
+        progOperatorDecl <|> specialOperatorDecl
+        
 formOperatorDecl :: Parser Decl
 formOperatorDecl = do
   reserved "formula"
-  r <- choice [reserved i >> return i
-               | i <- ["infix","infixr","infixl","pre","post"]
-               ]
+  r <- choice [reserved i >> return i | i <- ["infix","infixr","infixl","pre","post"]]
   level <- fromInteger <$> integer
   op <- operator
-  -- update the table
   st <- getState
-  let table' = IM.insertWith (++) level [toOp op r] $ formulaOpTable st
+  let table' = IM.insertWith (++) level [toOp op r SApp PVar] $ formulaOpTable st
       form' = buildExpressionParser (map snd (IM.toAscList table')) atom
-  putState $ ParserState (specialParser st) (progParser st) form' (specialOpTable st) (progOpTable st) table'
+  putState $ ParserState
+    (specialParser st) (progParser st) form' (specialOpTable st) (progOpTable st) table'
   return (FormOperatorDecl op level r)
-  where toOp op "infix" =
-          binOp AssocNone op (binApp op)
-        toOp op "infixr" =
-          binOp AssocRight op (binApp op)
-        toOp op "infixl" =
-          binOp AssocLeft op (binApp op)
-        toOp op "pre" =
-          preOp op (SApp (PVar op))
-        toOp op "post" =
-          postOp op (SApp (PVar op))
-        -- Unreachable, since we guard with 'choice' above...
-        toOp _ fx = error (fx ++ " is not a valid operator fixity.")
-        binApp op x y = SApp (SApp (PVar op) x) y
 
 progOperatorDecl :: Parser Decl
 progOperatorDecl = do
   reserved "prog"
-  r <- choice [reserved i >> return i
-               | i <- ["infix","infixr","infixl","pre","post"]
-               ]
+  r <- choice [reserved i >> return i | i <- ["infix","infixr","infixl","pre","post"]]
   level <- fromInteger <$> integer
   op <- operator
-  -- update the table
   st <- getState
-  let table' = IM.insertWith (++) level [toOp op r] $ progOpTable st
+  let table' = IM.insertWith (++) level [toOp op r Applica Name] $ progOpTable st
       prog' = buildExpressionParser (map snd (IM.toAscList table')) progA
-  putState $ ParserState (specialParser st) prog' (formulaParser st) (specialOpTable st) table' (formulaOpTable st) 
+  putState $ ParserState
+    (specialParser st) prog' (formulaParser st) (specialOpTable st) table' (formulaOpTable st) 
   return (ProgOperatorDecl op level r)
-  where toOp op "infix" =
-          binOp AssocNone op (binApp op)
-        toOp op "infixr" =
-          binOp AssocRight op (binApp op)
-        toOp op "infixl" =
-          binOp AssocLeft op (binApp op)
-        toOp op "pre" =
-          preOp op (Applica (Name op))
-        toOp op "post" =
-          postOp op (Applica (Name op))
-        -- Unreachable, since we guard with 'choice' above...
-        toOp _ fx = error (fx ++ " is not a valid operator fixity.")
-        binApp op x y = Applica (Applica (Name op) x) y
 
 specialOperatorDecl :: Parser Decl
 specialOperatorDecl = do
   reserved "special"
-  r <- choice [reserved i >> return i
-               | i <- ["infix","infixr","infixl","pre","post"]
-               ]
+  r <- choice [reserved i >> return i | i <- ["infix","infixr","infixl","pre","post"]]
   level <- fromInteger <$> integer
   op <- operator
-  -- update the table
   st <- getState
-  let table' = IM.insertWith (++) level [toOp op r] $ specialOpTable st
+  let table' = IM.insertWith (++) level [toOp op r TApp PVar] $ specialOpTable st
       special' = buildExpressionParser (map snd (IM.toAscList table')) progPre
-  putState $ ParserState special' (progParser st) (formulaParser st) table' (progOpTable st) (formulaOpTable st) 
+  putState $ ParserState
+    special' (progParser st) (formulaParser st) table' (progOpTable st) (formulaOpTable st) 
   return (SpecialOperatorDecl op level r)
-  where toOp op "infix" =
-          binOp AssocNone op (binApp op)
-        toOp op "infixr" =
-          binOp AssocRight op (binApp op)
-        toOp op "infixl" =
-          binOp AssocLeft op (binApp op)
-        toOp op "pre" =
-          preOp op (TApp (PVar op))
-        toOp op "post" =
-          postOp op (TApp (PVar op))
-        -- Unreachable, since we guard with 'choice' above...
-        toOp _ fx = error (fx ++ " is not a valid operator fixity.")
-        binApp op x y = TApp (TApp (PVar op) x) y
 
 gDataDecl :: Parser Decl
 gDataDecl = do
@@ -196,14 +153,14 @@ termVar :: Parser String
 termVar = do
   n <- identifier
   when (null n || isUpper (head n)) $
-    unexpected "Term names must begin with an lowercase letter"
+    unexpected "Term names must begin with an lowercase letter."
   return n
 
 setVar :: Parser String
 setVar = do
   n <- identifier
   when (null n || isLower (head n)) $
-    unexpected "Set names must begin with an uppercase letter"
+    unexpected "Set names must begin with an uppercase letter."
   return n
 
 -- parser for FType--
@@ -214,33 +171,26 @@ base :: Parser FType
 base = compound <|> try dep <|> parens ftype
 
 dep = do
-  (x,t) <- parens $ do{
-    n <- termVar;
-    reservedOp "::";
-    t2 <- ftype ;
-    return (n,t2)
-    }
+  char '('
+  n <- termVar
+  reservedOp "::"
+  t2 <- ftype
+  char ')'
   reservedOp "->"
   t1 <- ftype
-  return $ Pi x t t1
+  return $ Pi n t2 t1
   
 compound = do
   n <- setVar
   as <- option [] $ compoundArgs
-  if null as then
-    return $ FVar n 
-    else 
-    return $ FCons n as
+  if null as then return $ FVar n
+    else return $ FCons n as
 
 compoundArgs = 
   many $ indented >>
-  (try (do{ n <- setVar;
-       return $ ArgType $ FVar n})
-  <|>
-  (try (do{ n <- prog;
-       return $ ArgProg n}))
-  <|> (try (do{ n <- parens ftype;
-            return $ ArgType n})))
+  ((try (setVar >>= \ n -> return $ ArgType $ FVar n))
+  <|> (try (prog >>= \ n -> return $ ArgProg n))
+  <|> (try (parens ftype >>= \ n -> return $ ArgType n)))
 
 -----  Parser for Program ------
 
@@ -257,21 +207,14 @@ progA :: Parser Prog
 progA = absProg <|> caseTerm <|> appProg <|> parens prog
 
 prog :: Parser Prog
-prog = do
-  st <- getState
-  progParser st
+prog = getState >>= \ st -> progParser st
 
 termVarProg :: Parser Prog
-termVarProg = do
-  n <- termVar
-  return $ Name n
+termVarProg = termVar >>= \n-> return $ Name n
   
 appProg = do
   sp <- termVarProg <|> parens prog
-  as <- many $ indented >>
-        (parens prog <|>
-         (do{x <- termVar;
-             return $ Name x}))
+  as <- many $ indented >> (parens prog <|>termVarProg)
   if null as then return sp
     else return $ foldl' (\ z x -> Applica z x) sp as
          
@@ -305,59 +248,50 @@ setDecl = do
   reservedOp "="
   s <- try formula <|> set
   if (null as) then return $ SetDecl n s
-    else return $
-         SetDecl n (foldr (\ x z -> Iota  x z) s as)
+    else return $ SetDecl n (foldr (\ x z -> Iota x z) s as)
 
 progPre :: Parser PreTerm
-progPre = do
-  p <- wrapProgPos prog
-  return $ progTerm p
-
+progPre = wrapProgPos prog >>= \ p -> return $ progTerm p
 
 termVarPre :: Parser PreTerm
-termVarPre = do
-  n <- termVar
-  return $ PVar n 
+termVarPre = termVar >>= \ n -> return $ PVar n 
 
 setVarPre :: Parser PreTerm
-setVarPre = do
-  n <- setVar
-  return $ PVar n 
+setVarPre = setVar >>= \ n -> return $ PVar n 
   
 set :: Parser PreTerm
-set = wrapFPos $ (iotaClause <|> appClause <|> parens set)
+set = wrapFPos $ iotaClause <|> appClause <|> parens set
 
 iotaClause = do
   reserved "iota"
   xs <- many1 $ try termVar <|> setVar
   reservedOp "."
   f <- formula
-  return $ (foldr (\ x z -> Iota  x z) f xs)
+  return $ (foldr (\ x z -> Iota x z) f xs)
 
 appClause = do
   n <- setVarPre <|> parens set
   as <- many $ indented >>
-         (try setVarPre  <|> try termVarPre <|> try progPre <|>
-          parens set)
+         (try setVarPre  <|> try termVarPre <|>
+          try progPre <|> parens set)
   if null as then return n
     else return $ foldl' (\ z x -> helper z x) n as
-  where helper z x = if isTerm x then TApp z x
-                     else SApp z x
-
+  where helper z (x@(App _ _)) = TApp z x
+        helper z (x@(Lambda _ _)) = TApp z x
+        helper z (x@(PVar a)) = if isLower $ head a then TApp z x
+                            else SApp z x
+        helper z (Pos _ t) = helper z t
+        helper z x = SApp z x
+        
 formula :: Parser PreTerm
-formula = do
-  st <- getState
-  wrapFPos $ formulaParser st
-
+formula = getState >>= \st -> wrapFPos $ formulaParser st
 
 atom :: Parser PreTerm
-atom = wrapFPos (forallClause <|> try inClause
-                 <|> try appClause <|> parens formula <|>
-                 try special)
+atom = wrapFPos $ forallClause <|> try inClause <|>
+       try appClause <|> parens formula <|> try special
 
-special = do
-  st <- getState
-  (parens $ specialParser st) <|> specialParser st
+special = getState >>=
+          \ st -> (parens $ specialParser st) <|> specialParser st
   
 forallClause = do
   reserved "forall"
@@ -402,9 +336,9 @@ proofDef = do
   return (b, p, f)
 
 proof :: Parser Proof
-proof = wrapPPos (var <|> cmp <|> mp <|> inst <|>
+proof = wrapPPos $ var <|> cmp <|> mp <|> inst <|>
                   ug <|> beta <|> discharge <|> parens proof
-                  <|>invcmp <|> invbeta)
+                  <|>invcmp <|> invbeta
 -- invcmp and invbeta are abrieviation
 invcmp = do
   reserved "invcmp"
@@ -418,9 +352,7 @@ invbeta = do
   f <- try (lookAhead $ reservedOp ":" >> formula) <|> formula
   return $ InvBeta p f
 
-var = do
-  v <- termVar
-  return $ PrVar v
+var = termVar >>= \ v -> return $ PrVar v
   
 cmp = do
   reserved "cmp"
@@ -455,16 +387,13 @@ beta = do
   reserved "beta"
   p <- proof
   return $ Beta p
+  
 -----------------------Positions -------
+  
 wrapFPos :: Parser PreTerm -> Parser PreTerm
 wrapFPos p = pos <$> getPosition <*> p
   where pos x (Pos y e) | x==y = (Pos y e)
         pos x y = Pos x y
-
--- wrapDPos :: Parser Decl -> Parser Decl
--- wrapDPos p = pos <$> getPosition <*> p
---   where pos x (DeclPos y e) | x==y = (DeclPos y e)
---         pos x y = DeclPos x y
 
 wrapPPos :: Parser Proof -> Parser Proof
 wrapPPos p = pos <$> getPosition <*> p
