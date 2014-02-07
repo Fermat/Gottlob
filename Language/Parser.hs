@@ -168,14 +168,16 @@ ftype :: Parser FType
 ftype = buildExpressionParser ftypeOpTable base
 
 base :: Parser FType
-base = compound <|> try dep <|> parens ftype
+base = try dep <|> try compound <|> parens ftype
 
-dep = do
-  char '('
+depHead = do
   n <- termVar
   reservedOp "::"
   t2 <- ftype
-  char ')'
+  return (n, t2)
+
+dep = do
+  (n, t2) <- parens depHead
   reservedOp "->"
   t1 <- ftype
   return $ Pi n t2 t1

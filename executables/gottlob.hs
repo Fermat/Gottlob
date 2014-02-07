@@ -25,14 +25,14 @@ main = do
       case parseModule filename cnts of
              Left e -> putStrLn $ show e
              Right a -> do putStrLn $ "Parsing success! \n"
-                           print $ disp a
+                           -- print $ disp a
                            putStrLn $ "Preprocessing.. \n"
                            b <- checkDefs a
                            case b of
                              Left e1 -> print $ disp e1
-                             Right (env, e) -> do
+                             Right (env, e) -> 
                                putStrLn "ProofChecking success!"
-                               print $ disp env
+--                               print $ disp env
 -- look at local variable                              print $ disp e
 
                            -- unknow <- runErrorT (runFreshMT (runStateT (typechecker a) (Data.Map.empty,Data.Map.empty)))

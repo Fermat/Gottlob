@@ -1,5 +1,5 @@
 module Language.TypeInference
-       (runSolve, multiSub, isSolvable, Constraints)where
+       (runInference, runSolve, multiSub, isSolvable, Constraints)where
 import Language.Syntax
 
 import Control.Applicative hiding (empty)
@@ -14,6 +14,12 @@ import qualified Data.Set as S
 type Constraints = [(EType, EType)]
 
 type InfCxt a = StateT Int (StateT [(VName, EType)] Identity) a
+
+runInference :: PreTerm -> [(VName, EType)] -> (EType, Constraints, [(VName, EType)])
+runInference p c =
+  let s = runIdentity $ runStateT (runStateT (infer p) 0) c
+      (t,c1) = (fst. fst) s
+      def = snd s in (t,c1,def)
 
 infer :: PreTerm -> InfCxt (EType, Constraints)
 infer (Pos _ p) = infer p
@@ -73,6 +79,8 @@ infer (Imply p1 p2) = do
   (a2, c2) <- infer p2 
   return (Form, (a2, Form):(a1, Form):(c1 ++ c2)) 
 
+infer (Lambda x t) = return (Ind, [])
+infer (App t1 t2) = return (Ind, [])
 -- test1 = 
 --   let s = runIdentity $ runStateT (runStateT (infer $ TApp (SApp (PVar "Vec") (PVar "U")) (PVar "n")) 0) []
 --       (t,c) = (fst . fst) s

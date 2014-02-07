@@ -17,31 +17,24 @@ type Global a =StateT Env (StateT PrfEnv (ErrorT PCError IO)) a
                  -- deriving (Functor, Applicative, Monad,
                  --           MonadState Env, MonadError TypeError, MonadIO)
 
-data Env = Env{
-               progDef::M.Map VName PreTerm,
-               setDef::M.Map VName (PreTerm, EType),
-               proofCxt::M.Map VName (ProofScripts, PreTerm)
-              }
+data Env = Env{ progDef::M.Map VName PreTerm,
+                setDef::M.Map VName (PreTerm, EType),
+                proofCxt::M.Map VName (ProofScripts, PreTerm)}
          deriving Show
 
-data PrfEnv = PrfEnv {
-               assumption::[(VName, PreTerm)],
-               localProof :: M.Map VName (Proof, PreTerm),
-               localEType :: M.Map VName EType
-               }
+data PrfEnv = PrfEnv { assumption::[(VName, PreTerm)],
+                       localProof :: M.Map VName (Proof, PreTerm),
+                       localEType :: M.Map VName EType}
             deriving Show
 
 emptyEnv :: Env
-emptyEnv = Env {progDef = M.empty, setDef = M.empty,
-                proofCxt=M.empty}
+emptyEnv = Env {progDef = M.empty, setDef = M.empty, proofCxt=M.empty}
 
 emptyPrfEnv :: PrfEnv
-emptyPrfEnv = PrfEnv { assumption = [],
-                localProof=M.empty, localEType=M.empty}
+emptyPrfEnv = PrfEnv { assumption = [], localProof=M.empty, localEType=M.empty}
 
 newPrfEnv :: [(VName, EType)] -> PrfEnv
-newPrfEnv e = PrfEnv { assumption = [],
-                localProof=M.empty, localEType=M.fromList e}
+newPrfEnv e = PrfEnv { assumption = [], localProof=M.empty, localEType=M.fromList e}
                   
 extendProgDef :: VName -> PreTerm -> Env -> Env
 extendProgDef v t e@(Env {progDef}) = e{progDef = M.insert v t progDef}
@@ -63,6 +56,7 @@ extendLocalProof v p f e@(PrfEnv {localProof}) = e{localProof = M.insert v (p,f)
 
 extendLocalEType :: VName -> EType -> PrfEnv -> PrfEnv
 extendLocalEType v p e@(PrfEnv {localEType}) = e{localEType = M.insert v p localEType}
+
 --------------
 
 instance Disp Env where
@@ -90,7 +84,6 @@ data ErrInfo = ErrInfo Doc -- A Summary
                [(Doc,Doc)] -- A list of details
              | ErrLocPre SourcePos PreTerm
              | ErrLocProof SourcePos Proof
-             | ErrLocDecl SourcePos Decl
              deriving (Show, Typeable)
 
 instance Error PCError where
@@ -100,7 +93,8 @@ instance Error PCError where
 instance Exception PCError
 
 instance Disp SourcePos where
-  disp sp =  text (sourceName sp) <> colon <> int (sourceLine sp) <> colon <> int (sourceColumn sp) <> colon
+  disp sp =  text (sourceName sp) <> colon <> int (sourceLine sp)
+             <> colon <> int (sourceColumn sp) <> colon
 
 instance Disp PCError where
   disp (ErrMsg rinfo) =
@@ -109,13 +103,11 @@ instance Disp PCError where
           positions = [el | el <- info, f el == True]
           f (ErrLocPre _ _) = True
           f (ErrLocProof _ _) = True
-          f (ErrLocDecl _ _) = True
           f _ = False
           messages = [ei | ei@(ErrInfo _ _) <- info]
           details = concat [ds | ErrInfo _ ds <- info]
           pos ((ErrLocPre sp _):_) = disp sp
           pos ((ErrLocProof sp _):_) = disp sp
-          pos ((ErrLocDecl sp _):_) = disp sp
           pos _ = text "unknown position" <> colon
           summary = vcat [s | ErrInfo s _ <- messages]
           detailed = vcat [(int i <> colon <+> brackets label) <+> d |
@@ -123,7 +115,7 @@ instance Disp PCError where
           terms = [hang (text "in the expression") 2 (dispExpr t) |  t <- take 4 positions]
           dispExpr (ErrLocProof _ p) = disp p
           dispExpr (ErrLocPre _ p) = disp p
-          dispExpr (ErrLocDecl _ p) = disp p
+
 
 addProofErrorPos ::  SourcePos -> Proof -> PCError -> Global a
 addProofErrorPos pos p (ErrMsg ps) = throwError (ErrMsg (ErrLocProof pos p:ps))
@@ -131,16 +123,11 @@ addProofErrorPos pos p (ErrMsg ps) = throwError (ErrMsg (ErrLocProof pos p:ps))
 addPreErrorPos ::  SourcePos -> PreTerm -> PCError -> Global a
 addPreErrorPos pos p (ErrMsg ps) = throwError (ErrMsg (ErrLocPre pos p:ps))
 
-addDeclErrorPos ::  SourcePos -> Decl -> PCError -> Global a
-addDeclErrorPos pos p (ErrMsg ps) = throwError (ErrMsg (ErrLocDecl pos p:ps))
-
 ensure :: Disp d => Bool -> d -> Global ()
-ensure p m = do
-  unless p $ die m
+ensure p m = unless p $ die m
 
 die :: Disp d => d -> Global a
-die msg = do
-  pcError (disp msg) []
+die msg = pcError (disp msg) []
 
 pcError :: Disp d => d -> [(Doc, Doc)] -> Global a
 pcError summary details = throwError (ErrMsg [ErrInfo (disp summary) details])
@@ -155,17 +142,10 @@ emit :: (Show a, MonadIO m) => a -> m ()
 emit m = liftIO $ print m
 
 sameFormula :: PreTerm -> PreTerm -> Global ()
--- actual `sameFormula` (Pos pos expected) =
---   (actual `sameFormula` expected) `catchError` addPreErrorPos pos expected
 actual `sameFormula` expected =
-  actual `expectFormula` expected
-
-expectFormula :: PreTerm -> PreTerm -> Global ()
-actual `expectFormula` expected = 
-  unless ( actual == expected) $
+  unless (actual == expected) $
   pcError "Couldn't match expected formula with actual formula."
-  [(text "Expected Formula",disp expected)
-   , (text "Actual Formula", disp actual)]
+  [(text "Expected Formula",disp expected), (text "Actual Formula", disp actual)]
 
 (<++>) :: (Show t1, Show t2, Disp t1, Disp t2) => t1 -> t2 -> Doc
 t1 <++> t2 = disp t1 <+> disp t2

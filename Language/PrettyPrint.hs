@@ -29,7 +29,8 @@ dParen level x =
 instance Disp PreTerm where
   disp (PVar x) = text x
   disp (Forall x p) = text "forall" <+> text x <+> text "." <+> disp p
-  disp (a@(Imply p1 p2)) = dParen (precedence a) p1 <+> text "->" <+> dParen (precedence a -1) p2
+  disp (a@(Imply p1 p2)) = dParen (precedence a) p1 <+> text "->"
+                           <+> dParen (precedence a -1) p2
   disp (Iota x p) = text "iota" <+> text x <+> text "." <+> disp p
   disp (a@(In t s)) = disp t <+> text "::" <+> dParen (precedence a - 1) s
   disp (s@(SApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
@@ -95,7 +96,8 @@ instance Disp FType where
   disp (FVar x) = text x
   disp (a@(FCons c args)) =
     text c <+> hsep (map (dParen (precedence a - 1)) args) 
-  disp (a@(Arrow t1 t2)) = dParen (precedence a) t1 <+> text "->" <+> dParen (precedence a - 1) t2
+  disp (a@(Arrow t1 t2)) = dParen (precedence a) t1 <+> text "->"
+                           <+> dParen (precedence a - 1) t2
   disp (a@(Pi x t1 t2)) = parens (text x <+> text "::"<+> disp t1) <+>
                       text "->" <+> dParen (precedence a - 1) t2
   disp (FTPos p pr) = disp pr
@@ -107,25 +109,21 @@ instance Disp FType where
 
 instance Disp Datatype where
   disp (Data d params cons) = 
-   hang (text "data" <+> text d <+> hsep (map text params)
-    <+> text "where") 2 (vcat (map dispCon cons))
+    hang (text "data" <+> text d <+> hsep (map text params)
+          <+> text "where") 2 (vcat (map dispCon cons))
    where dispCon (n, t) = text n <+> text "::" <+> disp t
     
 instance Disp Module where
-  disp (Module name decl) = text "module" <+>
-                            text name $$ vcat (map disp decl)
-
+  disp (Module name decl) = text "module" <+> text name $$ vcat (map disp decl)
 
 instance Disp Decl where
   disp (ProgDecl x p) = text x <+> text "=" <+>disp p
   disp (ProofDecl x ps f) = text "theorem" <+> text x <+> text "." <+> disp f $$
                             text "proof" $$ nest 2 (vcat (map dispPs ps))
                             $$ text "qed"
-    where dispPs (n, p, f) = text n <+> text "=" <+> disp p
-                             <+> text ":" <+> disp f
+    where dispPs (n, p, f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
   disp (DataDecl p d) = disp d
-  disp (SetDecl x s) = text x <+> text "=" <+>
-                       disp s
+  disp (SetDecl x s) = text x <+> text "=" <+> disp s
   disp (FormOperatorDecl s1 i s2) = text "formula" <+> text s1 <+>
                                     disp i <+> disp s2
   disp (ProgOperatorDecl s1 i s2) = text "prog" <+> text s1 <+>

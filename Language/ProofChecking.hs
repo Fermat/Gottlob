@@ -1,4 +1,6 @@
-module Language.ProofChecking where
+module Language.ProofChecking
+       (proofCheck, wellDefined, wellFormed,
+        ensureForm) where
 import Language.Syntax
 import Language.Monad
 import Language.TypeInference
@@ -6,12 +8,15 @@ import Language.Eval
 import Language.PrettyPrint
 
 import Text.PrettyPrint
+
 import Control.Monad.State.Lazy
-import qualified Data.Map as M
-import qualified Data.Set as S
 import Control.Monad.Reader
 import Control.Monad.Error
 import Control.Monad.Identity
+
+import qualified Data.Map as M
+import qualified Data.Set as S
+import Data.Char
 
 proofCheck :: ProofScripts -> Global ()
 -- proofCheck ((n, (PPos pos p ), f):l) = 
@@ -26,9 +31,9 @@ proofCheck ((n, (Assume x), f):l) = do
 
 proofCheck ((n, p, f):l) = do
 --  emit $ "begin to check proof " ++ show p
+  wellFormed f
   f0 <- checkFormula p
   sameFormula f0 f -- this can be handle by passing to checkformula
-  wellFormed f
   insertPrVar n p f
 --  emit $ "checked non-assump"
   proofCheck l
@@ -47,89 +52,63 @@ insertPrVar x p f = do
   lift $ put $ extendLocalProof x p f env
   return ()
 
+-- Check if the 'free' set variable in a preterm is
+-- previously defined.
 wellDefined :: PreTerm -> Global ()
-wellDefined (Pos pos p) =
-  wellDefined p `catchError` addPreErrorPos pos p
+wellDefined (Pos pos p) = wellDefined p `catchError` addPreErrorPos pos p
 wellDefined t = do
   env <- get
-  e <- lift get
   let l = S.toList $ fVar t 
-      rs = map (\ x -> helper x env e) l
-      fs = [c | c <- rs, fst c == False]
-      ffs = map (\ x -> snd x) fs in
-    if null ffs then return ()
-    else die $ "Undefined set variables: " <++> (unwords ffs)
-  where helper x env e =
-          case M.lookup x (setDef env) of
-            Just a -> (True, x)
-            _ -> 
-              case M.lookup x (localEType e) of
-                Just b -> (True, x)
-                _ -> (False, x)
+      rs = map (\ x -> helper x env) l
+      fs = [snd c | c <- rs, fst c == False] in
+    if null fs then return ()
+    else die $ "Undefined set variables: " <++> (unwords fs)
+  where helper x env = case M.lookup x (setDef env) of
+                            Just a -> (True, x)
+                            _ -> (False, x)
 
 wellFormed :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
 wellFormed (Pos pos f) =
   wellFormed f `catchError` addPreErrorPos pos f
 wellFormed f = do
   state <- get
-  st <- lift get
-  let s = runIdentity $ runStateT (runStateT (infer $ f) 0) ((map (\ x -> (fst x, (snd . snd) x)) (M.toList $ setDef state))++(M.toList $ localEType st))
-      (t,c) = (fst. fst) s
-      def = snd s
-      res = solve c 0 in
-      if isSolvable res 0 then
+  st <- lift get  
+  let glAnt = map (\ (v, (_, etype)) -> (v, etype)) (M.toList $ setDef state)
+      env = glAnt ++ (M.toList $ localEType st)
+      (t,c,def) = runInference f env
+      res = runSolve c in
+      if isSolvable res then
         return ((multiSub res t), res, (subDef res def)) 
       else pcError "Ill-formed formula or set definition."
            [(disp "Unsolvable constraints", disp res)]
 
 subDef :: Constraints -> [(VName, EType)] -> [(VName, EType)]
-subDef res ((x,t):l) = (x, multiSub res t):(subDef res l)
-subDef res [] = []
-  
+subDef res l = map (\ (x, t) -> (x, multiSub res t)) l
 
 ensureForm :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
-ensureForm (Pos pos f) =
-  ensureForm f `catchError` addPreErrorPos pos f
+ensureForm (Pos pos f) = ensureForm f `catchError` addPreErrorPos pos f
 ensureForm m = do
   (a, b, c) <- wellFormed m
-  unless (a == Form) $ die " Ill-formed formula."
+  unless (a == Form) $ die "Ill-formed formula."
   return (a,b,c)
   
-ensureTerm :: PreTerm -> Global ()
-ensureTerm m = do
-  unless (isTerm m) $ die $ m <++> " is not a lambda term"
-
--- ensureEq :: (Eq a, Show a) => a -> a -> Global ()
--- ensureEq m1 m2 = 
---   unless (m1 == m2) $ throwError $ "In compatible preterm " ++ show m1 ++ "and " ++ show m2
-
 checkFormula :: Proof -> Global PreTerm
-
-checkFormula (PPos pos p) =
-  checkFormula p `catchError` addProofErrorPos pos p
-
+checkFormula (PPos pos p) = checkFormula p `catchError` addProofErrorPos pos p
 checkFormula (PrVar v)  = do
---  emit $ "entering var case"
   e <- get
   case M.lookup v (proofCxt e) of
     Just a -> return $ snd a
     Nothing -> do 
       s <- lift get
       case lookup v (assumption s) of
-        Just a1 -> 
---          emit $ "var found in assumption" ++ show a1
-          return a1
-        _ ->
-          case M.lookup v (localProof s) of
-            Just a2 -> return $ snd a2
-            _ -> 
-              die $ "Can't find proof variable" <++> v
+        Just a1 -> return a1
+        _ -> case M.lookup v (localProof s) of
+                Just a2 -> return $ snd a2
+                _ -> die $ "Can't find proof variable" <++> v
 
 checkFormula (MP p1 p2) = do
  f1 <- checkFormula p1 
--- ensureForm f1
  f2 <- checkFormula p2
--- ensureForm f2
  case down f1 of
    Imply a1 a2 -> do
      sameFormula f2 a1
@@ -153,13 +132,8 @@ checkFormula (Inst p m) = do
   f <- checkFormula p
   case down f of
     Forall x f1 ->
-      let a = fst (runState (subst m (PVar x) f1) 0)
-        in
-         do
-           ensureForm a
-           return a
---      else throwError $ "Type mismatch for "++(show m)
---    Pos pos f1 -> die $ "for postion"
+      let a = runSubst m (PVar x) f1 in
+      ensureForm a >> return a
     _ -> pcError "Wrong use of Instantiation."
          [(disp "At the proof", disp p),
           (disp "With the formula", disp f)]
@@ -176,13 +150,12 @@ checkFormula (UG x p)  = do
 
 checkFormula (Cmp p1) = do
   f1 <- checkFormula p1
---  emit $ "going in with formula" ++ show f1
   a <- repeatComp $ erased f1
---  emit $ "done with comprehension"
---  ensureForm a
+  ensureForm a
   return a
 
 checkFormula (InvCmp p1 m1) = do
+  ensureForm m1
   f1 <- checkFormula p1
   a <- repeatComp $ erased m1
   sameFormula a f1
@@ -192,41 +165,27 @@ checkFormula (Beta p1) = do
   f1 <- checkFormula p1
   case down f1 of
     In t m -> do
-      ensureTerm t
       t1 <- reduce $ erased t
+      ensureForm $ In t1 m
       return $ In t1 m
     _ -> pcError "beta must be use on formula of the form: <term> :: <Set>"
          [(disp "of the proof", disp p1), (disp "In the formula", disp f1)]
 
 checkFormula (InvBeta p1 form) = do
+  ensureForm form
   f1 <- checkFormula p1
   case down form of
     In t m -> do
-      ensureTerm t
       t1 <- reduce $ erased t
       sameFormula (In t1 m) f1
       return $ In t1 m
     _ -> pcError "invbeta must be use on formula of the form: <term> :: <Set>"
          [(disp "In the formula", disp form)]
 
--- checkProof :: ProofScripts -> Global String
--- checkProof ((n,p,f):xs) = do
---  a <- checkFormula p
---  e <- get
---  case p of
---    Assume _ _ -> checkProof xs
---    _ -> do
---      put $ extendLocalProof n p f e
---      checkProof xs
-
--- checkProof [] = do
---   put $ emptyPrfEnv
---   return $ "Passed proof check."
-
 down :: PreTerm -> PreTerm
 down (Pos _ t) = down t
 down t = t
--- erased positions
+-- erased all the positions
 erased :: PreTerm -> PreTerm
 erased (Pos p t) = erased t
 erased (PVar x) = PVar x
@@ -245,107 +204,72 @@ isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
 -- formula comprehension
 -- severe bug found, need to fix
 comp :: PreTerm -> S.Set VName  -> Global PreTerm
-comp (Forall x f) s = do
-   f1 <- comp f s
-   return $ Forall x f1
+comp (Forall x f) s = comp f s >>= \ f1 -> return $ Forall x f1
 
 comp (Imply f1 f) s = do
   a <- comp f1 s
   b <- comp f s
   return $ Imply a b
 
-comp (In m1 (Iota x m)) s = 
-  return $ fst (runState (subst m1 (PVar x) m) 0)
+comp (In m1 (Iota x m)) s = return $ runSubst m1 (PVar x) m
 
 comp (In m1 (PVar x)) s = 
-  if x `S.member` s then 
-    do
-      e <- get
-      let a = M.lookup x (setDef e)
-      case a of
-        Nothing -> return $ In m1 (PVar x)
-        Just (s1, t) -> return $ In m1 s1
+  if x `S.member` s then do
+    e <- get
+    case M.lookup x (setDef e) of
+      Nothing -> return $ In m1 (PVar x)
+      Just (s1, t) -> return $ In m1 s1
   else return $ In m1 (PVar x)
 
-comp (SApp (Iota x m) m1) s = 
-  return $ fst (runState (subst m1 (PVar x) m) 0)
+comp (SApp (Iota x m) m1) s = return $ runSubst m1 (PVar x) m
 
 comp (SApp (PVar x) m1) s =
-  if x `S.member` s then 
-    do
-      e <- get
-      let a = M.lookup x (setDef e)
-      case a of
-        Nothing -> return $ SApp (PVar x) m1
-        Just (s1, t) -> return $ SApp s1 m1
+  if x `S.member` s then do
+    e <- get
+    case M.lookup x (setDef e) of
+      Nothing -> return $ SApp (PVar x) m1
+      Just (s1, t) -> return $ SApp s1 m1
   else return $ SApp (PVar x) m1
        
-comp (TApp (Iota x m) m1) s = 
-  return $ fst (runState (subst m1 (PVar x) m) 0)
+comp (TApp (Iota x m) m1) s = return $ runSubst m1 (PVar x) m
 
 comp (TApp (PVar x) m1) s =
-  if x `S.member` s then 
-    do
-      e <- get
-      let a = M.lookup x (setDef e)
-      case a of
-        Nothing -> return $ TApp (PVar x) m1
-        Just (s1, t) -> return $ TApp s1 m1
+  if x `S.member` s then do
+    e <- get
+    case M.lookup x (setDef e) of
+      Nothing -> return $ TApp (PVar x) m1
+      Just (s1, t) -> return $ TApp s1 m1
   else return $ TApp (PVar x) m1
 -- t :: (a :: C ) 
-comp (SApp (SApp m3 m2) m1) s = do
-  a <- comp (SApp m3 m2) s
-  return $ SApp a m1
+comp (SApp (SApp m3 m2) m1) s = 
+  comp (SApp m3 m2) s >>= \ a-> return $ SApp a m1
 
-comp (TApp (SApp m3 m2) m1) s = do
-  a <- comp (SApp m3 m2) s
-  return $ TApp a m1
+comp (TApp (SApp m3 m2) m1) s = 
+   comp (SApp m3 m2) s >>= \ a -> return $ TApp a m1
 
-comp (SApp (TApp m3 m2) m1) s = do
-  a <- comp (TApp m3 m2) s
-  return $ SApp a m1
+comp (SApp (TApp m3 m2) m1) s =
+  comp (TApp m3 m2) s >>= \ a -> return $ SApp a m1
 
-comp (TApp (TApp m3 m2) m1) s = do
-  a <- comp (TApp m3 m2) s
-  return $ TApp a m1
+comp (TApp (TApp m3 m2) m1) s = 
+  comp (TApp m3 m2) s >>= \ a -> return $ TApp a m1
 
-comp (Iota x m) s = do
-  a <- comp m s
-  return $ Iota x a
+comp (Iota x m) s = comp m s >>= \ a -> return $ Iota x a
 
 comp (PVar x) s = 
-  if x `S.member` s then 
-    do
-      e <- get
-      let a = M.lookup x (setDef e)
-      case a of
-        Nothing -> return $ PVar x
-        Just (s1, t) -> return $ s1
+  if x `S.member` s then do
+    e <- get
+    case  M.lookup x (setDef e) of
+      Nothing -> return $ PVar x
+      Just (s1, t) -> return $ s1
   else return $ PVar x
-
 
 repeatComp :: PreTerm -> Global PreTerm
 repeatComp m = do
   n <- comp m (fv m)
---  emit $ "single comp, get " ++ show n
   n1 <- comp n (fv n)
-  -- emit $ "1next comp, get " ++ show n1
-  -- n2 <- comp n1
-  -- emit $ "2next comp, get " ++ show n2
-  -- n3 <- comp n2
-  -- emit $ "3next comp, get " ++ show n3
-  if n == n1 then return n
-    else 
-  --  throwError "So n2 and n3 are not eq. Stop now"
-    repeatComp n1
+  if n == n1 then return n else repeatComp n1
 
-isTerm :: PreTerm -> Bool
-isTerm (PVar x) = not $ isUpper $ head x
-isTerm (App t1 t2) = isTerm t1 && isTerm t2
-isTerm (Lambda x t) = isTerm t
-isTerm (Pos _ t) = isTerm t
-isTerm _ = False
-
+{-
 tr = In (PVar "m") (Iota "x" (Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (In (PVar "s") (Iota "f" (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "f") (PVar "x")) (PVar "Nat")))))) (In (PVar "x") (PVar "Nat"))))))
 
 tr1 = Forall "C" (Imply (In (PVar "z") (PVar "C")) (Imply (Forall "y" (Imply (In (PVar "y") (PVar "C")) (In (App (PVar "s") (PVar "y")) (PVar "C")))) (In (PVar "m") (PVar "C"))))
@@ -367,3 +291,4 @@ compTest = do
 --     Left e -> putStrLn e
 --     Right a ->
 --       putStrLn $ show $ fst a
+-}
