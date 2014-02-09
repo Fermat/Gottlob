@@ -32,8 +32,13 @@ process((ProgOperatorDecl _ _ _):l) = process l
 process ((ProgDecl x p):l) = do
   emit $ "processing prog decl" <++> x
   st <- get
-  put $ extendProgDef x (progTerm p) st
-  process l
+  case M.lookup x $ progDef st of
+    Nothing -> do
+      put $ extendProgDef x (progTerm p) st
+      process l
+    Just a ->
+     die "The program has been defined."
+     `catchError` addProgErrorPos (getProgPos p) (Name x)
 
 process ((DataDecl pos d):l) =
   let progs = toScott d    
@@ -95,3 +100,8 @@ getFirstPos :: PreTerm -> SourcePos
 getFirstPos (Pos pos p) =  pos
 getFirstPos (Iota x p) =  getFirstPos p
 getFirstPos (_) = error "Fail to get First Position"
+
+getProgPos :: Prog -> SourcePos
+getProgPos (ProgPos pos p) =  pos
+getProgPos (Abs xs p) =  getProgPos p
+getProgPos (_) = error "Fail to get First Position"

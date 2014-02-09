@@ -84,6 +84,7 @@ data ErrInfo = ErrInfo Doc -- A Summary
                [(Doc,Doc)] -- A list of details
              | ErrLocPre SourcePos PreTerm
              | ErrLocProof SourcePos Proof
+             | ErrLocProg SourcePos Prog
              deriving (Show, Typeable)
 
 instance Error PCError where
@@ -103,22 +104,27 @@ instance Disp PCError where
           positions = [el | el <- info, f el == True]
           f (ErrLocPre _ _) = True
           f (ErrLocProof _ _) = True
+          f (ErrLocProg _ _) = True
           f _ = False
           messages = [ei | ei@(ErrInfo _ _) <- info]
           details = concat [ds | ErrInfo _ ds <- info]
           pos ((ErrLocPre sp _):_) = disp sp
           pos ((ErrLocProof sp _):_) = disp sp
+          pos ((ErrLocProg sp _):_) = disp sp
           pos _ = text "unknown position" <> colon
           summary = vcat [s | ErrInfo s _ <- messages]
           detailed = vcat [(int i <> colon <+> brackets label) <+> d |
                            (label,d) <- details | i <- [1..]]
-          terms = [hang (text "in the expression") 2 (dispExpr t) |  t <- take 4 positions]
+          terms = [hang (text "in the expression:") 2 (dispExpr t) |  t <- take 4 positions]
           dispExpr (ErrLocProof _ p) = disp p
           dispExpr (ErrLocPre _ p) = disp p
-
+          dispExpr (ErrLocProg _ p) = disp p
 
 addProofErrorPos ::  SourcePos -> Proof -> PCError -> Global a
 addProofErrorPos pos p (ErrMsg ps) = throwError (ErrMsg (ErrLocProof pos p:ps))
+
+addProgErrorPos ::  SourcePos -> Prog -> PCError -> Global a
+addProgErrorPos pos p (ErrMsg ps) = throwError (ErrMsg (ErrLocProg pos p:ps))
 
 addPreErrorPos ::  SourcePos -> PreTerm -> PCError -> Global a
 addPreErrorPos pos p (ErrMsg ps) = throwError (ErrMsg (ErrLocPre pos p:ps))

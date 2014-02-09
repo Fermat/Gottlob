@@ -206,7 +206,7 @@ progDecl = do
     else return $ ProgDecl n (Abs as p)
 
 progA :: Parser Prog  
-progA = absProg <|> caseTerm <|> appProg <|> parens prog
+progA = wrapProgPos $ absProg <|> caseTerm <|> appProg <|> parens prog
 
 prog :: Parser Prog
 prog = getState >>= \ st -> progParser st

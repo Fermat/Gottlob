@@ -14,11 +14,10 @@ data Vec U a where
      vnil :: Vec U z 
      vcons ::  (n::Nat)-> U -> Vec U n -> Vec U (s n)
 
-
--- add n m = 
---   case (s n) of
---      z -> m n || b
---      s n'-> s (add n' m) c q
+add n m = 
+  case n of
+     z -> m 
+     s n'-> s (add n' m) 
 
 -- Empty = a b
 -- E = Vec Nat u a c
