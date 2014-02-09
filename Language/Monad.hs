@@ -93,10 +93,6 @@ instance Error PCError where
 
 instance Exception PCError
 
-instance Disp SourcePos where
-  disp sp =  text (sourceName sp) <> colon <> int (sourceLine sp)
-             <> colon <> int (sourceColumn sp) <> colon
-
 instance Disp PCError where
   disp (ErrMsg rinfo) =
        hang (pos positions) 2 (summary $$ nest 2 detailed $$  vcat terms)

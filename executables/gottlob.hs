@@ -1,3 +1,5 @@
+
+{-# LANGUAGE  ScopedTypeVariables #-}
 module Main where
 import Language.Parser
 import Language.Syntax
@@ -7,6 +9,7 @@ import Language.Preprocess
 import Language.PrettyPrint
 import Control.Monad.Error hiding (join)
 import Text.PrettyPrint(render)
+import Text.Parsec(ParseError)
 import System.Console.CmdArgs
 import Data.Typeable
 import Control.Exception
@@ -17,19 +20,19 @@ import System.IO(withFile,hGetContents,IOMode(..),hClose,openFile)
 import System.Environment
 import Data.Map
 
-main = do
+main = flip catches handlers $ do
   args <- getArgs
   case args of
     [filename] -> do
       cnts <- readFile filename;
       case parseModule filename cnts of
-             Left e -> putStrLn $ show e
+             Left e -> throw e
              Right a -> do putStrLn $ "Parsing success! \n"
                            -- print $ disp a
                            putStrLn $ "Preprocessing.. \n"
                            b <- checkDefs a
                            case b of
-                             Left e1 -> print $ disp e1
+                             Left e1 -> throw e1
                              Right (env, e) -> 
                                putStrLn "ProofChecking success!"
 --                               print $ disp env
@@ -45,4 +48,7 @@ main = do
                            --     putStrLn $ show (disp (snd env))
 
     _ -> putStrLn "usage: gottlob <filename>"
+  where handlers = [Handler parseHandler, Handler typeHandler]
+        typeHandler e@(ErrMsg _) = print (disp e) >> exitFailure
+        parseHandler (e :: ParseError)= print (disp e) >> exitFailure
 

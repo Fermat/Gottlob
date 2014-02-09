@@ -134,6 +134,18 @@ instance Disp Decl where
 instance Disp Constraints where
   disp l = vcat $ map dispPair l
     where dispPair (t1,t2) = disp t1 <+> text "=" <+> disp t2
-  
+
+instance Disp SourcePos where
+  disp sp =  text (sourceName sp) <> colon <> int (sourceLine sp)
+             <> colon <> int (sourceColumn sp) <> colon
+
+instance Disp ParseError where
+ disp pe = (disp (errorPos pe)) $$
+           (text "Parse Error:" $$ sem)
+  where sem = text $ showErrorMessages "or" "unknown parse error"
+              "expecting" "unexpected" "end of input"
+              (errorMessages pe)
+
+
 test = disp (Pi "n" (FVar "Nat") (Arrow (FVar "U") (Arrow (FCons "Vec" [ArgType (FVar "U"),ArgProg (Name "n")]) (FCons "Vec" [ArgType (FVar "U"),ArgProg (Applica (Name "s") (Name "n"))]))))
 test1 = disp (Data "Nat" [] [("z",FVar "Nat"),("s",Arrow (FVar "Nat") (FVar "Nat"))])

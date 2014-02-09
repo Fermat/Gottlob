@@ -1,18 +1,18 @@
 module vector where
 
--- special infix 7 ||
+special infix 7 ||
 
--- (||) a b = case a of
---    tt -> tt
---    ff -> b
+(||) a b = case a of
+            tt -> tt
+            ff -> b
 
 data Nat where
-   z :: Nat
-   s :: Nat -> Nat 
+  z :: Nat
+  s :: Nat -> Nat 
 
 data Vec U a where
      vnil :: Vec U z 
-     vcons ::  (n::Nat)-> U -> Vec U n -> Vec U (s n)
+     vcons ::  (n :: Nat)-> U -> Vec U n -> Vec U (s n)
 
 add n m = 
   case n of
@@ -26,8 +26,8 @@ add n m =
 -- Vec U a = iota x . forall P . vnil :: P U z -> 
 --   (forall y u n . u :: U -> y :: P U n -> vcons n u y :: P U (s n)) -> x :: P U a
 --       a4 = invcmp a3 F : F
-
-theorem ind. forall C. z :: C -> (forall y. y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
+-- [ ] 
+theorem ind . forall C. z :: C -> (forall y . y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
        [a1] : z :: C
        [a2] : forall y . y :: C -> s y :: C

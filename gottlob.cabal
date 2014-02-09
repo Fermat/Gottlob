@@ -29,6 +29,6 @@ library
 
 Executable gottlob
   Main-is: gottlob.hs
-  Build-depends: base, cmdargs, pretty, mtl, array, containers, gottlob
+  Build-depends: base, cmdargs, pretty, mtl, array, containers, gottlob, parsec
   Hs-source-dirs: executables
   Extensions: DeriveDataTypeable
