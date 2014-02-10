@@ -33,7 +33,9 @@ proofCheck ((n, p, f):l) = do
 --  emit $ "begin to check proof " ++ show p
   wellFormed f
   f0 <- checkFormula p
+--  emit $ disp f0 <+> text "?=" <+> disp f
   sameFormula f0 f -- this can be handle by passing to checkformula
+--  emit $ "pass same"
   insertPrVar n p f
 --  emit $ "checked non-assump"
   proofCheck l
@@ -139,12 +141,12 @@ checkFormula (Inst p m) = do
           (disp "With the formula", disp f)]
 
 checkFormula (UG x p)  = do
+  f <- checkFormula p
   e <- lift get
   if isFree x (assumption e)
     then pcError "Wrong use of universal generalization."
          [(disp "generalized variable" <+> disp x, disp "appears in the assumptions")]
     else do
-    f <- checkFormula p
     ensureForm (Forall x f)
     return $ (Forall x f)
 
@@ -178,7 +180,8 @@ checkFormula (InvBeta p1 form) = do
     In t m -> do
       t1 <- reduce $ erased t
       sameFormula (In t1 m) f1
-      return $ In t1 m
+--      emit $ disp (In t1 m) <+> disp f1
+      return form
     _ -> pcError "invbeta must be use on formula of the form: <term> :: <Set>"
          [(disp "In the formula", disp form)]
 

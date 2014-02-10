@@ -275,7 +275,7 @@ appClause = do
   n <- setVarPre <|> parens set
   as <- many $ indented >>
          (try setVarPre  <|> try termVarPre <|>
-          try progPre <|> parens set)
+          try (parens progPre) <|> parens set)
   if null as then return n
     else return $ foldl' (\ z x -> helper z x) n as
   where helper z (x@(App _ _)) = TApp z x
@@ -289,7 +289,7 @@ formula :: Parser PreTerm
 formula = getState >>= \st -> wrapFPos $ formulaParser st
 
 atom :: Parser PreTerm
-atom = wrapFPos $ forallClause <|> try inClause <|>
+atom = wrapFPos $ try forallClause <|> try inClause <|>
        try appClause <|> parens formula <|> try special
 
 special = getState >>=
