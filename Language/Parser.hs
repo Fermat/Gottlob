@@ -11,7 +11,7 @@ import Text.Parsec.Expr(Operator(..),Assoc(..),buildExpressionParser)
 import qualified Text.Parsec.Token as Token
 import Text.Parsec.Indent
 
-import Control.Applicative hiding ((<|>),many)
+import Control.Applicative hiding ((<|>),many, optional)
 import Control.Monad.State.Lazy
 import "mtl" Control.Monad.Identity
 import Control.Exception(Exception)
@@ -344,12 +344,14 @@ proof = wrapPPos $ var <|> cmp <|> mp <|> inst <|>
 -- invcmp and invbeta are abrieviation
 invcmp = do
   reserved "invcmp"
+  optional $ reservedOp "$"
   p <- proof
   f <- try (lookAhead $ reservedOp ":" >> formula) <|> formula
   return $ InvCmp p f
 
 invbeta = do
   reserved "invbeta"
+  optional $ reservedOp "$"
   p <- proof
   f <- try (lookAhead $ reservedOp ":" >> formula) <|> formula
   return $ InvBeta p f
@@ -358,35 +360,43 @@ var = termVar >>= \ v -> return $ PrVar v
   
 cmp = do
   reserved "cmp"
+  optional $ reservedOp "$"
   p <- proof
   return $ Cmp p
 
 mp = do
   reserved "mp"
+  optional $ reservedOp "$"
   p1 <- proof
+  optional $ reservedOp "$"
   p2 <- proof
   return $ MP p1 p2
 
 discharge = do
   reserved "discharge"
   n <- termVar
+  optional $ reservedOp "$"
   p <- proof
   return $ Discharge n p
   
 inst = do
   reserved "inst"
+  optional $ reservedOp "$"
   p <- proof
+  optional $ reservedOp "$"
   t <- try progPre <|> try set <|> formula
   return $ Inst p t
 
 ug = do
   reserved "ug"
   m <- try setVar <|> termVar
+  optional $ reservedOp "$"
   p <- proof
   return $ UG m p
 
 beta = do
   reserved "beta"
+  optional $ reservedOp "$"
   p <- proof
   return $ Beta p
   
@@ -437,7 +447,7 @@ gottlobStyle = Token.LanguageDef
                     "special"
                   ]
                , Token.reservedOpNames =
-                    ["\\", "->", "|", ".","=", "::", ":"]
+                    ["\\", "->", "|", ".","=", "::", ":", "$"]
                 }
 
 tokenizer :: Token.GenTokenParser String u (State SourcePos)
