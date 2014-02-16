@@ -128,13 +128,6 @@ data Prog = Name VName
           | Bind Prog Prog
           deriving (Show, Eq)
 
--- data Tactic = TVar VName
---             | TAbs [VName] Tactic
---             | AppT Tactic Tactic
---             | AppP Tactic Proof
---             | AppF Tactic PreTerm
---             | ValP Proof
-              
 -- formal type for program, e.g. Nat -> Nat
 data Args = ArgType FType
           | ArgProg Prog

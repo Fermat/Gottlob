@@ -19,7 +19,8 @@ type Global a =StateT Env (StateT PrfEnv (ErrorT PCError IO)) a
 
 data Env = Env{ progDef::M.Map VName PreTerm,
                 setDef::M.Map VName (PreTerm, EType),
-                proofCxt::M.Map VName (ProofScripts, PreTerm)}
+                proofCxt::M.Map VName (ProofScripts, PreTerm),
+                tacticDef :: M.Map VName Proof}
          deriving Show
 
 data PrfEnv = PrfEnv { assumption::[(VName, PreTerm)],
