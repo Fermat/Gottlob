@@ -42,7 +42,7 @@ data PreTerm = PVar VName
           | TApp PreTerm PreTerm -- (Vec U) n
           | App PreTerm PreTerm -- t n
           | Lambda VName PreTerm -- \ x. t
-          | Pos SourcePos PreTerm  
+          | Pos SourcePos PreTerm
           deriving (Show)
 
 -- nameless meta term
@@ -66,10 +66,54 @@ data Proof = Assume VName
            | InvCmp Proof PreTerm
            | Beta Proof 
            | InvBeta Proof PreTerm 
-           | Discharge VName Proof
+           | Discharge VName PreTerm Proof
+           | PLam VName Proof
+           | PApp Proof Proof
+           | PFApp Proof PreTerm
            | PPos SourcePos Proof
            deriving (Show)
 
+subProof :: Proof -> Proof -> Proof -> Proof
+subProof p (PrVar x) (PrVar y) = if x == y then p else PrVar y
+subProof p (PrVar x) (MP p1 p2) = MP (subProof p (PrVar x) p1) (subProof p (PrVar x) p2)
+subProof p (PrVar x) (Inst p1 t) = Inst (subProof p (PrVar x) p1) t
+subProof p (PrVar x) (UG y p1) =
+  UG y (subProof p (PrVar x) p1)
+subProof p (PrVar x) (Cmp p1) = Cmp (subProof p (PrVar x) p1)
+subProof p (PrVar x) (InvCmp p1 t) = InvCmp (subProof p (PrVar x) p1) t
+subProof p (PrVar x) (Beta p1) = Beta (subProof p (PrVar x) p1)
+subProof p (PrVar x) (InvBeta p1 t) = InvBeta (subProof p (PrVar x) p1) t
+subProof p (PrVar x) (Discharge y t p1) =
+  if x == y then Discharge y t p1
+  else Discharge y t (subProof p (PrVar x) p1)
+subProof p (PrVar x) (PLam y p1) =
+  if x == y then PLam y p1
+  else PLam y (subProof p (PrVar x) p1)
+subProof p (PrVar x) (PApp p1 p2) = PApp (subProof p (PrVar x) p1) (subProof p (PrVar x) p2)
+subProof p (PrVar x) (PFApp p1 t) = PFApp (subProof p (PrVar x) p1) t
+subProof p (PrVar x) (PPos a p1) = PPos a (subProof p (PrVar x) p1) 
+
+subPre :: PreTerm -> PreTerm -> Proof -> Proof
+subPre p (PVar x) (PrVar y) = PrVar y
+subPre p (PVar x) (MP p1 p2) = MP (subPre p (PVar x) p1) (subPre p (PVar x) p2)
+subPre p (PVar x) (Inst p1 t) = Inst (subPre p (PVar x) p1) (runSubst p (PVar x) t)
+subPre p (PVar x) (UG y p1) =
+  if x == y then UG y p1
+  else UG y (subPre p (PVar x) p1)
+subPre p (PVar x) (Cmp p1) = Cmp (subPre p (PVar x) p1)
+subPre p (PVar x) (InvCmp p1 t) = InvCmp (subPre p (PVar x) p1) (runSubst p (PVar x) t)
+subPre p (PVar x) (Beta p1) = Beta (subPre p (PVar x) p1)
+subPre p (PVar x) (InvBeta p1 t) = InvBeta (subPre p (PVar x) p1) (runSubst p (PVar x) t)
+subPre p (PVar x) (Discharge y t p1) =
+  Discharge y (runSubst p (PVar x) t) (subPre p (PVar x) p1)
+subPre p (PVar x) (PLam y p1) =
+  if x == y then PLam y p1
+  else PLam y (subPre p (PVar x) p1)
+subPre p (PVar x) (PApp p1 p2) = PApp (subPre p (PVar x) p1) (subPre p (PVar x) p2)
+subPre p (PVar x) (PFApp p1 t) = PFApp (subPre p (PVar x) p1) (runSubst p (PVar x) t)
+subPre p (PVar x) (PPos a p1) = PPos a (subPre p (PVar x) p1) 
+
+  
 type ProofScripts = [(VName, Proof, PreTerm)]
 
 data Prog = Name VName 
@@ -81,9 +125,16 @@ data Prog = Name VName
             -- prog def. Because tranlating them into lambda term will be a disaster.
           | Let [(VName, Prog)] Prog
             -- p1 >>= p2, haskell style monadic operation
-          | Bind Prog Prog  
+          | Bind Prog Prog
           deriving (Show, Eq)
 
+-- data Tactic = TVar VName
+--             | TAbs [VName] Tactic
+--             | AppT Tactic Tactic
+--             | AppP Tactic Proof
+--             | AppF Tactic PreTerm
+--             | ValP Proof
+              
 -- formal type for program, e.g. Nat -> Nat
 data Args = ArgType FType
           | ArgProg Prog

@@ -6,7 +6,9 @@ import Data.Char
 
 -- Translating Program to meta term
 progTerm :: Prog -> PreTerm
-progTerm (Name n) = PVar n 
+progTerm (Name n) = PVar n
+progTerm (ValP p) = PValP p
+progTerm (ValF p) = PValF p 
 progTerm (Applica p1 p2) = App (progTerm p1) (progTerm p2)
 progTerm (Abs l p) = constrAbs l (progTerm p)
 progTerm (Match v l) = appBranch l (progTerm v)
