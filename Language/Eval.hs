@@ -36,8 +36,8 @@ reduce t = do
 
 
 simp :: Proof -> Global Proof
-simp (PApp (PLam x p1) p2 ) = return $ subProof p2 (PrVar x) p1
-simp (PFApp (PLam x p1) t ) = return $ subPre t (PVar x) p1
+simp (PApp (PLam x p1) p2 ) = return $ runSubProof p2 (PrVar x) p1
+simp (PFApp (PLam x p1) t ) = return $ runSubPre t (PVar x) p1
 simp (PFApp (PrVar x) t ) = do
   e <- get
   case M.lookup x (tacticDef e) of
