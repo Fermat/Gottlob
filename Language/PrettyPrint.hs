@@ -64,7 +64,7 @@ instance Disp Proof where
   disp (a@(UG x p1)) = text "ug" <+> text x <+> dParen (precedence a) p1 
   disp (a@(Cmp p1)) = text "cmp" <+> dParen (precedence a) p1
   disp (a@(Beta p1)) = text "beta" <+> dParen (precedence a) p1
-  disp (a@(Discharge x p1)) = text "discharge" <+> text x <+> dParen (precedence a) p1 
+  disp (a@(Discharge x t p1)) = text "discharge" <+> text x <+> dParen (precedence a) p1 
   disp (a@(InvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text ":" <+> disp f
   disp (a@(InvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text ":" <+> disp f
   disp (PPos p pr) = disp pr

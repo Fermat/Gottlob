@@ -29,7 +29,8 @@ data PrfEnv = PrfEnv { assumption::[(VName, PreTerm)],
             deriving Show
 
 emptyEnv :: Env
-emptyEnv = Env {progDef = M.empty, setDef = M.empty, proofCxt=M.empty}
+emptyEnv = Env {progDef = M.empty, setDef = M.empty, proofCxt=M.empty,
+                tacticDef=M.empty}
 
 emptyPrfEnv :: PrfEnv
 emptyPrfEnv = PrfEnv { assumption = [], localProof=M.empty, localEType=M.empty}

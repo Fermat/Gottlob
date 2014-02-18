@@ -3,7 +3,7 @@ module Language.Syntax
         PreTerm(..), Proof(..), ProofScripts,
         Prog(..), Args(..), FType(..),
         Datatype(..), Module(..), Decl(..),
-        fv, fVar, runSubst, runSubPre, runSubProof) where
+        fv, fVar, fPrVar, runSubst, runSubPre, runSubProof) where
 
 import Control.Monad.State.Lazy
 import Control.Monad.Reader
@@ -66,12 +66,12 @@ data Proof = Assume VName
            | InvCmp Proof PreTerm
            | Beta Proof 
            | InvBeta Proof PreTerm 
-           | Discharge VName PreTerm Proof
+           | Discharge VName (Maybe PreTerm) Proof
            | PLam VName Proof
            | PApp Proof Proof
            | PFApp Proof PreTerm
            | PPos SourcePos Proof
-           deriving (Show)
+           deriving (Show, Eq)
 
 -- get all the free vars
 fPrVar :: Proof -> S.Set VName
@@ -83,7 +83,10 @@ fPrVar (PApp p1 p2) = fPrVar p1 `S.union` fPrVar p2
 fPrVar (Inst p1 t) = fPrVar p1 `S.union` fv t
 fPrVar (UG a p) = S.delete a (fPrVar p)
 fPrVar (PLam a p) = S.delete a (fPrVar p)
-fPrVar (Discharge a t p) = S.delete a (fPrVar p) `S.union` fv t
+fPrVar (Discharge a t p) =
+  case t of
+    Nothing -> S.delete a (fPrVar p)
+    Just b -> S.delete a (fPrVar p) `S.union` fv b
 fPrVar (Cmp p) = fPrVar p
 fPrVar (Beta p) = fPrVar p
 fPrVar (InvCmp p1 t) = fPrVar p1 `S.union` fv t
@@ -209,19 +212,32 @@ subPre p (PVar x) (PLam y p1) =
          c2 <- subPre p (PVar x) c1
          return $ PLam (y++ show n) c2
 
-subPre p (PVar x) (Discharge y t p1) = do
-  t1 <- subst p (PVar x) t
-  if x == y || not (x `S.member` fPrVar p1) then return $ Discharge y t1 p1
+subPre p (PVar x) (Discharge y Nothing p1) = do
+  if x == y || not (x `S.member` fPrVar p1) then return $ Discharge y Nothing p1
   else if not (y `S.member` fv p)
        then do
          c <- subPre p (PVar x) p1
-         return $ Discharge y t1 c
+         return $ Discharge y Nothing c
        else do
          n <- get
          modify (+1)
          c1 <- subProof (PrVar (y++ show n)) (PrVar y) p1
          c2 <- subPre p (PVar x) c1
-         return $ Discharge (y++ show n) t1 c2
+         return $ Discharge (y++ show n) Nothing c2
+
+subPre p (PVar x) (Discharge y (Just t) p1) = do
+  t1 <- subst p (PVar x) t
+  if x == y || not (x `S.member` fPrVar p1) then return $ Discharge y (Just t1) p1
+  else if not (y `S.member` fv p)
+       then do
+         c <- subPre p (PVar x) p1
+         return $ Discharge y (Just t1) c
+       else do
+         n <- get
+         modify (+1)
+         c1 <- subProof (PrVar (y++ show n)) (PrVar y) p1
+         c2 <- subPre p (PVar x) c1
+         return $ Discharge (y++ show n) (Just t1) c2
   
 subPre p (PVar x) (Cmp p1) = 
   subPre p (PVar x) p1 >>= \ a -> return $ Cmp a
@@ -286,9 +302,9 @@ data Decl = ProgDecl VName Prog
           | ProofDecl VName ProofScripts PreTerm
           | DataDecl SourcePos Datatype
           | SetDecl VName PreTerm
+          | TacDecl VName [VName] (Either Proof ProofScripts)
           | FormOperatorDecl String Int String
           | ProgOperatorDecl String Int String
-          | SpecialOperatorDecl String Int String
           deriving Show
 
 -- get all free variables
