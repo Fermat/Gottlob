@@ -5,7 +5,7 @@ import Language.Parser
 import Language.Syntax
 -- import Language.ProofChecking
 import Language.Monad
-import Language.Preprocess
+--import Language.Preprocess
 import Language.PrettyPrint
 import Control.Monad.Error hiding (join)
 import Text.PrettyPrint(render)
@@ -28,24 +28,16 @@ main = flip catches handlers $ do
       case parseModule filename cnts of
              Left e -> throw e
              Right a -> do putStrLn $ "Parsing success! \n"
-                           -- print $ disp a
-                           putStrLn $ "Preprocessing.. \n"
-                           b <- checkDefs a
-                           case b of
-                             Left e1 -> throw e1
-                             Right (env, e) -> 
-                               putStrLn "ProofChecking success!"
+                           print $ disp a
+                           -- putStrLn $ "Preprocessing.. \n"
+                           -- b <- checkDefs a
+                           -- case b of
+                           --   Left e1 -> throw e1
+                           --   Right (env, e) -> 
+                           --     putStrLn "ProofChecking success!"
 --                               print $ disp env
 -- look at local variable                              print $ disp e
 
-                           -- unknow <- runErrorT (runFreshMT (runStateT (typechecker a) (Data.Map.empty,Data.Map.empty)))
-                           -- case unknow of
-                           --   Left e -> do
-                           --     putStrLn $ show (disp e)
-                           --   Right (s,env) -> do
-                           --     putStrLn $ show (disp s) ++ "\n"
-                           --     putStrLn $ show (disp (fst env)) ++ "\n"
-                           --     putStrLn $ show (disp (snd env))
 
     _ -> putStrLn "usage: gottlob <filename>"
   where handlers = [Handler parseHandler, Handler typeHandler]

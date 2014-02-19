@@ -16,6 +16,16 @@ add n m =
      z -> m 
      s n'-> s ! add n' m
 
+tactic id F x = ug x $ discharge a : F $ a     
+
+tactic cmpinst p s = cmp $ inst p s
+
+tactic byEval t1 t2 =   
+   [c] : t1 :: Q
+   c1 = invbeta (beta c) (t2 :: Q) : t2::Q
+   c3 = ug Q $ discharge c c1 : forall Q. t1 :: Q -> t2 :: Q   
+   c5 = invcmp c3 : Eq t1 t2
+
 theorem ind . forall C. z :: C -> (forall y . y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
        [a1] : z :: C
@@ -41,20 +51,10 @@ qed
 --                     nil -> p
 --                     x:xs -> ug x $ ugl xs p
 
-tactic id f x = ug x $ discharge (a : f) a     
-
-tactic cmpinst p s = cmp $ inst p s
-
-tactic byEval t1 t2 =   
-   [c] : t1 :: Q
-   c1 = invbeta (beta c) (t2 :: Q) : t2::Q
-   c3 = ug Q $ discharge c c1 : forall Q. t1 :: Q -> t2 :: Q   
-   c5 = invcmp c3 : Eq t1 t2
-   return c5
 -- byEval  =\ t1 t2 -> invcmp (ug Q $ discharge c (t1 :: Q) $ invbeta (beta c) (t2 :: Q)) $ Eq t1 t2 
 -- a = {byEval t1 t2}           
-theorem tran . forall t1 t2 t3. Eq t1 t2 -> Eq t2 t3 -> Eq t1 t3
-.. 
+-- theorem tran . forall t1 t2 t3. Eq t1 t2 -> Eq t2 t3 -> Eq t1 t3
+-- .. 
 
 -- c1 = id f x : forall x . f -> f  ;; then first eval id f x and then proof check
 theorem cong . forall f a b. Eq a b -> Eq (f a) (f b)
@@ -101,4 +101,4 @@ proof
    d6 = ug n (discharge a (mp c6 d5)) : forall n . n :: Nat -> Eq (add n z) n
 -- need to make sure that proof names doesn't collapse   
 -- and we can program with the proof, thus we could have tactic build-in for the proofs. yay!
-qed
+qed 

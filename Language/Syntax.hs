@@ -212,7 +212,7 @@ subPre p (PVar x) (PLam y p1) =
          c2 <- subPre p (PVar x) c1
          return $ PLam (y++ show n) c2
 
-subPre p (PVar x) (Discharge y Nothing p1) = do
+subPre p (PVar x) (Discharge y Nothing p1) = 
   if x == y || not (x `S.member` fPrVar p1) then return $ Discharge y Nothing p1
   else if not (y `S.member` fv p)
        then do
@@ -225,8 +225,8 @@ subPre p (PVar x) (Discharge y Nothing p1) = do
          c2 <- subPre p (PVar x) c1
          return $ Discharge (y++ show n) Nothing c2
 
-subPre p (PVar x) (Discharge y (Just t) p1) = do
-  t1 <- subst p (PVar x) t
+subPre p (PVar x) (Discharge y (Just t) p1) = 
+  subst p (PVar x) t >>= \ t1 ->
   if x == y || not (x `S.member` fPrVar p1) then return $ Discharge y (Just t1) p1
   else if not (y `S.member` fv p)
        then do
