@@ -334,18 +334,20 @@ termVarProof :: Parser Proof
 termVarProof = termVar >>= \n-> return $ PrVar n
 
 proof :: Parser Proof
-proof = wrapPPos $ var <|> cmp <|> mp <|> inst <|>
+proof = wrapPPos $ cmp <|> mp <|> inst <|>
                   ug <|> beta <|> discharge 
                   <|>invcmp <|> invbeta <|> parens proof
-                  <|> try absProof <|> try appProof <|> try appPreTerm
+                  <|> absProof <|> try appProof <|> try appPreTerm -- <|> var 
 -- invcmp and invbeta are abrieviation
 appProof = do
   sp <- termVarProof <|> parens proof
-  as <- many $ indented >> (parens proof <|> termVarProof)
+--  unexpected "hey proof"
+  as <- many $ indented >> (try (parens proof) <|> try termVarProof)
   return $ foldl' (\ z x -> PApp z x) sp as
 
 appPreTerm = do
   sp <- termVarProof <|> parens proof
+--  unexpected "heyterm"
   as <- many $ indented >> (try (parens progPre) <|> try setVarPre <|> try termVarPre <|> try (parens set) <|> try (parens formula) )
   return $ foldl' (\ z x -> PFApp z x) sp as
 
