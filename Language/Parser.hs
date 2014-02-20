@@ -337,19 +337,24 @@ proof :: Parser Proof
 proof = wrapPPos $ cmp <|> mp <|> inst <|>
                   ug <|> beta <|> discharge 
                   <|>invcmp <|> invbeta <|> parens proof
-                  <|> absProof <|> try appProof <|> try appPreTerm -- <|> var 
+                  <|> absProof <|> appProof
 -- invcmp and invbeta are abrieviation
+appPreTerm :: Parser (Either PreTerm Proof)
+appPreTerm = do
+  t <- try (braces progPre) <|> try setVarPre <|> try (parens set) <|> try (parens formula)
+  return $ Left t
+
+appPr :: Parser (Either PreTerm Proof)
+appPr = do
+  p <- try termVarProof <|> try (parens proof)
+  return $ Right p
+  
 appProof = do
   sp <- termVarProof <|> parens proof
---  unexpected "hey proof"
-  as <- many $ indented >> (try (parens proof) <|> try termVarProof)
-  return $ foldl' (\ z x -> PApp z x) sp as
-
-appPreTerm = do
-  sp <- termVarProof <|> parens proof
---  unexpected "heyterm"
-  as <- many $ indented >> (try (parens progPre) <|> try setVarPre <|> try termVarPre <|> try (parens set) <|> try (parens formula) )
-  return $ foldl' (\ z x -> PFApp z x) sp as
+  as <- many $ indented >> (try appPreTerm <|> try appPr)
+  return $ foldl' (\ z x -> helper z x) sp as
+    where helper z (Left a) = PFApp z a
+          helper z (Right a) = PApp z a
 
 absProof = do
   reserved "\\"
@@ -362,17 +367,17 @@ invcmp = do
   reserved "invcmp"
   optional $ reservedOp "$"
   p <- proof
-  f <- try (lookAhead $ reservedOp ":" >> formula) <|> formula
+  f <- try (lookAhead $ reservedOp ":" >> formula) <|> (reservedOp "$" >> formula)
   return $ InvCmp p f
 
 invbeta = do
   reserved "invbeta"
   optional $ reservedOp "$"
   p <- proof
-  f <- try (lookAhead $ reservedOp ":" >> formula) <|> formula
+  f <- try (lookAhead $ reservedOp ":" >> formula) <|> ( reservedOp "$" >> formula)
   return $ InvBeta p f
 
-var = termVar >>= \ v -> return $ PrVar v
+--var = termVar >>= \ v -> return $ PrVar v
   
 cmp = do
   reserved "cmp"
@@ -384,7 +389,7 @@ mp = do
   reserved "mp"
   optional $ reservedOp "$"
   p1 <- proof
-  optional $ reservedOp "$"
+  reservedOp "$"
   p2 <- proof
   return $ MP p1 p2
 
@@ -394,8 +399,8 @@ discharge = do
   f <- option Nothing $
        (do{ reservedOp ":";
             a <- formula;
-            reservedOp "$";
             return $ Just a})
+  reservedOp "$"
   p <- proof
   return $ Discharge n f p
   
@@ -403,7 +408,7 @@ inst = do
   reserved "inst"
   optional $ reservedOp "$"
   p <- proof
-  optional $ reservedOp "$"
+  reservedOp "$"
   t <- try progPre <|> try set <|> formula
   return $ Inst p t
 
