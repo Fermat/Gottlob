@@ -1,4 +1,4 @@
-module Language.Eval (reduce) where
+module Language.Eval (reduce, parSimp) where
 import Language.Syntax
 import Language.Monad
 import Language.PrettyPrint

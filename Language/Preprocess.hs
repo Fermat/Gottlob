@@ -27,7 +27,6 @@ checkDefs (Module mod l) = do
 process :: [Decl] -> Global ()
 process [] = return ()
 process((FormOperatorDecl _ _ _):l) = process l
-process((SpecialOperatorDecl _ _ _):l) = process l
 process((ProgOperatorDecl _ _ _):l) = process l
 process ((ProgDecl x p):l) = do
   emit $ "processing prog decl" <++> x

@@ -32,7 +32,8 @@ proofCheck ((n, (Assume x), f):l) = do
 proofCheck ((n, p, f):l) = do
 --  emit $ "begin to check proof " ++ show p
   wellFormed f
-  f0 <- checkFormula p
+  p1 <- parSimp p
+  f0 <- checkFormula p1
 --  emit $ disp f0 <+> text "?=" <+> disp f
   sameFormula f0 f -- this can be handle by passing to checkformula
 --  emit $ "pass same"
@@ -119,7 +120,7 @@ checkFormula (MP p1 p2) = do
    _ -> pcError "Wrong use of mondus ponens."
         [(disp "At the proof", disp p1)]
 
-checkFormula (Discharge x p) = do
+checkFormula (Discharge x Nothing p) = do
   e <- lift get
   let h = head (assumption e) in
     if fst h == x then do
@@ -129,7 +130,16 @@ checkFormula (Discharge x p) = do
       return $ (Imply (snd h) f)
     else pcError "Wrong use of implication introduction, can't not discarge the assumption."
          [(disp "At the variable", disp x)]
-
+         
+checkFormula (Discharge x (Just f1) p) = do
+  wellFormed f1
+  insertAssumption x f1
+  f <- checkFormula p
+  ensureForm (Imply f1 f)
+  e <- lift get
+  lift $ put $ popAssump e
+  return $ (Imply f1 f)
+  
 checkFormula (Inst p m) = do
   f <- checkFormula p
   case down f of
@@ -185,6 +195,9 @@ checkFormula (InvBeta p1 form) = do
     _ -> pcError "invbeta must be use on formula of the form: <term> :: <Set>"
          [(disp "In the formula", disp form)]
 
+checkFormula p = pcError "Un-normal proof"
+         [(disp "The proof", disp p)]
+         
 down :: PreTerm -> PreTerm
 down (Pos _ t) = down t
 down t = t
