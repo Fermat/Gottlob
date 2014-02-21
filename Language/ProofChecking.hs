@@ -32,7 +32,7 @@ proofCheck ((n, (Assume x), f):l) = do
 proofCheck ((n, p, f):l) = do
 --  emit $ "begin to check proof " ++ show p
   wellFormed f
-  p1 <- parSimp p
+  p1 <- parSimp p --  normalize a proof
   f0 <- checkFormula p1
 --  emit $ disp f0 <+> text "?=" <+> disp f
   sameFormula f0 f -- this can be handle by passing to checkformula

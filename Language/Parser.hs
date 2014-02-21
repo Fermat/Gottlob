@@ -212,7 +212,7 @@ termVarProg = termVar >>= \n-> return $ Name n
   
 appProg = do
   sp <- termVarProg <|> parens prog
-  as <- many $ indented >> (parens prog <|>termVarProg)
+  as <- many $ indented >> (try (parens prog) <|> try termVarProg)
   if null as then return sp
     else return $ foldl' (\ z x -> Applica z x) sp as
          
@@ -336,21 +336,21 @@ termVarProof = termVar >>= \n-> return $ PrVar n
 proof :: Parser Proof
 proof = wrapPPos $ cmp <|> mp <|> inst <|>
                   ug <|> beta <|> discharge 
-                  <|>invcmp <|> invbeta <|> parens proof
+                  <|>invcmp <|> invbeta <|> try (parens proof)
                   <|> absProof <|> appProof
 -- invcmp and invbeta are abrieviation
 appPreTerm :: Parser (Either PreTerm Proof)
 appPreTerm = do
-  t <- try (braces progPre) <|> try setVarPre <|> try (parens set) <|> try (parens formula)
+  t <- try (reservedOp "$" >> progPre) <|> try set <|> try formula
   return $ Left t
 
 appPr :: Parser (Either PreTerm Proof)
-appPr = do
-  p <- try termVarProof <|> try (parens proof)
-  return $ Right p
+appPr = proof >>= \ p -> return $ Right p
+--  p <- try termVarProof <|> try (parens proof)
+  
   
 appProof = do
-  sp <- termVarProof <|> parens proof
+  sp <- try termVarProof <|> parens proof
   as <- many $ indented >> (try appPreTerm <|> try appPr)
   return $ foldl' (\ z x -> helper z x) sp as
     where helper z (Left a) = PFApp z a
@@ -365,31 +365,27 @@ absProof = do
 
 invcmp = do
   reserved "invcmp"
-  optional $ reservedOp "$"
   p <- proof
-  f <- try (lookAhead $ reservedOp ":" >> formula) <|> (reservedOp "$" >> formula)
+  f <- try (lookAhead $ reservedOp ":" >> formula) <|> (reserved "from" >> formula)
   return $ InvCmp p f
 
 invbeta = do
   reserved "invbeta"
-  optional $ reservedOp "$"
   p <- proof
-  f <- try (lookAhead $ reservedOp ":" >> formula) <|> ( reservedOp "$" >> formula)
+  f <- try (lookAhead $ reservedOp ":" >> formula) <|> ( reserved "from" >> formula)
   return $ InvBeta p f
 
 --var = termVar >>= \ v -> return $ PrVar v
   
 cmp = do
   reserved "cmp"
-  optional $ reservedOp "$"
   p <- proof
   return $ Cmp p
 
 mp = do
   reserved "mp"
-  optional $ reservedOp "$"
   p1 <- proof
-  reservedOp "$"
+  reserved "by"
   p2 <- proof
   return $ MP p1 p2
 
@@ -400,28 +396,26 @@ discharge = do
        (do{ reservedOp ":";
             a <- formula;
             return $ Just a})
-  reservedOp "$"
+  reservedOp "."
   p <- proof
   return $ Discharge n f p
   
 inst = do
   reserved "inst"
-  optional $ reservedOp "$"
   p <- proof
-  reservedOp "$"
+  reserved "by"
   t <- try progPre <|> try set <|> formula
   return $ Inst p t
 
 ug = do
   reserved "ug"
   m <- try setVar <|> termVar
-  optional $ reservedOp "$"
+  reservedOp "."
   p <- proof
   return $ UG m p
 
 beta = do
   reserved "beta"
-  optional $ reservedOp "$"
   p <- proof
   return $ Beta p
   
@@ -462,6 +456,7 @@ gottlobStyle = Token.LanguageDef
                   [
                     "forall", "iota", 
                     "cmp","invcmp", "inst", "mp", "discharge", "ug", "beta", "invbeta",
+                    "by", "from",
                     "case", "of",
                     "data", 
                     "theorem", "proof", "qed",
@@ -472,7 +467,7 @@ gottlobStyle = Token.LanguageDef
                     "tactic"
                   ]
                , Token.reservedOpNames =
-                    ["\\", "->", "|", ".","=", "::", ":", "$"]
+                    ["\\", "->", "|", ".","=", "::", ":", "$", "$$"]
                 }
 
 tokenizer :: Token.GenTokenParser String u (State SourcePos)

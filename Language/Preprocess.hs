@@ -79,6 +79,18 @@ process ((ProofDecl n ps f):l) = do
   emptyLocalProof
   process l
 
+process ((TacDecl x args (Left p)):l) = do 
+  emit $ "processing tactic decl" <++> x
+  st <- get
+  case M.lookup x $ tacticDef st of
+    Nothing -> do
+      put $ extendTaticDef x p st
+      process l
+    Just a ->
+     die "The tactic has been defined."
+     `catchError` addProgErrorPos (getProgPos p) (Name x)
+  
+
 isTerm :: PreTerm -> Global Bool
 isTerm p = do
   (a, _, _) <- wellFormed p
