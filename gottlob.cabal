@@ -19,9 +19,9 @@ library
                       Language.Program,
                       Language.Monad,
                       Language.TypeInference, 
---                      Language.Preprocess, 
+                      Language.Preprocess, 
                       Language.Eval,
---                      Language.ProofChecking,
+                      Language.ProofChecking,
                       Language.PrettyPrint
   -- other-modules:       
   build-depends:       base >= 4, parsec >= 3.0, array, indents >= 0.3.0, pretty, mtl, containers, transformers, cmdargs   

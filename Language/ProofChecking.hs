@@ -19,8 +19,8 @@ import qualified Data.Set as S
 import Data.Char
 
 proofCheck :: ProofScripts -> Global ()
--- proofCheck ((n, (PPos pos p ), f):l) = 
---   proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
+proofCheck ((n, (PPos pos p ), f):l) = 
+  proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
   
 proofCheck ((n, (Assume x), f):l) = do
 --  wellDefined f
