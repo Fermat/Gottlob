@@ -336,8 +336,8 @@ termVarProof = termVar >>= \n-> return $ PrVar n
 proof :: Parser Proof
 proof = wrapPPos $ cmp <|> mp <|> inst <|>
                   ug <|> beta <|> discharge 
-                  <|>invcmp <|> invbeta <|> try (parens proof)
-                  <|> absProof <|> appProof
+                  <|>invcmp <|> invbeta
+                  <|> absProof <|> try appProof <|> (parens proof)
 -- invcmp and invbeta are abrieviation
 appPreTerm :: Parser (Either PreTerm Proof)
 appPreTerm = do
@@ -345,9 +345,9 @@ appPreTerm = do
   return $ Left t
 
 appPr :: Parser (Either PreTerm Proof)
-appPr = proof >>= \ p -> return $ Right p
---  p <- try termVarProof <|> try (parens proof)
-  
+appPr = do
+  p <- try (parens proof) <|> try termVarProof
+  return $ Right p
   
 appProof = do
   sp <- try termVarProof <|> parens proof
