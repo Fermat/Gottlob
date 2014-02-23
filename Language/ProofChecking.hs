@@ -33,7 +33,7 @@ proofCheck ((n, p, f):l) = do
 --  emit $ "begin to check proof " ++ show p
   wellFormed f
   p1 <- parSimp p --  normalize a proof
-  emit $ "begin to check simp proof " ++ show p1
+--  emit $ "begin to check simp proof " <++> disp p1
   f0 <- checkFormula p1
 
 --  emit $ disp f0 <+> text "?=" <+> disp f
