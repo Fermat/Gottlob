@@ -15,7 +15,9 @@ step (App (Lambda x t1) t2 ) s = return $ runSubst t2 (PVar x) t1
 
 step (App t1 t2) s = step t1 s >>= \ a -> return $ App a t2
 
-step (Lambda x t) s = step t s >>= \a -> return $ Lambda x a
+step (Lambda x t) s = return $ Lambda x t
+-- to use head reduction, replace the line above by the following line 
+-- step t s >>= \a -> return $ Lambda x a
 
 step (PVar x) s = 
   if x `S.member` s then do
@@ -98,6 +100,10 @@ simp (PPos pos p1) s = simp p1 s `catchError` addProofErrorPos pos p1
 
 simp _ _ = die "Wrong use of proof simplication."
 
+-- for parSimp, its goal is to reduce/simplify
+-- tactic to its normal-form, so that proof-checking
+-- can proceed without problem. And it is not for compiling
+-- to run, so it is fine to be inefficient.
 parSimp :: Proof -> Global Proof
 parSimp t = do
   m <- simp t (fPrVar t)
