@@ -341,7 +341,8 @@ proof = wrapPPos $ cmp <|> mp <|> inst <|>
 -- invcmp and invbeta are abrieviation
 appPreTerm :: Parser (Either PreTerm Proof)
 appPreTerm = do
-  t <- try (reservedOp "$" >> progPre) <|> try set <|> try formula
+  t <- try (reservedOp "$" >> progPre) <|> try(optional (reservedOp "$") >>  set) <|>
+       try (optional (reservedOp "$") >> formula)
   return $ Left t
 
 appPr :: Parser (Either PreTerm Proof)
@@ -375,8 +376,6 @@ invbeta = do
   f <- try (lookAhead $ reservedOp ":" >> formula) <|> ( reserved "from" >> formula)
   return $ InvBeta p f
 
---var = termVar >>= \ v -> return $ PrVar v
-  
 cmp = do
   reserved "cmp"
   p <- proof

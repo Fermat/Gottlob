@@ -59,23 +59,23 @@ instance Disp EType where
 instance Disp Proof where
   disp (Assume x) = brackets $ text x
   disp (PrVar x) = text x
-  disp (a@(MP p1 p2)) = text "mp" <+> dParen (precedence a) p1 <+> dParen (precedence a) p2
-  disp (a@(Inst p1 t)) = text "inst" <+> dParen (precedence a) p1 <+> disp t
-  disp (a@(UG x p1)) = text "ug" <+> text x <+> dParen (precedence a) p1 
+  disp (a@(MP p1 p2)) = text "mp" <+> dParen (precedence a) p1 <+> text "by" <+> dParen (precedence a) p2
+  disp (a@(Inst p1 t)) = text "inst" <+> dParen (precedence a) p1 <+> text "by" <+> disp t
+  disp (a@(UG x p1)) = text "ug" <+> text x <+> text "." <+> dParen (precedence a) p1 
   disp (a@(Cmp p1)) = text "cmp" <+> dParen (precedence a) p1
   disp (a@(Beta p1)) = text "beta" <+> dParen (precedence a) p1
-  disp (a@(Discharge x Nothing p1)) = text "discharge" <+> text x <+> dParen (precedence a) p1
-  disp (a@(Discharge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "$" <+> dParen (precedence a) p1 
-  disp (a@(InvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text ":" <+> disp f
-  disp (a@(InvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text ":" <+> disp f
+  disp (a@(Discharge x Nothing p1)) = text "discharge" <+> text x <+> text "." <+> dParen (precedence a) p1
+  disp (a@(Discharge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "." <+> dParen (precedence a) p1 
+  disp (a@(InvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
+  disp (a@(InvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
   disp (s@(PApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
-  disp (s@(PFApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
+  disp (s@(PFApp s1 s2)) = dParen (precedence s - 1) s1 <+> text "$" <+> dParen (precedence s) s2
   disp (PLam x p) = text "\\" <+> disp x <+> text "." <+> disp p
   disp (PPos p pr) = disp pr
   precedence (PPos _ pr) = precedence pr
   precedence (PrVar _) = 12
   precedence (PApp _ _) = 8
-  precedence (PFApp _ _) = 8
+  precedence (PFApp _ _) = 7
   precedence _ = 4
 
 instance Disp Prog where

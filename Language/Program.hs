@@ -1,6 +1,7 @@
 module Language.Program
-       (progTerm, toSet, toScott) where
+       (progTerm, toSet, toScott, runToProof) where
 import Language.Syntax
+import Control.Monad.Reader
 import Data.List
 import Data.Char
 
@@ -80,10 +81,73 @@ toScott (Data d l cons) =
               a = args "a" n (PVar c)
               b = constrAbs l1 a
               e = abstr "a" n b in (c, e)
-
 -- a small test on nat
 -- nat = Data "Nat" [] [("z", FVar "Nat"), ("s", Arrow (FVar "Nat") (FVar "Nat"))]      
 
+-- translating proof scripts to proof.
+runToProof ::ProofScripts -> Proof
+runToProof ps = runReader (toProof ps) []
+toProof :: ProofScripts -> Reader [(VName, PreTerm)] Proof
+toProof ((n,p,f):[]) = annotate p
+toProof ((n, (Assume x), f):xs) = local (\ y -> (x, f):y) (toProof xs)
+toProof ((n, p, f):xs) = toProof $ substPL p n xs
+  where substPL p n xs = map (\ (n1, p1,f1) -> (n1,runSubProof p (PrVar n) p1,f1)) xs
+        
+annotate :: Proof -> Reader [(VName, PreTerm)] Proof
+annotate (Discharge x Nothing p) = do
+  l <- ask
+  case lookup x l of
+    Nothing -> annotate p
+    Just f -> do
+      p1 <- annotate p
+      return $ Discharge x (Just f) p
+
+annotate (PrVar p) = return $ PrVar p
+annotate (MP p1 p2) = do
+  p3 <- annotate p1
+  p4 <- annotate p2
+  return $ MP p3 p4
+annotate (Inst p1 t) = do
+  p3 <- annotate p1
+  return $ Inst p3 t
+
+annotate (UG x p1) = do
+  p3 <- annotate p1
+  return $ UG x p3
+
+annotate (Cmp p1) = do
+  p3 <- annotate p1
+  return $ Cmp p3
+
+annotate (Beta p1) = do
+  p3 <- annotate p1
+  return $ Beta p3
+
+annotate (InvCmp p1 t) = do
+  p3 <- annotate p1
+  return $ InvCmp p3 t
+
+annotate (InvBeta p1 t) = do
+  p3 <- annotate p1
+  return $ InvBeta p3 t
+
+annotate (PLam x p1) = do
+  p3 <- annotate p1
+  return $ PLam x p3
+
+annotate (PApp p1 p2) = do
+  p3 <- annotate p1
+  p4 <- annotate p2
+  return $ PApp p3 p4
+
+annotate (PFApp p1 t) = do
+  p3 <- annotate p1
+  return $ PFApp p3 t
+annotate (PPos pos p1) = annotate p1
+
+
+
+                 
 
 
 

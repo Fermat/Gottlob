@@ -41,6 +41,9 @@ newPrfEnv e = PrfEnv { assumption = [], localProof=M.empty, localEType=M.fromLis
 extendProgDef :: VName -> PreTerm -> Env -> Env
 extendProgDef v t e@(Env {progDef}) = e{progDef = M.insert v t progDef}
 
+extendTacticDef :: VName -> Proof -> Env -> Env
+extendTacticDef v t e@(Env {tacticDef}) = e{tacticDef = M.insert v t tacticDef}
+
 extendProofCxt :: VName -> ProofScripts -> PreTerm -> Env -> Env
 extendProofCxt v ps f e@(Env {proofCxt}) = e{proofCxt = M.insert v (ps,f) proofCxt}
 
