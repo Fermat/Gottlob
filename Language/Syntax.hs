@@ -3,7 +3,7 @@ module Language.Syntax
         PreTerm(..), Proof(..), ProofScripts,
         Prog(..), Args(..), FType(..),
         Datatype(..), Module(..), Decl(..),
-        fv, fVar, fPrVar, runSubst, runSubPre, runSubProof) where
+        fv, fVar, fPrVar, runSubst, runSubPre, runSubProof, naiveSub) where
 
 import Control.Monad.State.Lazy
 import Control.Monad.Reader
@@ -92,6 +92,47 @@ fPrVar (Beta p) = fPrVar p
 fPrVar (InvCmp p1 t) = fPrVar p1 `S.union` fv t
 fPrVar (InvBeta p1 t) = fPrVar p1 `S.union` fv t
 fPrVar (PFApp p1 t) = fPrVar p1 `S.union` fv t
+-- naive sub proof 
+naiveSub :: Proof -> Proof -> Proof -> Proof
+naiveSub p (PrVar x) (PrVar y) =
+  if x == y then p else PrVar y
+                               
+naiveSub p (PrVar x) (MP p1 p2) = 
+  let a1 = naiveSub p (PrVar x) p1
+      a2 = naiveSub p (PrVar x) p2 in
+  MP a1 a2
+  
+naiveSub p (PrVar x) (Inst p1 t) =
+  let a = naiveSub p (PrVar x) p1 in
+  Inst a t
+  
+naiveSub p (PrVar x) (UG y p1) = UG y (naiveSub p (PrVar x) p1)
+                                     
+naiveSub p (PrVar x) (Cmp p1) = Cmp (naiveSub p (PrVar x) p1)
+                                     
+naiveSub p (PrVar x) (InvCmp p1 t) =
+  InvCmp (naiveSub p (PrVar x) p1) t
+
+naiveSub p (PrVar x) (Beta p1) =
+  Beta (naiveSub p (PrVar x) p1)
+                                    
+naiveSub p (PrVar x) (InvBeta p1 t) =
+  InvBeta ( naiveSub p (PrVar x) p1) t
+
+naiveSub p (PrVar x) (Discharge y t p1) = Discharge y t (naiveSub p (PrVar x) p1)
+  
+naiveSub p (PrVar x) (PLam y p1) =  PLam y (naiveSub p (PrVar x) p1)
+  
+naiveSub p (PrVar x) (PApp p1 p2) = 
+  let a1 = naiveSub p (PrVar x) p1
+      a2 = naiveSub p (PrVar x) p2 in
+  PApp a1 a2
+  
+naiveSub p (PrVar x) (PFApp p1 t) = 
+  PFApp (naiveSub p (PrVar x) p1) t
+  
+naiveSub p (PrVar x) (PPos a p1) =
+  PPos a (naiveSub p (PrVar x) p1)
 
 -- capture avoiding subst for proof
 runSubProof :: Proof -> Proof -> Proof -> Proof

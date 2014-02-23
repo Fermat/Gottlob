@@ -91,17 +91,22 @@ toProof :: ProofScripts -> Reader [(VName, PreTerm)] Proof
 toProof ((n,p,f):[]) = annotate p
 toProof ((n, (Assume x), f):xs) = local (\ y -> (x, f):y) (toProof xs)
 toProof ((n, p, f):xs) = toProof $ substPL p n xs
-  where substPL p n xs = map (\ (n1, p1,f1) -> (n1,runSubProof p (PrVar n) p1,f1)) xs
+  where substPL p n xs = map (\ (n1, p1,f1) -> (n1,naiveSub p (PrVar n) p1,f1)) xs
         
 annotate :: Proof -> Reader [(VName, PreTerm)] Proof
 annotate (Discharge x Nothing p) = do
   l <- ask
   case lookup x l of
-    Nothing -> annotate p
+    Nothing -> do
+      p1 <- annotate p
+      return $ Discharge x Nothing p1
     Just f -> do
       p1 <- annotate p
-      return $ Discharge x (Just f) p
-
+      return $ Discharge x (Just f) p1
+annotate (Discharge x (Just f) p) = do
+  p1 <- annotate p
+  return $ Discharge x (Just f) p1
+  
 annotate (PrVar p) = return $ PrVar p
 annotate (MP p1 p2) = do
   p3 <- annotate p1

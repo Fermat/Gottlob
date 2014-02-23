@@ -33,11 +33,13 @@ proofCheck ((n, p, f):l) = do
 --  emit $ "begin to check proof " ++ show p
   wellFormed f
   p1 <- parSimp p --  normalize a proof
+  emit $ "begin to check simp proof " ++ show p1
   f0 <- checkFormula p1
+
 --  emit $ disp f0 <+> text "?=" <+> disp f
   sameFormula f0 f -- this can be handle by passing to checkformula
 --  emit $ "pass same"
-  insertPrVar n p f
+  insertPrVar n p1 f
 --  emit $ "checked non-assump"
   proofCheck l
 

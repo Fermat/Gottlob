@@ -70,7 +70,12 @@ instance Disp Env where
              hang (text "Set/Formula Definitions") 2 (vcat
                                                       [disp n <+> text":"<+> disp t <+> text "=" <+> disp f | (n,(f,t)) <- M.toList $ setDef env]) $$
              hang (text "Proofs Context") 2 (vcat
-                [ disp (ProofDecl n ps f) | (n,(ps,f)) <- M.toList $ proofCxt env])
+                [ disp (ProofDecl n ps f) | (n,(ps,f)) <- M.toList $ proofCxt env]) $$
+             hang (text "Tactic Definitions") 2 (vcat
+                [disp n <+> text "=" <+> disp t | (n, t) <- M.toList $ tacticDef env]) 
+
+
+
 
 instance Disp PrfEnv where
   disp env = hang (text "Current Local Assumptions") 2 (vcat

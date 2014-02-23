@@ -33,9 +33,9 @@ main = flip catches handlers $ do
                            b <- checkDefs a
                            case b of
                              Left e1 -> throw e1
-                             Right (env, e) -> 
+                             Right (env, e) ->  do
                                putStrLn "ProofChecking success!"
---                               print $ disp env
+                               print $ disp env
 -- look at local variable                              print $ disp e
 
 
