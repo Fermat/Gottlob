@@ -31,10 +31,10 @@
      whn-reduction. And this path could reinventing the wheels. 
      And may not bringing something new to the table.
      
-** 7. Currently, proof language is annotated heavily. Should
+--done 7. Currently, proof language is annotated heavily. Should
     consider optional annotation. 
  8. Try not be killed by parens in a formula
-   
+ 9. Good error info, aka, location.   
 ----------
 Big picture:
 1. Support reasoning on Stateful programs 

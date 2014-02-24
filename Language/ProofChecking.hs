@@ -108,15 +108,19 @@ checkFormula :: Proof -> Global PreTerm
 checkFormula (PPos pos p) = checkFormula p `catchError` addProofErrorPos pos p
 checkFormula (PrVar v)  = do
   e <- get
+  loc <- ask
   case M.lookup v (proofCxt e) of
     Just a -> return $ snd a
     Nothing -> do 
       s <- lift get
-      case lookup v (assumption s) of
-        Just a1 -> return a1
-        _ -> case M.lookup v (localProof s) of
-                Just a2 -> return $ snd a2
-                _ -> die $ "Can't find proof variable" <++> v
+      case lookup v loc of
+        Just a3 -> return a3
+        _ -> 
+          case lookup v (assumption s) of
+            Just a1 -> return a1
+            _ -> case M.lookup v (localProof s) of
+                    Just a2 -> return $ snd a2
+                    _ -> die $ "Can't find proof variable" <++> v
 
 checkFormula (MP p1 p2) = do
  f1 <- checkFormula p1 
@@ -131,22 +135,29 @@ checkFormula (MP p1 p2) = do
 
 checkFormula (Discharge x Nothing p) = do
   e <- lift get
-  let h = head (assumption e) in
-    if fst h == x then do
-      f <- checkFormula p
-      ensureForm (Imply (snd h) f)
-      lift $ put $ popAssump e
-      return $ (Imply (snd h) f)
-    else pcError "Wrong use of implication introduction, can't not discarge the assumption."
-         [(disp "At the variable", disp x)]
+  case lookup x (assumption e) of --  (y, f1)
+    Just f1 -> do
+      f <- local (\ l -> (x, f1):l) (checkFormula p)
+      a <- lift $ get
+      if fst (head $ assumption a) == x
+        then
+        do
+--          emit $ text "discharging " <+> disp x
+          lift $ put $ popAssump a
          
+--          emit $ text "current head assumption" <+> (disp $ fst (head $ assumption a))
+          ensureForm (Imply f1 f)
+          return $ (Imply f1 f)
+        else pcError "Wrong use of implication introduction, can't not discharge the assumption."
+             [(disp "At the variable", disp x)]
+    Nothing -> die $ disp x <+> text "is not in assumptions."
+
 checkFormula (Discharge x (Just f1) p) = do
   wellFormed f1
-  insertAssumption x f1
-  f <- checkFormula p
+  f <- local (\l -> (x, f1):l) (checkFormula p)
   ensureForm (Imply f1 f)
   e <- lift get
-  lift $ put $ popAssump e
+--  lift $ put $ popAssump e
   return $ (Imply f1 f)
   
 checkFormula (Inst p m) = do

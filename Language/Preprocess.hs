@@ -11,6 +11,7 @@ import Text.Parsec.Pos
 import Control.Monad.Identity
 import Control.Monad.State
 import Control.Monad.Error
+import Control.Monad.Reader
 
 import Data.List
 import qualified Data.Map as M
@@ -19,7 +20,7 @@ import qualified Data.Set as S
 -- process parsed data 
 checkDefs :: Module -> IO (Either PCError (Env, PrfEnv))
 checkDefs (Module mod l) = do
- a <- runErrorT $ runStateT (runStateT (process l) emptyEnv) emptyPrfEnv
+ a <- runErrorT $ runReaderT (runStateT (runStateT (process l) emptyEnv) emptyPrfEnv) []
  case a of
    Left e -> return $ Left e
    Right b -> return $ Right ((snd.fst) b, snd b)

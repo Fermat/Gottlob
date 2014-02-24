@@ -343,8 +343,9 @@ proof = wrapPPos $ cmp <|> mp <|> inst <|>
 -- invcmp and invbeta are abrieviation
 appPreTerm :: Parser (Either PreTerm Proof)
 appPreTerm = do
-  t <- try (reservedOp "$" >> progPre) <|> try(optional (reservedOp "$") >>  set) <|>
-       try (optional (reservedOp "$") >> formula)
+  t <- try (reservedOp "$" >> progPre) <|> try (optional (reservedOp "$") >> formula)
+       <|> try(optional (reservedOp "$") >> set)
+       
   return $ Left t
 
 appPr :: Parser (Either PreTerm Proof)

@@ -13,7 +13,7 @@ import Control.Monad.Error
 import Text.Parsec.Pos
 import Control.Exception(Exception)
 
-type Global a =StateT Env (StateT PrfEnv (ErrorT PCError IO)) a
+type Global a =StateT Env (StateT PrfEnv (ReaderT [(VName, PreTerm)] (ErrorT PCError IO))) a
                  -- deriving (Functor, Applicative, Monad,
                  --           MonadState Env, MonadError TypeError, MonadIO)
 
