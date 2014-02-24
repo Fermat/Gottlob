@@ -19,17 +19,17 @@ import qualified Data.Set as S
 import Data.Char
 
 proofCheck :: ProofScripts -> Global ()
-proofCheck ((n, (PPos pos p ), f):l) = 
-  proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
+-- proofCheck ((n, (PPos pos p ), f):l) f1 = 
+--   proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
   
-proofCheck ((n, (Assume x), f):l) = do
+proofCheck ((n, (Assume x), Just f):l) = do
 --  wellDefined f
   wellFormed f
   insertAssumption x f
 --  emit $ "checked assumption"
   proofCheck l
 
-proofCheck ((n, p, f):l) = do
+proofCheck ((n, p, Just f):l) = do
 --  emit $ "begin to check proof " ++ show p
   wellFormed f
   p1 <- parSimp p --  normalize a proof
@@ -41,6 +41,13 @@ proofCheck ((n, p, f):l) = do
 --  emit $ "pass same"
   insertPrVar n p1 f
 --  emit $ "checked non-assump"
+  proofCheck l
+
+proofCheck ((n, p, Nothing):l) = do
+  p1 <- parSimp p --  normalize a proof
+  f0 <- checkFormula p1
+  emit $ text "Infered formula:" <+> disp f0 <+> text "for proof" <+> disp n
+  insertPrVar n p1 f0
   proofCheck l
 
 proofCheck [] = return ()

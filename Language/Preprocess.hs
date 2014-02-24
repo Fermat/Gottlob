@@ -73,11 +73,15 @@ process ((ProofDecl n ps f):l) = do
   (t, c, d) <- ensureForm f
   lift $ put $ newPrfEnv d -- default type def for the proofs.
   proofCheck ps
-  let (_,_, (Pos pos f0))= last ps
-  sameFormula f0 f `catchError` addPreErrorPos pos f0
-  updateProofCxt n ps f
-  emptyLocalProof
-  process l
+  let (x,_, _)= last ps
+  localEnv <- lift $ get
+  case M.lookup x (localProof localEnv) of
+    Just (_ , f0) -> do
+      sameFormula f0 f 
+      updateProofCxt n ps f
+      emptyLocalProof
+      process l
+    Nothing -> die "Impossible situation."
 
 process ((TacDecl x args (Left p)):l) = do 
   emit $ "processing tactic decl" <++> x

@@ -49,18 +49,18 @@ tactic cmpinst p s = cmp inst p by s
 tactic byEval t1 t2 =   
    [c] : t1 :: Q
    c1 = invbeta beta c : t2::Q
-   c3 = ug Q . discharge c . c1 : forall Q . t1 :: Q -> t2 :: Q   
+   c3 = ug Q . discharge c . c1
    c5 = invcmp c3 : Eq t1 t2
 
 theorem isZero . Eq (iszero (add (s z) (s (s z)))) ff
 proof 
-  c = byEval $ (iszero (add (s z) (s (s z)))) $ ff : Eq (iszero (add (s z) (s (s z)))) ff
+  c = byEval $ (iszero (add (s z) (s (s z)))) $ ff
 qed
 
 theorem isZero1 . forall x . Eq (iszero (s x)) ff
 proof 
-  c = byEval $ (iszero (s x)) $ ff : Eq (iszero (s x)) ff
-  c1 = ug x . c : forall x . Eq (iszero (s x)) ff
+  c = byEval $ (iszero (s x)) $ ff
+  c1 = ug x . c
 qed
 
 -- theorem isZero1 . forall x . Eq (iszero (s x)) ff
@@ -71,24 +71,24 @@ qed
 
 theorem isZero2 . forall x . Eq (eqB (iszero (s x)) ff) tt
 proof 
-  c = byEval $ eqB (iszero (s x)) ff $ tt : Eq (eqB (iszero (s x)) ff) tt
-  c1 = ug x . c : forall x . Eq (eqB (iszero (s x)) ff) tt
+  c = byEval $ eqB (iszero (s x)) ff $ tt 
+  c1 = ug x . c 
 qed
 
 theorem isZero3 .  Eq ((add (s z) z) == (s z)) tt
 proof 
-  c = byEval $ (add (s z) z) == s z $ tt : Eq ( (add (s z) z) == s z) tt
+  c = byEval $ (add (s z) z) == s z $ tt
 --  c1 = ug x . c : forall x . Eq ((add x z) == x) tt
 qed
 
 theorem add3eq . Eq (add (s z) (s (s z)) == s (s (s z))) tt
 proof 
-  c = byEval $ add (s z) (s (s z)) == s (s (s z)) $ tt : Eq (add (s z) (s (s z)) == s (s (s z))) tt
+  c = byEval $ add (s z) (s (s z)) == s (s (s z)) $ tt 
 qed
 
 theorem add3eq' . Eq  tt (add (s z) (s (s z)) == s (s (s z)))
 proof 
-  c = byEval $ tt $ add (s z) (s (s z)) == s (s (s z))  :  Eq  tt (add (s z) (s (s z)) == s (s (s z)))
+  c = byEval $ tt $ add (s z) (s (s z)) == s (s (s z)) 
 qed
 
 -- theorem add3 . Eq (add (s z) (s (s z)))  (s (s (s z)))

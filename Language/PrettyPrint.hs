@@ -127,12 +127,14 @@ instance Disp Decl where
   disp (ProofDecl x ps f) = text "theorem" <+> text x <+> text "." <+> disp f $$
                             text "proof" $$ nest 2 (vcat (map dispPs ps))
                             $$ text "qed"
-    where dispPs (n, p, f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
+    where dispPs (n, p, Just f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
+          dispPs (n, p, Nothing) = text n <+> text "=" <+> disp p 
   disp (DataDecl p d) = disp d
   disp (SetDecl x s) = text x <+> text "=" <+> disp s
   disp (TacDecl x args (Left s)) = text "tactic" <+> text x <+>(hsep $ map text args) <+> text "=" <+> disp s
   disp (TacDecl x args (Right ps)) = text "tactic" <+> text x <+>(hsep $ map text args) <+> text "=" $$ nest 2 (vcat (map dispPs ps))
-    where dispPs (n, p, f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
+    where dispPs (n, p, Just f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
+          dispPs (n, p, Nothing) = text n <+> text "=" <+> disp p 
   disp (FormOperatorDecl s1 i s2) = text "formula" <+> text s1 <+>
                                     disp i <+> disp s2
   disp (ProgOperatorDecl s1 i s2) = text "prog" <+> text s1 <+>
