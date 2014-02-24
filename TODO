@@ -1,6 +1,47 @@
 1. Shrinking files
-2. Support Let/And, or exist/Monadic code...
+2. Support *Let*/And, or exist/Monadic code...
 ----------------
-1. Haskell style $ 
-2. get rid of infix notation.
-3. 
+-- 1. Haskell style $ 
+-- 2. get rid of special infix notation 
+3. *smarter* pattern matching ? 
+4. prettyprint for infix notaton
+
+5. How to exploit Mogensen's self interpretation? 
+    1. represent term as data 
+       now we can manipulate these data and interpret them
+    2. define an interpreter. 
+       But, we can't write the encode function though, 
+       which require intensional analyze on meta-lambda term. 
+       So a build-in primitive 'quote' is require. 
+       quote : pure-lambda-term => LTerm
+    3. How this could be helpful without constantly need to extend
+       the implementation and making the prog language itself extensible.
+
+--6. How to get a more efficient hnf reduction?
+   
+   {- Renaming cost, FV cost, membership cost -- the cost of doing *a* substitution
+      Y-Theta-cost -- added up with multiple subs. -}
+   it doesn't matter, since what we are doing is reasoning, not *actually* runing
+   program.
+
+  6. Do plan to let the ghc do the work for us, since
+     it is based on primitive data type and explicit typed 
+     core. So we would need our own interpretor, then we 
+     may need to investigate the techniques needed to optimize
+     whn-reduction. And this path could reinventing the wheels. 
+     And may not bringing something new to the table.
+     
+** 7. Currently, proof language is annotated heavily. Should
+    consider optional annotation. 
+ 8. Try not be killed by parens in a formula
+   
+----------
+Big picture:
+1. Support reasoning on Stateful programs 
+   -- need let binding and possible program transformation
+2. Full flege Interpretor and Interactive Theorem proving environment.
+3. Think about how to make software as small, robust, correct and obvious as possible.
+
+...
+10. Incorparate/Handling Typing.??
+       

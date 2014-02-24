@@ -31,19 +31,15 @@ type Parser a = IndentParser String ParserState a
 
 data ParserState =
   ParserState {
-    specialParser :: IndentParser String ParserState PreTerm,
     progParser :: IndentParser String ParserState Prog,
     formulaParser :: IndentParser String ParserState PreTerm,
-    specialOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm],
     progOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) Prog],
     formulaOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm]}
 
 initialParserState :: ParserState
 initialParserState = ParserState {
-  specialParser = parserZero,
   progParser = buildExpressionParser [] progA, --progPre,
   formulaParser = buildExpressionParser initialFormulaOpTable atom,
-  specialOpTable =  IM.fromAscList (zip [0 ..] [[]]),
   progOpTable =  IM.fromAscList (zip [0 ..] [[]]),
   formulaOpTable =  IM.fromAscList (zip [0 ..] initialFormulaOpTable)}
 
@@ -92,8 +88,9 @@ gModule = do
 gDecl :: Parser Decl
 gDecl = gDataDecl <|> proofDecl <|> try progDecl
         <|> setDecl <|> formOperatorDecl <|>
-        progOperatorDecl <|> specialOperatorDecl
-        
+        progOperatorDecl <|> tacticDecl
+
+  
 formOperatorDecl :: Parser Decl
 formOperatorDecl = do
   reserved "formula"
@@ -104,7 +101,7 @@ formOperatorDecl = do
   let table' = IM.insertWith (++) level [toOp op r SApp PVar] $ formulaOpTable st
       form' = buildExpressionParser (map snd (IM.toAscList table')) atom
   putState $ ParserState
-    (specialParser st) (progParser st) form' (specialOpTable st) (progOpTable st) table'
+    (progParser st) form' (progOpTable st) table'
   return (FormOperatorDecl op level r)
 
 progOperatorDecl :: Parser Decl
@@ -117,21 +114,8 @@ progOperatorDecl = do
   let table' = IM.insertWith (++) level [toOp op r Applica Name] $ progOpTable st
       prog' = buildExpressionParser (map snd (IM.toAscList table')) progA
   putState $ ParserState
-    (specialParser st) prog' (formulaParser st) (specialOpTable st) table' (formulaOpTable st) 
+    prog' (formulaParser st) table' (formulaOpTable st) 
   return (ProgOperatorDecl op level r)
-
-specialOperatorDecl :: Parser Decl
-specialOperatorDecl = do
-  reserved "special"
-  r <- choice [reserved i >> return i | i <- ["infix","infixr","infixl","pre","post"]]
-  level <- fromInteger <$> integer
-  op <- operator
-  st <- getState
-  let table' = IM.insertWith (++) level [toOp op r TApp PVar] $ specialOpTable st
-      special' = buildExpressionParser (map snd (IM.toAscList table')) progPre
-  putState $ ParserState
-    special' (progParser st) (formulaParser st) table' (progOpTable st) (formulaOpTable st) 
-  return (SpecialOperatorDecl op level r)
 
 gDataDecl :: Parser Decl
 gDataDecl = do
@@ -194,6 +178,18 @@ compoundArgs =
   <|> (try (prog >>= \ n -> return $ ArgProg n))
   <|> (try (parens ftype >>= \ n -> return $ ArgType n)))
 
+-- tactic decl ---
+
+tacticDecl :: Parser Decl
+tacticDecl = do
+  reserved "tactic"
+  n <- termVar
+  as <- many (try termVar <|> try setVar)
+  reservedOp "="
+  p <- try (proof >>= \ p -> return $ Left p) <|>
+       ((block $ assumption <|> proofDef) >>= \ps -> return $ Right ps)
+  return $ TacDecl n as p
+
 -----  Parser for Program ------
 
 progDecl :: Parser Decl
@@ -216,7 +212,7 @@ termVarProg = termVar >>= \n-> return $ Name n
   
 appProg = do
   sp <- termVarProg <|> parens prog
-  as <- many $ indented >> (parens prog <|>termVarProg)
+  as <- many $ indented >> (try (parens prog) <|> try termVarProg)
   if null as then return sp
     else return $ foldl' (\ z x -> Applica z x) sp as
          
@@ -290,11 +286,8 @@ formula = getState >>= \st -> wrapFPos $ formulaParser st
 
 atom :: Parser PreTerm
 atom = wrapFPos $ try forallClause <|> try inClause <|>
-       try appClause <|> parens formula <|> try special
+       try appClause <|> parens formula 
 
-special = getState >>=
-          \ st -> (parens $ specialParser st) <|> specialParser st
-  
 forallClause = do
   reserved "forall"
   xs <- many1 $ try termVar <|> setVar
@@ -337,66 +330,91 @@ proofDef = do
   f <- formula
   return (b, p, f)
 
+termVarProof :: Parser Proof
+termVarProof = termVar >>= \n-> return $ PrVar n
+
 proof :: Parser Proof
-proof = wrapPPos $ var <|> cmp <|> mp <|> inst <|>
-                  ug <|> beta <|> discharge <|> parens proof
+proof = wrapPPos $ cmp <|> mp <|> inst <|>
+                  ug <|> beta <|> discharge 
                   <|>invcmp <|> invbeta
+                  <|> absProof <|> try appProof <|> (parens proof)
 -- invcmp and invbeta are abrieviation
+appPreTerm :: Parser (Either PreTerm Proof)
+appPreTerm = do
+  t <- try (reservedOp "$" >> progPre) <|> try(optional (reservedOp "$") >>  set) <|>
+       try (optional (reservedOp "$") >> formula)
+  return $ Left t
+
+appPr :: Parser (Either PreTerm Proof)
+appPr = do
+  p <- try (parens proof) <|> try termVarProof
+  return $ Right p
+  
+appProof = do
+  sp <- try termVarProof <|> parens proof
+  as <- many $ indented >> (try appPreTerm <|> try appPr)
+  return $ foldl' (\ z x -> helper z x) sp as
+    where helper z (Left a) = PFApp z a
+          helper z (Right a) = PApp z a
+
+absProof = do
+  reserved "\\"
+  xs <- many1 $ try termVar <|> setVar
+  reservedOp "."
+  f <- proof
+  return $ (foldr (\ x z -> PLam x z) f xs)
+
 invcmp = do
   reserved "invcmp"
-  optional $ reservedOp "$"
   p <- proof
-  f <- try (lookAhead $ reservedOp ":" >> formula) <|> formula
+  f <- try (lookAhead $ reservedOp ":" >> formula) <|> (reserved "from" >> formula)
   return $ InvCmp p f
 
 invbeta = do
   reserved "invbeta"
-  optional $ reservedOp "$"
   p <- proof
-  f <- try (lookAhead $ reservedOp ":" >> formula) <|> formula
+  f <- try (lookAhead $ reservedOp ":" >> formula) <|> ( reserved "from" >> formula)
   return $ InvBeta p f
 
-var = termVar >>= \ v -> return $ PrVar v
-  
 cmp = do
   reserved "cmp"
-  optional $ reservedOp "$"
   p <- proof
   return $ Cmp p
 
 mp = do
   reserved "mp"
-  optional $ reservedOp "$"
   p1 <- proof
-  optional $ reservedOp "$"
+  reserved "by"
   p2 <- proof
   return $ MP p1 p2
 
 discharge = do
   reserved "discharge"
   n <- termVar
-  optional $ reservedOp "$"
+  f <- option Nothing $
+       (do{ reservedOp ":";
+            a <- formula;
+            return $ Just a})
+  reservedOp "."
   p <- proof
-  return $ Discharge n p
+  return $ Discharge n f p
   
 inst = do
   reserved "inst"
-  optional $ reservedOp "$"
   p <- proof
-  optional $ reservedOp "$"
+  reserved "by"
   t <- try progPre <|> try set <|> formula
   return $ Inst p t
 
 ug = do
   reserved "ug"
   m <- try setVar <|> termVar
-  optional $ reservedOp "$"
+  reservedOp "."
   p <- proof
   return $ UG m p
 
 beta = do
   reserved "beta"
-  optional $ reservedOp "$"
   p <- proof
   return $ Beta p
   
@@ -437,6 +455,7 @@ gottlobStyle = Token.LanguageDef
                   [
                     "forall", "iota", 
                     "cmp","invcmp", "inst", "mp", "discharge", "ug", "beta", "invbeta",
+                    "by", "from",
                     "case", "of",
                     "data", 
                     "theorem", "proof", "qed",
@@ -444,10 +463,10 @@ gottlobStyle = Token.LanguageDef
                     "where", "module",
                     "infix", "infixl", "infixr", "pre", "post",
                     "formula", "prog", "set",
-                    "special"
+                    "tactic"
                   ]
                , Token.reservedOpNames =
-                    ["\\", "->", "|", ".","=", "::", ":", "$"]
+                    ["\\", "->", "|", ".","=", "::", ":", "$", "$$"]
                 }
 
 tokenizer :: Token.GenTokenParser String u (State SourcePos)

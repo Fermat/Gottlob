@@ -13,6 +13,11 @@ import Text.Parsec.Indent
 import Text.Parsec.Token
 
 
+data N = Z | S N deriving (Show, Eq)
+add n m = case n of
+  Z -> m
+  S n' -> S (add n' m)
+
 f = \ y -> let x = y in y
 g = \ y -> let x = y in y
 

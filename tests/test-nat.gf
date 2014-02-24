@@ -16,6 +16,16 @@ add n m =
      z -> m 
      s n'-> s ! add n' m
 
+tactic id F x = ug x $ discharge a : F $ a     
+
+tactic cmpinst p s = cmp $ inst p s
+
+tactic byEval t1 t2 =   
+   [c] : t1 :: Q
+   c1 = invbeta (beta c) (t2 :: Q) : t2::Q
+   c3 = ug Q $ discharge c c1 : forall Q. t1 :: Q -> t2 :: Q   
+   c5 = invcmp c3 : Eq t1 t2
+
 theorem ind . forall C. z :: C -> (forall y . y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
        [a1] : z :: C
@@ -26,19 +36,35 @@ proof
        b3 = mp b2 a1 : (forall y. y :: C -> s y :: C) -> m :: C
        b4 = mp b3 a2 : m :: C
        b5 = discharge a3 b4 : m :: Nat -> m :: C
-       b6 = ug m b5 : forall m. m :: Nat -> m :: C
-       b7 = discharge a2 b6 : (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
+       a6 = ug m b5 : forall m. m :: Nat -> m :: C
+       b7 = discharge a2 a6 : (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
        b8 = discharge a1 b7 : z::C -> (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
        b9 = ug C b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
 qed
 
+--id :: f::o => var => p : forall x .( f -> f)
+
+-- b2 = {id (f a :: C) C} : forall C . f a :: C -> f b :: C           
+
+-- ugl [ x ] p  
+-- tactic ugl ls p = match ls as
+--                     nil -> p
+--                     x:xs -> ug x $ ugl xs p
+
+-- byEval  =\ t1 t2 -> invcmp (ug Q $ discharge c (t1 :: Q) $ invbeta (beta c) (t2 :: Q)) $ Eq t1 t2 
+-- a = {byEval t1 t2}           
+-- theorem tran . forall t1 t2 t3. Eq t1 t2 -> Eq t2 t3 -> Eq t1 t3
+-- .. 
+
+-- c1 = id f x : forall x . f -> f  ;; then first eval id f x and then proof check
 theorem cong . forall f a b. Eq a b -> Eq (f a) (f b)
 proof 
  [a] : Eq a b
  b = cmp a : forall C . a :: C -> b :: C
- b1 = cmp $ inst b $ iota q. Eq (f a) (f q) : (forall C . f a :: C -> f a :: C) -> forall C . f a :: C -> f b :: C
- [c] : f a :: C
- d = discharge c c : f a :: C -> f a :: C
+ b1 = cmp $ inst b $ iota q. Eq (f a) (f q) : 
+    (forall C . f a :: C -> f a :: C) -> forall C . f a :: C -> f b :: C
+-- [c] : f a :: C --
+ d = discharge c c : f a :: C -> f a :: C --
  e = mp b1 $ ug C d : forall C . f a :: C -> f b :: C
  f = invcmp e : Eq (f a) (f b)
  q = ug f (ug a (ug b (discharge a f))) : forall f . forall a . forall b . Eq a b -> Eq (f a) (f b)
@@ -63,10 +89,10 @@ proof
    c5 = invcmp c3 : Eq (add z z) z
    c6 = mp b3 c5 : (forall y. Eq (add y z) y
                                         -> Eq (add (s y) z) (s y)) -> Eq (add n z) n 
-   [d] : Eq (add y z) y
-   [d1] : add (s y) z :: Q
+   [d] : Eq (add y z) y -- IH
+   [d1] : add (s y) z :: Q----pattern
    e = inst (inst (inst cong s) (add y z)) y : Eq (add y z) y -> Eq (s (add y z)) (s y)
-   e1 = mp e d : Eq (s (add y z)) (s y)
+   e1 = mp e d : Eq (s (add y z)) (s y) -- derived from IH
    e2 = inst (cmp e1) Q : s (add y z) :: Q -> s y :: Q
    d2 = invbeta (beta d1) : s (add y z) :: Q
    d3 = mp e2 d2 : s y :: Q
@@ -75,4 +101,4 @@ proof
    d6 = ug n (discharge a (mp c6 d5)) : forall n . n :: Nat -> Eq (add n z) n
 -- need to make sure that proof names doesn't collapse   
 -- and we can program with the proof, thus we could have tactic build-in for the proofs. yay!
-qed
+qed 

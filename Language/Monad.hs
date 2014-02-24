@@ -19,7 +19,8 @@ type Global a =StateT Env (StateT PrfEnv (ErrorT PCError IO)) a
 
 data Env = Env{ progDef::M.Map VName PreTerm,
                 setDef::M.Map VName (PreTerm, EType),
-                proofCxt::M.Map VName (ProofScripts, PreTerm)}
+                proofCxt::M.Map VName (ProofScripts, PreTerm),
+                tacticDef :: M.Map VName Proof}
          deriving Show
 
 data PrfEnv = PrfEnv { assumption::[(VName, PreTerm)],
@@ -28,7 +29,8 @@ data PrfEnv = PrfEnv { assumption::[(VName, PreTerm)],
             deriving Show
 
 emptyEnv :: Env
-emptyEnv = Env {progDef = M.empty, setDef = M.empty, proofCxt=M.empty}
+emptyEnv = Env {progDef = M.empty, setDef = M.empty, proofCxt=M.empty,
+                tacticDef=M.empty}
 
 emptyPrfEnv :: PrfEnv
 emptyPrfEnv = PrfEnv { assumption = [], localProof=M.empty, localEType=M.empty}
@@ -38,6 +40,9 @@ newPrfEnv e = PrfEnv { assumption = [], localProof=M.empty, localEType=M.fromLis
                   
 extendProgDef :: VName -> PreTerm -> Env -> Env
 extendProgDef v t e@(Env {progDef}) = e{progDef = M.insert v t progDef}
+
+extendTacticDef :: VName -> Proof -> Env -> Env
+extendTacticDef v t e@(Env {tacticDef}) = e{tacticDef = M.insert v t tacticDef}
 
 extendProofCxt :: VName -> ProofScripts -> PreTerm -> Env -> Env
 extendProofCxt v ps f e@(Env {proofCxt}) = e{proofCxt = M.insert v (ps,f) proofCxt}
@@ -65,7 +70,12 @@ instance Disp Env where
              hang (text "Set/Formula Definitions") 2 (vcat
                                                       [disp n <+> text":"<+> disp t <+> text "=" <+> disp f | (n,(f,t)) <- M.toList $ setDef env]) $$
              hang (text "Proofs Context") 2 (vcat
-                [ disp (ProofDecl n ps f) | (n,(ps,f)) <- M.toList $ proofCxt env])
+                [ disp (ProofDecl n ps f) | (n,(ps,f)) <- M.toList $ proofCxt env]) $$
+             hang (text "Tactic Definitions") 2 (vcat
+                [disp n <+> text "=" <+> disp t | (n, t) <- M.toList $ tacticDef env]) 
+
+
+
 
 instance Disp PrfEnv where
   disp env = hang (text "Current Local Assumptions") 2 (vcat
