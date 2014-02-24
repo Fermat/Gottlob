@@ -314,20 +314,22 @@ proofDecl = do
   reserved "qed"
   return $ ProofDecl n ps f
 
-assumption :: Parser (VName, Proof, PreTerm)
+assumption :: Parser (VName, Proof, Maybe PreTerm)
 assumption = do
  a <- brackets termVar
  reservedOp ":"
  f <- formula
- return (a, Assume a, f)
+ return (a, Assume a, Just f)
 
-proofDef :: Parser (VName, Proof, PreTerm)
+proofDef :: Parser (VName, Proof, Maybe PreTerm)
 proofDef = do
   b <- termVar
   reservedOp "="
   p <- proof
-  reservedOp ":"
-  f <- formula
+  f <- option Nothing $
+       (do{reservedOp ":";
+           g <- formula;
+           return $ Just g})
   return (b, p, f)
 
 termVarProof :: Parser Proof

@@ -307,7 +307,7 @@ subPre p (PVar x) (PFApp p1 t) = do
 subPre p (PVar x) (PPos a p1) = subPre p (PVar x) p1 >>= \ b -> return $ PPos a b
 
   
-type ProofScripts = [(VName, Proof, PreTerm)]
+type ProofScripts = [(VName, Proof, Maybe PreTerm)]
 
 data Prog = Name VName 
           | Applica Prog Prog
