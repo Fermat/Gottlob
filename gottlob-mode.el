@@ -24,9 +24,9 @@
     "theorem" "proof" "qed" 
     "module"
     "infix" "infixl" "infixr" "pre" "post"
-    "formula" "prog" "set" "special"
+    "formula" "prog" "set" "special" "tactic"
     "cmp" "invcmp" "inst" "mp" "discharge"
-    "ug" "beta" "invbeta"
+    "ug" "beta" "invbeta" "by" "from"
     ))
 
 
