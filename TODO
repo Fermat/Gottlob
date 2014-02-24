@@ -24,13 +24,24 @@
    it doesn't matter, since what we are doing is reasoning, not *actually* runing
    program.
 
-  6. Not planning to let the ghc do the work for us, since
+  6. Do plan to let the ghc do the work for us, since
      it is based on primitive data type and explicit typed 
      core. So we would need our own interpretor, then we 
-     would need to investigate the techniques needed to optimize
-     hn-reduction. 
+     may need to investigate the techniques needed to optimize
+     whn-reduction. And this path could reinventing the wheels. 
+     And may not bringing something new to the table.
      
-    
+** 7. Currently, proof language is annotated heavily. Should
+    consider optional annotation. 
+ 8. Try not be killed by parens in a formula
    
-       
+----------
+Big picture:
+1. Support reasoning on Stateful programs 
+   -- need let binding and possible program transformation
+2. Full flege Interpretor and Interactive Theorem proving environment.
+3. Think about how to make software as small, robust, correct and obvious as possible.
+
+...
+10. Incorparate/Handling Typing.??
        
