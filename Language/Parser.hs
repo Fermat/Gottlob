@@ -188,7 +188,9 @@ tacticDecl = do
   n <- termVar
   as <- many (try termVar <|> try setVar)
   reservedOp "="
-  p <-  try(do{ ps <- block $ (try assumption <|> try proofDef); 
+  p <-  try(do{ reserved "proof";
+                ps <- block $ (try assumption <|> try proofDef);
+                reserved "qed";
                 return $ Right ps})
         <|> 
         try (do{p <- proof;
