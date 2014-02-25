@@ -315,12 +315,13 @@ proofDecl = do
   reserved "theorem"
 --  emit $ text "processing theorem"
   n <- identifier
+  m <- optionMaybe $ brackets identifier
   reservedOp "."
   f <- formula
   reserved "proof"
   ps <- block $ assumption <|> proofDef 
   reserved "qed"
-  return $ ProofDecl n ps f
+  return $ ProofDecl n m ps f
 
 assumption :: Parser (VName, Proof, Maybe PreTerm)
 assumption = do

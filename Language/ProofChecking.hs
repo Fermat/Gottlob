@@ -1,6 +1,6 @@
 module Language.ProofChecking
        (proofCheck, wellDefined, wellFormed,
-        ensureForm) where
+        ensureForm, erased) where
 import Language.Syntax
 import Language.Monad
 import Language.TypeInference
@@ -39,7 +39,7 @@ proofCheck ((n, p, Just f):l) = do
 --  emit $ disp f0 <+> text "?=" <+> disp f
   sameFormula f0 f -- this can be handle by passing to checkformula
 --  emit $ "pass same"
-  insertPrVar n p1 f
+  insertPrVar n p1 (erased f)
 --  emit $ "checked non-assump"
   proofCheck l
 
@@ -47,7 +47,7 @@ proofCheck ((n, p, Nothing):l) = do
   p1 <- parSimp p --  normalize a proof
   f0 <- checkFormula p1
   emit $ text "Infered formula:" <+> disp f0 <+> text "for proof" <+> disp n
-  insertPrVar n p1 f0
+  insertPrVar n p1 (erased f0)
   proofCheck l
 
 proofCheck [] = return ()
@@ -237,11 +237,10 @@ erased (Lambda x p) = Lambda x (erased p)
 isFree :: VName -> [(VName, PreTerm)] -> Bool
 isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
 
--- formula comprehension
--- severe bug found, need to fix
-comp :: PreTerm -> S.Set VName  -> Global PreTerm
-comp (Forall x f) s = comp f s >>= \ f1 -> return $ Forall x f1
 
+comp :: PreTerm -> S.Set VName  -> Global PreTerm
+comp (Pos pos p) s = comp p s
+comp (Forall x f) s = comp f s >>= \ f1 -> return $ Forall x f1
 comp (Imply f1 f) s = do
   a <- comp f1 s
   b <- comp f s
@@ -299,10 +298,13 @@ comp (PVar x) s =
       Just (s1, t) -> return $ s1
   else return $ PVar x
 
+comp n s = die $ show n
 repeatComp :: PreTerm -> Global PreTerm
 repeatComp m = do
   n <- comp m (fv m)
+--  emit $ show n
   n1 <- comp n (fv n)
+--  emit $ show n1
   if n == n1 then return n else repeatComp n1
 
 {-

@@ -151,19 +151,24 @@ tactic byInd P F base step =
     a01 = cmp base 
     a02 = cmp step 
     a03 = invcmp (mp mp a0 by a01 by a02) from F
-
-theorem plus01. forall n . n :: Nat -> Eq (add n z) n 
+-- (forall n . n :: Nat -> Eq (add n z) n) -> forall n . n :: Nat -> Eq (add n z) n
+theorem plus0[PlusZero]. forall n . n :: Nat -> Eq (add n z) n 
 proof 
     base = byEval $ add z z $ z
+
     [as] : Eq (add y z) y -- IH
-    e = (useCong $ s $ add y z $ y) as : Eq (s (add y z)) (s y)
-    e2 = byEval $ add (s y) z $ s (add y z) : Eq (add (s y) z) (s (add y z))
-    e3 = (useTrans $ add (s y) z $ s (add y z) $ s y) e2 e : Eq (add (s y) z) (s y)
-    step = ug y . (discharge as . e3) : forall y . Eq (add y z) y -> Eq (add (s y) z) (s y)
-    a2 = (byInd $ iota x . Eq (add x z) x $ forall n . n :: Nat -> Eq (add n z) n) base step
+    e = (useCong $ s $ add y z $ y) as
+    -- : Eq (s (add y z)) (s y)
+    e2 = byEval $ add (s y) z $ s (add y z)
+    -- : Eq (add (s y) z) (s (add y z))
+    e3 = (useTrans $ add (s y) z $ s (add y z) $ s y) e2 e
+    -- : Eq (add (s y) z) (s y)
+    step = ug y . (discharge as . e3)-- : forall y . Eq (add y z) y -> Eq (add (s y) z) (s y)
+--    p1 = cmp id $ PlusZero : A
+    a2 = (byInd $ iota x . Eq (add x z) x $ PlusZero) base step
 qed
 
-theorem plus0. forall n . n :: Nat -> Eq (add n z) n 
+theorem plus01. forall n . n :: Nat -> Eq (add n z) n 
 proof 
    [a] : n :: Nat
    

@@ -124,8 +124,12 @@ instance Disp Module where
 
 instance Disp Decl where
   disp (ProgDecl x p) = text x <+> text "=" <+>disp p
-  disp (ProofDecl x ps f) = text "theorem" <+> text x <+> text "." <+> disp f $$
-                            text "proof" $$ nest 2 (vcat (map dispPs ps))
+  disp (ProofDecl x m ps f) =
+    text "theorem" <+> text x <+>
+    (case m of
+          Just m' -> text "[" <+> disp m' <+> text "]"
+          Nothing -> text "")<+>text "." <+> disp f $$
+    text "proof" $$ nest 2 (vcat (map dispPs ps))
                             $$ text "qed"
     where dispPs (n, p, Just f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
           dispPs (n, p, Nothing) = text n <+> text "=" <+> disp p 

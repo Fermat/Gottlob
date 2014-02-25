@@ -7,6 +7,7 @@ import Language.Program
 import Language.Monad
 
 import Text.Parsec.Pos
+import Text.PrettyPrint
 
 import Control.Monad.Identity
 import Control.Monad.State
@@ -68,7 +69,30 @@ process ((SetDecl x set):l) = do
   put $ extendSetDef x set t state
   process l
 
-process ((ProofDecl n ps f):l) = do
+process ((ProofDecl n (Just m) ps f):l) = do
+  emit $ "processing proof decl" <++> n <++> disp m
+  wellDefined f 
+  (t, c, d) <- ensureForm f
+  env <- get
+  put $ extendSetDef m (erased f) Form env 
+  lift $ put $ newPrfEnv d -- default type def for the proofs.
+  proofCheck ps
+  let (x,_, _)= last ps
+  localEnv <- lift $ get
+  case M.lookup x (localProof localEnv) of
+    Just (_ , PVar f0) | f0 == m -> do
+      updateProofCxt n ps f
+      emptyLocalProof
+      process l
+    Just (_, f0) -> do
+      emit $ show f0 
+      sameFormula f0 f
+      updateProofCxt n ps f
+      emptyLocalProof
+      process l
+    Nothing -> die "Impossible situation. Ask Frank to keep hacking."
+
+process ((ProofDecl n Nothing ps f):l) = do
   emit $ "processing proof decl" <++> n
   wellDefined f 
   (t, c, d) <- ensureForm f

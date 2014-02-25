@@ -340,7 +340,7 @@ data Datatype =
 data Module = Module VName [Decl] deriving (Show)
 
 data Decl = ProgDecl VName Prog
-          | ProofDecl VName ProofScripts PreTerm
+          | ProofDecl VName (Maybe VName) ProofScripts PreTerm
           | DataDecl SourcePos Datatype
           | SetDecl VName PreTerm
           | TacDecl VName [VName] (Either Proof ProofScripts)
