@@ -2,11 +2,13 @@
 module Language.Parser
        (parseModule) where
 import Language.Syntax
+import Language.Monad (emit)
 import Language.Program (progTerm)
 
 import Text.Parsec hiding (ParseError,Empty, State)
 import qualified Text.Parsec as P
 import Text.Parsec.Language
+--import Text.PrettyPrint(text)
 import Text.Parsec.Expr(Operator(..),Assoc(..),buildExpressionParser)
 import qualified Text.Parsec.Token as Token
 import Text.Parsec.Indent
@@ -86,9 +88,9 @@ gModule = do
   return $ Module modName bs
 
 gDecl :: Parser Decl
-gDecl = gDataDecl <|> proofDecl <|> try progDecl
+gDecl = gDataDecl <|> try proofDecl <|> try progDecl
         <|> setDecl <|> formOperatorDecl <|>
-        progOperatorDecl <|> tacticDecl
+        progOperatorDecl <|> try tacticDecl
 
   
 formOperatorDecl :: Parser Decl
@@ -186,8 +188,11 @@ tacticDecl = do
   n <- termVar
   as <- many (try termVar <|> try setVar)
   reservedOp "="
-  p <- try (proof >>= \ p -> return $ Left p) <|>
-       ((block $ assumption <|> proofDef) >>= \ps -> return $ Right ps)
+  p <-  try(do{ ps <- block $ (try assumption <|> try proofDef); 
+                return $ Right ps})
+        <|> 
+        try (do{p <- proof;
+                return $ Left p})
   return $ TacDecl n as p
 
 -----  Parser for Program ------
@@ -306,6 +311,7 @@ inClause = do
 proofDecl :: Parser Decl
 proofDecl = do
   reserved "theorem"
+--  emit $ text "processing theorem"
   n <- identifier
   reservedOp "."
   f <- formula

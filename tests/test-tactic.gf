@@ -1,16 +1,20 @@
 module nat where
 
-prog infixr 9 !
-prog infixr 7 ==
+-- prog infixr 9 !
+-- prog infixr 7 ==
 -- special infix 7 ==
 
-(!) a b = a b
+--(!) a b = a b
 
 Eq a b = forall C . a :: C -> b :: C
 ExEq f g = forall a . Eq (f a) (g a)
 Bot = forall a b . Eq a b
 Emp = forall a C . a :: C 
 
+theorem ha . Eq a b
+proof
+ a = b
+qed
 data Nat where
   z :: Nat
   s :: Nat -> Nat 
@@ -28,13 +32,13 @@ iszero n = case n of
              z -> tt
              s n' -> ff
 
-(==) n m = case n of
-           z -> case m of
-                  z -> tt
-                  s m' -> ff
-           s n' -> case m of
-                       z -> ff
-                       s m' -> n' ==  m'
+-- (==) n m = case n of
+--            z -> case m of
+--                   z -> tt
+--                   s m' -> ff
+--            s n' -> case m of
+--                        z -> ff
+--                        s m' -> n' ==  m'
 eqB n m = case n of 
             tt -> case m of
                        tt -> tt
@@ -42,10 +46,18 @@ eqB n m = case n of
             ff -> case m of
                        tt -> ff
                        ff -> tt
+
                        
 tactic id F =  discharge a : F . a     
 
-tactic cmpinst p s = cmp inst p by s
+
+tactic cmpinst p s = cmp inst p by s 
+
+theorem isZero. Eq (f) (iszero (add (s z) (s (s z)))) 
+proof 
+  c = byEval $ (iszero (add (s z) (s (s z)))) $ ff
+qed
+
 
 tactic smartInst p s F = invcmp (cmp inst p by s) from F
 
@@ -54,11 +66,6 @@ tactic byEval t1 t2 =
    c1 = invbeta beta c : t2::Q
    c3 = ug Q . discharge c . c1
    c5 = invcmp c3 : Eq t1 t2
-
-theorem isZero . Eq (iszero (add (s z) (s (s z)))) ff
-proof 
-  c = byEval $ (iszero (add (s z) (s (s z)))) $ ff
-qed
 
 theorem isZero1 . forall x . Eq (iszero (s x)) ff
 proof 
@@ -72,22 +79,23 @@ proof
   c1 = ug x . c 
 qed
 
-theorem isZero3 .  Eq ((add (s z) z) == (s z)) tt
-proof 
-  c = byEval $ (add (s z) z) == s z $ tt
-qed
+-- theorem isZero3 .  Eq ((add (s z) z) == (s z)) tt
+-- proof 
+--   c = byEval $ (add (s z) z) == s z $ tt
+-- qed
 
-theorem add3eq . Eq (add (s z) (s (s z)) == s (s (s z))) tt
-proof 
-  c = byEval $ add (s z) (s (s z)) == s (s (s z)) $ tt 
-qed
+-- theorem add3eq . Eq (add (s z) (s (s z)) == s (s (s z))) tt
+-- proof 
+--   c = byEval $ add (s z) (s (s z)) == s (s (s z)) $ tt 
+-- qed
 
-theorem add3eq' . Eq tt (add (s z) (s (s z)) == s (s (s z)))
-proof 
-  c = byEval $ tt $ add (s z) (s (s z)) == s (s (s z)) 
-qed
+-- theorem add3eq' . Eq tt (add (s z) (s (s z)) == s (s (s z)))
+-- proof 
+--   c = byEval $ tt $ add (s z) (s (s z)) == s (s (s z)) 
+-- qed
 
 tactic useTrans a b c p1 p2 = mp mp (inst inst (inst trans by a) by b by c) by p1 by p2
+
 theorem trans . forall a b c . Eq a b -> Eq b c -> Eq a c
 proof
         [m1] : Eq a b
@@ -102,6 +110,7 @@ proof
         -- d8 = discharge m1 . d7 -- 
         d6 = ug a . ug b . ug c . discharge m1 . discharge m2 . d5 
 qed
+
 
 theorem ind . forall C. z :: C -> (forall y . y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
@@ -119,7 +128,8 @@ proof
        b9 = ug C . b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
 qed
 
---tactic useSym a b = inst inst sym by a by b
+tactic useSym a b p = mp (inst inst sym by a by b) by p
+
 theorem sym . forall a b . Eq a b -> Eq b a
 proof
         [c] : Eq a b
@@ -143,6 +153,28 @@ proof
 qed
 
 tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
+
+tactic byInd P F base step = mp (mp (smartInst ind P F) by base) by step
+
+tactic useInd P F base step = 
+--    [c] : A
+    a0 = cmpinst ind P
+    a01 = cmp base 
+    a02 = cmp step 
+    a03 = invcmp (mp mp a0 by a01 by a02) from F
+
+theorem plus01. forall n . n :: Nat -> Eq (add n z) n 
+proof 
+    base = byEval $ add z z $ z
+    [as] : Eq (add y z) y -- IH
+    e = (useCong $ s $ add y z $ y) as : Eq (s (add y z)) (s y)
+    e2 = byEval $ add (s y) z $ s (add y z) : Eq (add (s y) z) (s (add y z))
+    e3 = (useTrans $ add (s y) z $ s (add y z) $ s y) e2 e : Eq (add (s y) z) (s y)
+    step = ug y . (discharge as . e3)-- : forall y . Eq (add y z) y -> Eq (add (s y) z) (s y)
+    a2 = (useInd $ iota x . Eq (add x z) x $ forall n . n :: Nat -> Eq (add n z) n) base step
+    
+    -- a1 = (byInd $ iota x . Eq (add x z) x $ Eq (add z z) z -> (forall y . Eq (add y z) y -> Eq (add (s y) z) (s y) ) -> (forall n . n :: Nat -> Eq (add n z) n) ) base step
+qed
 
 theorem plus0. forall n . n :: Nat -> Eq (add n z) n 
 proof 
@@ -170,3 +202,5 @@ proof
 
    d6 = ug n. discharge a . mp c6 by d5 -- : forall n . n :: Nat -> Eq (add n z) n
 qed 
+
+
