@@ -188,13 +188,13 @@ tacticDecl = do
   n <- termVar
   as <- many (try termVar <|> try setVar)
   reservedOp "="
-  p <-  try(do{ reserved "proof";
-                ps <- block $ (try assumption <|> try proofDef);
-                reserved "qed";
-                return $ Right ps})
-        <|> 
-        try (do{p <- proof;
+  p <-  try (do{p <- proof;
+                notFollowedBy $ reservedOp "=";
                 return $ Left p})
+        <|>
+        (do{ 
+            ps <- block $ ( assumption <|> proofDef);
+            return $ Right ps})
   return $ TacDecl n as p
 
 -----  Parser for Program ------
@@ -351,8 +351,8 @@ proof = wrapPPos $ cmp <|> mp <|> inst <|>
 -- invcmp and invbeta are abrieviation
 appPreTerm :: Parser (Either PreTerm Proof)
 appPreTerm = do
-  t <- try (reservedOp "$" >> progPre) <|> try (optional (reservedOp "$") >> formula)
-       <|> try(optional (reservedOp "$") >> set)
+  t <- try (reservedOp "$" >> formula)
+       <|> try(reservedOp "$" >> set) <|> try (reservedOp "$" >> progPre)
        
   return $ Left t
 

@@ -11,10 +11,6 @@ ExEq f g = forall a . Eq (f a) (g a)
 Bot = forall a b . Eq a b
 Emp = forall a C . a :: C 
 
-theorem ha . Eq a b
-proof
- a = b
-qed
 data Nat where
   z :: Nat
   s :: Nat -> Nat 
@@ -53,13 +49,7 @@ tactic id F =  discharge a : F . a
 
 tactic cmpinst p s = cmp inst p by s 
 
-theorem isZero. Eq (f) (iszero (add (s z) (s (s z)))) 
-proof 
-  c = byEval $ (iszero (add (s z) (s (s z)))) $ ff
-qed
-
-
-tactic smartInst p s F = invcmp (cmp inst p by s) from F
+tactic smartInst p s A = invcmp (cmp inst p by s) from A
 
 tactic byEval t1 t2 =   
    [c] : t1 :: Q
@@ -135,7 +125,7 @@ proof
         [c] : Eq a b
         c1 = cmp c : forall C . a :: C -> b :: C
         c2 = cmpinst c1 $ iota x . x :: Q -> a :: Q 
-        d = id (a :: Q)
+        d = id $ a :: Q
         d1 = invcmp ug Q . mp c2 by d : Eq b a
         r = ug a . ug b. discharge c . d1
 qed
@@ -144,21 +134,20 @@ theorem cong . forall f a b. Eq a b -> Eq (f a) (f b)
 proof 
  [a] : Eq a b
  b = cmp a : forall C . a :: C -> b :: C
- b1 = cmpinst b (iota q. Eq (f a) (f q)): 
+ b1 = cmpinst b $ iota q. Eq (f a) (f q) : 
     (forall C . f a :: C -> f a :: C) -> forall C . f a :: C -> f b :: C
- d = ug C . id (f a :: C) : forall C. f a :: C -> f a :: C 
+ d = ug C . id $ f a :: C : forall C. f a :: C -> f a :: C 
  e = mp b1 by d : forall C . f a :: C -> f b :: C
  f = invcmp e : Eq (f a) (f b)
  q = ug f . ug a . ug b . discharge a . f : forall f . forall a . forall b . Eq a b -> Eq (f a) (f b)
 qed
 
 tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
+-- tactic smartInst p s A = invcmp (cmp inst p by s) from A
+-- tactic byInd P F base step = mp (mp (smartInst ind $ P $ F) by base) by step
 
-tactic byInd P F base step = mp (mp (smartInst ind P F) by base) by step
-
-tactic useInd P F base step = 
---    [c] : A
-    a0 = cmpinst ind P
+tactic byInd P F base step = 
+    a0 = cmpinst ind $ P 
     a01 = cmp base 
     a02 = cmp step 
     a03 = invcmp (mp mp a0 by a01 by a02) from F
@@ -170,10 +159,8 @@ proof
     e = (useCong $ s $ add y z $ y) as : Eq (s (add y z)) (s y)
     e2 = byEval $ add (s y) z $ s (add y z) : Eq (add (s y) z) (s (add y z))
     e3 = (useTrans $ add (s y) z $ s (add y z) $ s y) e2 e : Eq (add (s y) z) (s y)
-    step = ug y . (discharge as . e3)-- : forall y . Eq (add y z) y -> Eq (add (s y) z) (s y)
-    a2 = (useInd $ iota x . Eq (add x z) x $ forall n . n :: Nat -> Eq (add n z) n) base step
-    
-    -- a1 = (byInd $ iota x . Eq (add x z) x $ Eq (add z z) z -> (forall y . Eq (add y z) y -> Eq (add (s y) z) (s y) ) -> (forall n . n :: Nat -> Eq (add n z) n) ) base step
+    step = ug y . (discharge as . e3) : forall y . Eq (add y z) y -> Eq (add (s y) z) (s y)
+    a2 = (byInd $ iota x . Eq (add x z) x $ forall n . n :: Nat -> Eq (add n z) n) base step
 qed
 
 theorem plus0. forall n . n :: Nat -> Eq (add n z) n 
@@ -204,3 +191,7 @@ proof
 qed 
 
 
+theorem isZero. Eq (iszero (add (s z) (s (s z)))) ff
+proof 
+  c = byEval $ (iszero (add (s z) (s (s z)))) $ ff
+qed
