@@ -19,6 +19,10 @@ data Bool where
   ff :: Bool
   tt :: Bool
 
+data List U where
+  nil :: List U
+  cons :: U -> List U -> List U
+
 add n m = 
   case n of
      z -> m 
@@ -101,7 +105,10 @@ proof
         d6 = ug a . ug b . ug c . discharge m1 . discharge m2 . d5 
 qed
 
-
+-- theorem indList .forall U .forall L . nil :: L U -> (forall x . x :: U -> y :: L U -> cons x y :: L U) -> (forall m . m :: Nat -> m :: C)
+-- proof  
+--  a = b
+-- qed
 theorem ind . forall C. z :: C -> (forall y . y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
        [a1] : z :: C

@@ -255,7 +255,10 @@ comp (In m1 (PVar x)) s =
       Nothing -> return $ In m1 (PVar x)
       Just (s1, t) -> return $ In m1 s1
   else return $ In m1 (PVar x)
-
+comp (In m1 (SApp s1 s2)) s = do
+  r <- comp (SApp s1 s2) s
+  return $ In m1 r
+  
 comp (SApp (Iota x m) m1) s = return $ runSubst m1 (PVar x) m
 
 comp (SApp (PVar x) m1) s =
@@ -298,7 +301,7 @@ comp (PVar x) s =
       Just (s1, t) -> return $ s1
   else return $ PVar x
 
-comp n s = die $ show n
+comp n s = die $ text "unhandle case in comp" <++> disp n
 repeatComp :: PreTerm -> Global PreTerm
 repeatComp m = do
   n <- comp m (fv m)
