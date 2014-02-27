@@ -250,7 +250,8 @@ subPre p (PVar x) (PLam y p1) =
          n <- get
          modify (+1)
          c1 <- subProof (PrVar (y++ show n)) (PrVar y) p1
-         c2 <- subPre p (PVar x) c1
+         c3 <- subPre (PVar (y++ show n)) (PVar y) c1
+         c2 <- subPre p (PVar x) c3
          return $ PLam (y++ show n) c2
 
 subPre p (PVar x) (Discharge y Nothing p1) = 
