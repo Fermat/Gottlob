@@ -19,6 +19,10 @@ data Bool where
   ff :: Bool
   tt :: Bool
 
+rep n m = case n of
+          z -> m
+          s n' -> \ x . (rep n' (add x m))
+          
 data List U where
   nil :: List U
   cons :: U -> List U -> List U
