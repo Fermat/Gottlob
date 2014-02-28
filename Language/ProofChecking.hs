@@ -1,6 +1,6 @@
 module Language.ProofChecking
        (proofCheck, wellDefined, wellFormed,
-        ensureForm) where
+        ensureForm, erased) where
 import Language.Syntax
 import Language.Monad
 import Language.TypeInference
@@ -19,17 +19,17 @@ import qualified Data.Set as S
 import Data.Char
 
 proofCheck :: ProofScripts -> Global ()
-proofCheck ((n, (PPos pos p ), f):l) = 
-  proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
+-- proofCheck ((n, (PPos pos p ), f):l) f1 = 
+--   proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
   
-proofCheck ((n, (Assume x), f):l) = do
+proofCheck ((n, (Assume x), Just f):l) = do
 --  wellDefined f
   wellFormed f
   insertAssumption x f
 --  emit $ "checked assumption"
   proofCheck l
 
-proofCheck ((n, p, f):l) = do
+proofCheck ((n, p, Just f):l) = do
 --  emit $ "begin to check proof " ++ show p
   wellFormed f
   p1 <- parSimp p --  normalize a proof
@@ -39,8 +39,15 @@ proofCheck ((n, p, f):l) = do
 --  emit $ disp f0 <+> text "?=" <+> disp f
   sameFormula f0 f -- this can be handle by passing to checkformula
 --  emit $ "pass same"
-  insertPrVar n p1 f
+  insertPrVar n p1 (erased f)
 --  emit $ "checked non-assump"
+  proofCheck l
+
+proofCheck ((n, p, Nothing):l) = do
+  p1 <- parSimp p --  normalize a proof
+  f0 <- checkFormula p1
+  emit $ text "Infered formula:" <+> disp f0 <+> text "for proof" <+> disp n
+  insertPrVar n p1 (erased f0)
   proofCheck l
 
 proofCheck [] = return ()
@@ -101,15 +108,19 @@ checkFormula :: Proof -> Global PreTerm
 checkFormula (PPos pos p) = checkFormula p `catchError` addProofErrorPos pos p
 checkFormula (PrVar v)  = do
   e <- get
+  loc <- ask
   case M.lookup v (proofCxt e) of
     Just a -> return $ snd a
     Nothing -> do 
       s <- lift get
-      case lookup v (assumption s) of
-        Just a1 -> return a1
-        _ -> case M.lookup v (localProof s) of
-                Just a2 -> return $ snd a2
-                _ -> die $ "Can't find proof variable" <++> v
+      case lookup v loc of
+        Just a3 -> return a3
+        _ -> 
+          case lookup v (assumption s) of
+            Just a1 -> return a1
+            _ -> case M.lookup v (localProof s) of
+                    Just a2 -> return $ snd a2
+                    _ -> die $ "Can't find proof variable" <++> v
 
 checkFormula (MP p1 p2) = do
  f1 <- checkFormula p1 
@@ -124,22 +135,29 @@ checkFormula (MP p1 p2) = do
 
 checkFormula (Discharge x Nothing p) = do
   e <- lift get
-  let h = head (assumption e) in
-    if fst h == x then do
-      f <- checkFormula p
-      ensureForm (Imply (snd h) f)
-      lift $ put $ popAssump e
-      return $ (Imply (snd h) f)
-    else pcError "Wrong use of implication introduction, can't not discarge the assumption."
-         [(disp "At the variable", disp x)]
+  case lookup x (assumption e) of --  (y, f1)
+    Just f1 -> do
+      f <- local (\ l -> (x, f1):l) (checkFormula p)
+      a <- lift $ get
+      if fst (head $ assumption a) == x
+        then
+        do
+--          emit $ text "discharging " <+> disp x
+          lift $ put $ popAssump a
          
+--          emit $ text "current head assumption" <+> (disp $ fst (head $ assumption a))
+          ensureForm (Imply f1 f)
+          return $ (Imply f1 f)
+        else pcError "Wrong use of implication introduction, can't not discharge the assumption."
+             [(disp "At the variable", disp x)]
+    Nothing -> die $ disp x <+> text "is not in assumptions."
+
 checkFormula (Discharge x (Just f1) p) = do
   wellFormed f1
-  insertAssumption x f1
-  f <- checkFormula p
+  f <- local (\l -> (x, f1):l) (checkFormula p)
   ensureForm (Imply f1 f)
   e <- lift get
-  lift $ put $ popAssump e
+--  lift $ put $ popAssump e
   return $ (Imply f1 f)
   
 checkFormula (Inst p m) = do
@@ -219,11 +237,10 @@ erased (Lambda x p) = Lambda x (erased p)
 isFree :: VName -> [(VName, PreTerm)] -> Bool
 isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
 
--- formula comprehension
--- severe bug found, need to fix
-comp :: PreTerm -> S.Set VName  -> Global PreTerm
-comp (Forall x f) s = comp f s >>= \ f1 -> return $ Forall x f1
 
+comp :: PreTerm -> S.Set VName  -> Global PreTerm
+comp (Pos pos p) s = comp p s
+comp (Forall x f) s = comp f s >>= \ f1 -> return $ Forall x f1
 comp (Imply f1 f) s = do
   a <- comp f1 s
   b <- comp f s
@@ -238,7 +255,10 @@ comp (In m1 (PVar x)) s =
       Nothing -> return $ In m1 (PVar x)
       Just (s1, t) -> return $ In m1 s1
   else return $ In m1 (PVar x)
-
+comp (In m1 (SApp s1 s2)) s = do
+  r <- comp (SApp s1 s2) s
+  return $ In m1 r
+  
 comp (SApp (Iota x m) m1) s = return $ runSubst m1 (PVar x) m
 
 comp (SApp (PVar x) m1) s =
@@ -281,10 +301,13 @@ comp (PVar x) s =
       Just (s1, t) -> return $ s1
   else return $ PVar x
 
+comp n s = die $ text "unhandle case in comp" <++> disp n
 repeatComp :: PreTerm -> Global PreTerm
 repeatComp m = do
   n <- comp m (fv m)
+--  emit $ show n
   n1 <- comp n (fv n)
+--  emit $ show n1
   if n == n1 then return n else repeatComp n1
 
 {-

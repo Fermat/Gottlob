@@ -1,15 +1,16 @@
 module nat where
 
-prog infixr 9 !
-prog infixr 7 ==
+-- prog infixr 9 !
+-- prog infixr 7 ==
 -- special infix 7 ==
 
-(!) a b = a b
+--(!) a b = a b
 
 Eq a b = forall C . a :: C -> b :: C
 ExEq f g = forall a . Eq (f a) (g a)
--- Eq a b -> ExEq a b
--- 
+Bot = forall a b . Eq a b
+Emp = forall a C . a :: C 
+
 data Nat where
   z :: Nat
   s :: Nat -> Nat 
@@ -17,6 +18,14 @@ data Nat where
 data Bool where
   ff :: Bool
   tt :: Bool
+
+rep n m = case n of
+          z -> m
+          s n' -> \ x . (rep n' (add x m))
+          
+data List U where
+  nil :: List U
+  cons :: U -> List U -> List U
 
 add n m = 
   case n of
@@ -27,13 +36,13 @@ iszero n = case n of
              z -> tt
              s n' -> ff
 
-(==) n m = case n of
-           z -> case m of
-                  z -> tt
-                  s m' -> ff
-           s n' -> case m of
-                       z -> ff
-                       s m' -> n' ==  m'
+-- (==) n m = case n of
+--            z -> case m of
+--                   z -> tt
+--                   s m' -> ff
+--            s n' -> case m of
+--                        z -> ff
+--                        s m' -> n' ==  m'
 eqB n m = case n of 
             tt -> case m of
                        tt -> tt
@@ -41,64 +50,69 @@ eqB n m = case n of
             ff -> case m of
                        tt -> ff
                        ff -> tt
+
                        
 tactic id F =  discharge a : F . a     
 
-tactic cmpinst p s = cmp inst p by s
+
+tactic cmpinst p s = cmp inst p by s 
+
+tactic smartInst p s A = invcmp (cmp inst p by s) from A
 
 tactic byEval t1 t2 =   
    [c] : t1 :: Q
    c1 = invbeta beta c : t2::Q
-   c3 = ug Q . discharge c . c1 : forall Q . t1 :: Q -> t2 :: Q   
+   c3 = ug Q . discharge c . c1
    c5 = invcmp c3 : Eq t1 t2
-
-theorem isZero . Eq (iszero (add (s z) (s (s z)))) ff
-proof 
-  c = byEval $ (iszero (add (s z) (s (s z)))) $ ff : Eq (iszero (add (s z) (s (s z)))) ff
-qed
 
 theorem isZero1 . forall x . Eq (iszero (s x)) ff
 proof 
-  c = byEval $ (iszero (s x)) $ ff : Eq (iszero (s x)) ff
-  c1 = ug x . c : forall x . Eq (iszero (s x)) ff
+  c = byEval $ (iszero (s x)) $ ff
+  c1 = ug x . c
 qed
-
--- theorem isZero1 . forall x . Eq (iszero (s x)) ff
--- proof 
---   c = byEval $ (iszero (s x)) $ tt : Eq (iszero (s x)) ff
---   c1 = ug x . c : forall x . Eq (iszero (s x)) ff
--- qed
 
 theorem isZero2 . forall x . Eq (eqB (iszero (s x)) ff) tt
 proof 
-  c = byEval $ eqB (iszero (s x)) ff $ tt : Eq (eqB (iszero (s x)) ff) tt
-  c1 = ug x . c : forall x . Eq (eqB (iszero (s x)) ff) tt
+  c = byEval $ eqB (iszero (s x)) ff $ tt 
+  c1 = ug x . c 
 qed
 
-theorem isZero3 .  Eq ((add (s z) z) == (s z)) tt
-proof 
-  c = byEval $ (add (s z) z) == s z $ tt : Eq ( (add (s z) z) == s z) tt
---  c1 = ug x . c : forall x . Eq ((add x z) == x) tt
-qed
-
-theorem add3eq . Eq (add (s z) (s (s z)) == s (s (s z))) tt
-proof 
-  c = byEval $ add (s z) (s (s z)) == s (s (s z)) $ tt : Eq (add (s z) (s (s z)) == s (s (s z))) tt
-qed
-
-theorem add3eq' . Eq  tt (add (s z) (s (s z)) == s (s (s z)))
-proof 
-  c = byEval $ tt $ add (s z) (s (s z)) == s (s (s z))  :  Eq  tt (add (s z) (s (s z)) == s (s (s z)))
-qed
-
--- theorem add3 . Eq (add (s z) (s (s z)))  (s (s (s z)))
+-- theorem isZero3 .  Eq ((add (s z) z) == (s z)) tt
 -- proof 
---   c = byEval $ add (s z) (s (s z)) $ s (s (s z)) : Eq (add (s z) (s (s z)))  (s (s (s z)))
+--   c = byEval $ (add (s z) z) == s z $ tt
 -- qed
 
+-- theorem add3eq . Eq (add (s z) (s (s z)) == s (s (s z))) tt
+-- proof 
+--   c = byEval $ add (s z) (s (s z)) == s (s (s z)) $ tt 
+-- qed
 
--- c5 = invcmp ug Q . discharge c . (invbeta beta c from t2::Q) from Eq t1 t2
---  invcmp (ug Q . (discharge c : t1 :: Q . (invbeta (beta c) from t2 :: Q))) from Eq t1 t2
+-- theorem add3eq' . Eq tt (add (s z) (s (s z)) == s (s (s z)))
+-- proof 
+--   c = byEval $ tt $ add (s z) (s (s z)) == s (s (s z)) 
+-- qed
+
+tactic useTrans a b c p1 p2 = mp mp (inst inst (inst trans by a) by b by c) by p1 by p2
+
+theorem trans . forall a b c . Eq a b -> Eq b c -> Eq a c
+proof
+        [m1] : Eq a b
+        [m2] : Eq b c
+        [m3] : a :: C
+        d1 = inst cmp m1 by C 
+        d2 = mp d1 by m3 
+        d3 = inst cmp m2 by C   
+        d4 = mp d3 by d2 
+        d5 = invcmp ug C. discharge m3 . d4 : Eq a c
+        -- d7 =  discharge m2 . d5 
+        -- d8 = discharge m1 . d7 -- 
+        d6 = ug a . ug b . ug c . discharge m1 . discharge m2 . d5 
+qed
+
+-- theorem indList .forall U .forall L . nil :: L U -> (forall x . x :: U -> y :: L U -> cons x y :: L U) -> (forall m . m :: Nat -> m :: C)
+-- proof  
+--  a = b
+-- qed
 theorem ind . forall C. z :: C -> (forall y . y :: C -> s y :: C) -> (forall m . m :: Nat -> m :: C)
 proof  
        [a1] : z :: C
@@ -115,65 +129,85 @@ proof
        b9 = ug C . b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
 qed
 
---id :: f::o => var => p : forall x .( f -> f)
+tactic useSym a b p = mp (inst inst sym by a by b) by p
 
--- b2 = {id (f a :: C) C} : forall C . f a :: C -> f b :: C           
+theorem sym . forall a b . Eq a b -> Eq b a
+proof
+        [c] : Eq a b
+        c1 = cmp c : forall C . a :: C -> b :: C
+        c2 = cmpinst c1 $ iota x . x :: Q -> a :: Q 
+        d = id $ a :: Q
+        d1 = invcmp ug Q . mp c2 by d : Eq b a
+        r = ug a . ug b. discharge c . d1
+qed
 
--- ugl [ x ] p  
--- tactic ugl ls p = match ls as
---                     nil -> p
---                     x:xs -> ug x $ ugl xs p
-
--- byEval  =\ t1 t2 -> invcmp (ug Q $ discharge c (t1 :: Q) $ invbeta (beta c) (t2 :: Q)) $ Eq t1 t2 
--- a = {byEval t1 t2}           
--- theorem tran . forall t1 t2 t3. Eq t1 t2 -> Eq t2 t3 -> Eq t1 t3
--- .. 
-
--- p $ p1 $ p2
--- c1 = id f x : forall x . f -> f  ;; then first eval id f x and then proof check
 theorem cong . forall f a b. Eq a b -> Eq (f a) (f b)
 proof 
  [a] : Eq a b
  b = cmp a : forall C . a :: C -> b :: C
- b1 = cmpinst b (iota q. Eq (f a) (f q)): 
+ b1 = cmpinst b $ iota q. Eq (f a) (f q) : 
     (forall C . f a :: C -> f a :: C) -> forall C . f a :: C -> f b :: C
--- [c] : f a :: C --
- d = ug C . id (f a :: C) : forall C. f a :: C -> f a :: C --
+ d = ug C . id $ f a :: C : forall C. f a :: C -> f a :: C 
  e = mp b1 by d : forall C . f a :: C -> f b :: C
  f = invcmp e : Eq (f a) (f b)
  q = ug f . ug a . ug b . discharge a . f : forall f . forall a . forall b . Eq a b -> Eq (f a) (f b)
 qed
 
-{-
-theorem plus0. forall n . n :: Nat -> Eq (add n z) n 
+tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
+-- tactic smartInst p s A = invcmp (cmp inst p by s) from A
+-- tactic byInd P F base step = mp (mp (smartInst ind $ P $ F) by base) by step
+
+tactic byInd P F base step = 
+    a0 = cmpinst ind $ P 
+    a01 = cmp base 
+    a02 = cmp step 
+    a03 = invcmp (mp mp a0 by a01 by a02) from F
+-- (forall n . n :: Nat -> Eq (add n z) n) -> forall n . n :: Nat -> Eq (add n z) n
+theorem plus0[PlusZero]. forall n . n :: Nat -> Eq (add n z) n 
+proof 
+    base = byEval $ add z z $ z
+
+    [as] : Eq (add y z) y -- IH
+    e = (useCong $ s $ add y z $ y) as
+    -- : Eq (s (add y z)) (s y)
+    e2 = byEval $ add (s y) z $ s (add y z)
+    -- : Eq (add (s y) z) (s (add y z))
+    e3 = (useTrans $ add (s y) z $ s (add y z) $ s y) e2 e
+    -- : Eq (add (s y) z) (s y)
+    step = ug y . (discharge as . e3)-- : forall y . Eq (add y z) y -> Eq (add (s y) z) (s y)
+--    p1 = cmp id $ PlusZero : A
+    a2 = (byInd $ iota x . Eq (add x z) x $ PlusZero) base step
+qed
+
+theorem plus01. forall n . n :: Nat -> Eq (add n z) n 
 proof 
    [a] : n :: Nat
-   b1 = cmp a : forall C . z :: C -> (forall y . y :: C -> s y :: C) -> n :: C
---   b2 =  :
    
-   -- (forall C . add z z :: C -> z :: C) -> (forall y . (forall C . add y z :: C -> y :: C) -> forall C . add (s y) z :: C -> s y :: C) -> forall C . add n z :: C -> n :: C
-   b3 = invcmp $ cmp $ inst b1 by iota q. Eq (add q z) q : 
-                             Eq (add z z) z -> (forall y. Eq (add y z) y
-                                          -> Eq (add (s y) z) (s y)) -> Eq (add n z) n 
-   [c] : (add z z) :: Q
---   [c0] : (\ z . \ s. z) :: Q
-   -- c3 = beta c0 : \ z . \ s . z :: Q
-   c4 = beta c : (\ z . \ s. z) :: Q
-   c1 = invbeta c4 :  z :: Q
-   c3 = ug Q $ discharge c $ c1 : forall Q. (add z z) :: Q -> z :: Q   --problem with nested tacti
-   c5 = invcmp c3 : Eq (add z z) z
-   c6 = mp b3 $ c5 : (forall y. Eq (add y z) y
+   b1 = cmp a : forall C . z :: C -> (forall y . y :: C -> s y :: C) -> n :: C
+
+   b3 = smartInst b1 $ iota q. Eq (add q z) q 
+                     $ Eq (add z z) z -> 
+                        (forall y. Eq (add y z) y -> Eq (add (s y) z) (s y)) -> Eq (add n z) n 
+   
+   c5 = byEval $ add z z $ z : Eq (add z z) z
+   
+   c6 = mp b3 by c5 : (forall y. Eq (add y z) y
                                         -> Eq (add (s y) z) (s y)) -> Eq (add n z) n 
    [d] : Eq (add y z) y -- IH
-   [d1] : add (s y) z :: Q----pattern
-   e = inst $ (inst (inst cong $ s) $ (add y z)) $ y : Eq (add y z) y -> Eq (s (add y z)) (s y)
-   e1 = mp e $ d : Eq (s (add y z)) (s y) -- derived from IH
-   e2 = inst $ cmp e1 $ Q : s (add y z) :: Q -> s y :: Q
-   d2 = invbeta $ beta d1 : s (add y z) :: Q
-   d3 = mp e2 $ d2 : s y :: Q
-   d4 = invcmp $ ug Q $ (discharge d1 $ d3) : Eq (add (s y) z) (s y)
-   d5 = ug y (discharge d $ d4) : forall y . Eq (add y z) y -> Eq (add (s y) z) (s y)
-   d6 = ug n (discharge a $ (mp c6 $ d5)) : forall n . n :: Nat -> Eq (add n z) n
--- need to make sure that proof names doesn't collapse   
--- and we can program with the proof, thus we could have tactic build-in for the proofs. yay!
-qed -}
+
+   e = (useCong $ s $ add y z $ y) d : Eq (s (add y z)) (s y)
+
+   e2 = byEval $ add (s y) z $ s (add y z) : Eq (add (s y) z) (s (add y z))
+   
+   e3 = (useTrans $ add (s y) z $ s (add y z) $ s y) e2 e : Eq (add (s y) z) (s y)
+   
+   d5 = ug y . (discharge d . e3) : forall y . Eq (add y z) y -> Eq (add (s y) z) (s y)
+
+   d6 = ug n. discharge a . mp c6 by d5 -- : forall n . n :: Nat -> Eq (add n z) n
+qed 
+
+
+theorem isZero. Eq (iszero (add (s z) (s (s z)))) ff
+proof 
+  c = byEval $ (iszero (add (s z) (s (s z)))) $ ff
+qed

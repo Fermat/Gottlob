@@ -89,7 +89,7 @@ runToProof ::ProofScripts -> Proof
 runToProof ps = runReader (toProof ps) []
 toProof :: ProofScripts -> Reader [(VName, PreTerm)] Proof
 toProof ((n,p,f):[]) = annotate p
-toProof ((n, (Assume x), f):xs) = local (\ y -> (x, f):y) (toProof xs)
+toProof ((n,Assume x, Just f):xs) = local (\ y -> (x, f):y) (toProof xs)
 toProof ((n, p, f):xs) = toProof $ substPL p n xs
   where substPL p n xs = map (\ (n1, p1,f1) -> (n1,naiveSub p (PrVar n) p1,f1)) xs
         

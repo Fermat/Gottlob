@@ -13,7 +13,7 @@ import Control.Monad.Error
 import Text.Parsec.Pos
 import Control.Exception(Exception)
 
-type Global a =StateT Env (StateT PrfEnv (ErrorT PCError IO)) a
+type Global a =StateT Env (StateT PrfEnv (ReaderT [(VName, PreTerm)] (ErrorT PCError IO))) a
                  -- deriving (Functor, Applicative, Monad,
                  --           MonadState Env, MonadError TypeError, MonadIO)
 
@@ -70,7 +70,7 @@ instance Disp Env where
              hang (text "Set/Formula Definitions") 2 (vcat
                                                       [disp n <+> text":"<+> disp t <+> text "=" <+> disp f | (n,(f,t)) <- M.toList $ setDef env]) $$
              hang (text "Proofs Context") 2 (vcat
-                [ disp (ProofDecl n ps f) | (n,(ps,f)) <- M.toList $ proofCxt env]) $$
+                [ disp n <+> text ":" <+> disp f | (n,(ps,f)) <- M.toList $ proofCxt env]) $$
              hang (text "Tactic Definitions") 2 (vcat
                 [disp n <+> text "=" <+> disp t | (n, t) <- M.toList $ tacticDef env]) 
 

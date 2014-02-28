@@ -250,7 +250,8 @@ subPre p (PVar x) (PLam y p1) =
          n <- get
          modify (+1)
          c1 <- subProof (PrVar (y++ show n)) (PrVar y) p1
-         c2 <- subPre p (PVar x) c1
+         c3 <- subPre (PVar (y++ show n)) (PVar y) c1
+         c2 <- subPre p (PVar x) c3
          return $ PLam (y++ show n) c2
 
 subPre p (PVar x) (Discharge y Nothing p1) = 
@@ -307,7 +308,7 @@ subPre p (PVar x) (PFApp p1 t) = do
 subPre p (PVar x) (PPos a p1) = subPre p (PVar x) p1 >>= \ b -> return $ PPos a b
 
   
-type ProofScripts = [(VName, Proof, PreTerm)]
+type ProofScripts = [(VName, Proof, Maybe PreTerm)]
 
 data Prog = Name VName 
           | Applica Prog Prog
@@ -340,7 +341,7 @@ data Datatype =
 data Module = Module VName [Decl] deriving (Show)
 
 data Decl = ProgDecl VName Prog
-          | ProofDecl VName ProofScripts PreTerm
+          | ProofDecl VName (Maybe VName) ProofScripts PreTerm
           | DataDecl SourcePos Datatype
           | SetDecl VName PreTerm
           | TacDecl VName [VName] (Either Proof ProofScripts)
