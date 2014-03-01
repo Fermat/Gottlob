@@ -81,8 +81,6 @@ data PNameless = PV Int
              | PFA PNameless PNameless    -- p1 p2
              deriving (Show, Eq)
 
-
-
 -- naive sub for proof 
 naiveSub :: PreTerm -> PreTerm -> PreTerm -> PreTerm
 naiveSub p (PVar x) (PVar y) =
@@ -126,9 +124,12 @@ naiveSub p (PVar x) (Pos a p1) =
   Pos a (naiveSub p (PVar x) p1)
 
 data Assumption = Assume VName deriving Show
+
 type ProofScripts = [(VName, Either Assumption PreTerm, Maybe PreTerm)]
 
-data Prog = Name VName 
+data Prog = Name VName
+          | Proof PreTerm
+          | Formula PreTerm
           | Applica Prog Prog
           | Abs [VName] Prog
           | Match Prog [(VName, [VName], Prog)]
@@ -161,8 +162,8 @@ data Module = Module VName [Decl] deriving (Show)
 data Decl = ProgDecl VName Prog
           | ProofDecl VName (Maybe VName) ProofScripts PreTerm
           | DataDecl SourcePos Datatype
-          | SetDecl VName PreTerm
-          | TacDecl VName [VName] (Either PreTerm ProofScripts)
+          | SetDecl VName [VName] Prog
+          | TacDecl VName [VName] (Either Prog ProofScripts)
           | FormOperatorDecl String Int String
           | ProgOperatorDecl String Int String
           deriving Show
