@@ -134,16 +134,16 @@ data Prog = Name VName
           | Let [(VName, Prog)] Prog
             -- tactic is meta program is not subjected for local reasoning
           | TMP Prog Prog -- mp p1 by p2
-          | TInst Prog Prog -- inst p1 by p2
+          | TInst Prog PreTerm -- inst p1 by p2
           | TUG VName Prog     -- ug x . p
           | TCmp Prog          -- cmp p
-          | TInvCmp Prog Prog  -- invcmp p from F
+          | TInvCmp Prog PreTerm  -- invcmp p from F
           | TBeta Prog            -- beta p
-          | TInvBeta Prog Prog  -- invbeta p from F
-          | TDischarge VName Prog Prog -- discharge a : F . p
+          | TInvBeta Prog PreTerm  -- invbeta p from F
+          | TDischarge VName (Maybe PreTerm) Prog -- discharge a : F . p
           | TPLam VName Prog      -- \ x . p 
-          | TPApp Prog Prog     -- p1 t
-          | TPFApp Prog Prog    -- p1 p2
+          | TPApp Prog Prog     -- p1 p
+          | TPFApp Prog PreTerm    -- p1 t
           | ProgPos SourcePos Prog
           deriving (Show, Eq)
 

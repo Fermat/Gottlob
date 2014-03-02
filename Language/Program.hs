@@ -17,16 +17,16 @@ progTerm (Let l p) = substList (helper l) (progTerm p)
         substList [] t = t
         substList ((x, t1):xs) t = substList xs (runSubst t1 x t)
 progTerm (TMP p1 p2) = MP (progTerm p1) (progTerm p2)
-progTerm (TInst p1 p2) = Inst (progTerm p1) (progTerm p2)
+progTerm (TInst p1 p2) = Inst (progTerm p1) p2
 progTerm (TUG x p2) = UG x (progTerm p2)
 progTerm (TCmp p1) = Cmp (progTerm p1)
 progTerm (TBeta p1) = Beta (progTerm p1)
-progTerm (TInvCmp p1 p2) = InvCmp (progTerm p1) (progTerm p2)
-progTerm (TInvBeta p1 p2) = InvBeta (progTerm p1) (progTerm p2)
-progTerm (TDischarge x p1 p2) = Discharge x (Just $ progTerm p1) (progTerm p2)
+progTerm (TInvCmp p1 p2) = InvCmp (progTerm p1) p2
+progTerm (TInvBeta p1 p2) = InvBeta (progTerm p1) p2
+progTerm (TDischarge x p1 p2) = Discharge x p1 (progTerm p2)
 progTerm (TPLam x p2) = PLam x (progTerm p2)
 progTerm (TPApp p1 p2) = PApp (progTerm p1) (progTerm p2)
-progTerm (TPFApp p1 p2) = PFApp (progTerm p1) (progTerm p2)
+progTerm (TPFApp p1 p2) = PFApp (progTerm p1) p2
 
 
 

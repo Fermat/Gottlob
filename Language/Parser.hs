@@ -2,7 +2,6 @@
 module Language.Parser
        (parseModule) where
 import Language.Syntax
-import Language.Monad (emit)
 import Language.Program (progTerm)
 
 import Text.Parsec hiding (ParseError,Empty, State)
@@ -180,22 +179,6 @@ compoundArgs =
   <|> (try (prog >>= \ n -> return $ ArgProg n))
   <|> (try (parens ftype >>= \ n -> return $ ArgType n)))
 
--- tactic decl ---
-
-tacticDecl :: Parser Decl
-tacticDecl = do
-  reserved "tactic"
-  n <- termVar
-  as <- many (try termVar <|> try setVar)
-  reservedOp "="
-  p <-  try (do{p <- proof;
-                notFollowedBy $ reservedOp "=";
-                return $ Left p})
-        <|>
-        (do{ 
-            ps <- block $ ( assumption <|> proofDef);
-            return $ Right ps})
-  return $ TacDecl n as p
 
 -----  Parser for Program ------
 
@@ -209,7 +192,7 @@ progDecl = do
     else return $ ProgDecl n (Abs as p)
 
 progA :: Parser Prog  
-progA = wrapProgPos $ absProg <|> caseTerm <|> appProg <|> parens prog
+progA = wrapProgPos $ absProg <|> caseTerm <|> appProg <|> letbind <|> parens prog
 
 prog :: Parser Prog
 prog = getState >>= \ st -> progParser st
@@ -222,7 +205,19 @@ appProg = do
   as <- many $ indented >> (try (parens prog) <|> try termVarProg)
   if null as then return sp
     else return $ foldl' (\ z x -> Applica z x) sp as
-         
+
+letbind = do
+  reserved "let"
+  bs <- block branch
+  reserved "in"
+  p <- prog
+  return $ Let bs p
+  where branch = do 
+          v <- termVar
+          reservedOp "="
+          p <- prog
+          return $ (v, p)
+          
 caseTerm = do
   reserved "case"
   n <- prog
@@ -308,6 +303,23 @@ inClause = do
   s <- set
   return $ In p s
 
+-- tactic decl ---
+
+tacticDecl :: Parser Decl
+tacticDecl = do
+  reserved "tactic"
+  n <- termVar
+  as <- many (try termVar <|> try setVar)
+  reservedOp "="
+  p <-  try (do{p <- proof;
+                notFollowedBy $ reservedOp "=";
+                return $ Left p})
+        <|>
+        (do{ 
+            ps <- block $ ( assumption <|> proofDef);
+            return $ Right ps})
+  return $ TacDecl n as p
+
 ------- Parser for Proofs ---------
 
 proofDecl :: Parser Decl
@@ -323,14 +335,14 @@ proofDecl = do
   reserved "qed"
   return $ ProofDecl n m ps f
 
-assumption :: Parser (VName, Proof, Maybe PreTerm)
+assumption :: Parser (VName, Either Assumption PreTerm, Maybe PreTerm)
 assumption = do
  a <- brackets termVar
  reservedOp ":"
  f <- formula
- return (a, Assume a, Just f)
+ return (a, Left $ Assume a, Just f)
 
-proofDef :: Parser (VName, Proof, Maybe PreTerm)
+proofDef :: Parser (VName, Either Assumption PreTerm, Maybe PreTerm)
 proofDef = do
   b <- termVar
   reservedOp "="
@@ -339,66 +351,89 @@ proofDef = do
        (do{reservedOp ":";
            g <- formula;
            return $ Just g})
-  return (b, p, f)
+  return (b, Right $ progTerm p, f)
 
-termVarProof :: Parser Proof
-termVarProof = termVar >>= \n-> return $ PrVar n
-
-proof :: Parser Proof
-proof = wrapPPos $ cmp <|> mp <|> inst <|>
-                  ug <|> beta <|> discharge 
-                  <|>invcmp <|> invbeta
-                  <|> absProof <|> try appProof <|> (parens proof)
+proof :: Parser Prog
+proof =  cmp <|> mp <|> inst <|>
+         ug <|> beta <|> discharge 
+         <|>invcmp <|> invbeta <|> match <|> pletbind
+         <|> absProof <|> try appProof <|> (parens proof)
 -- invcmp and invbeta are abrieviation
-appPreTerm :: Parser (Either PreTerm Proof)
+appPreTerm :: Parser (Either PreTerm Prog)
 appPreTerm = do
   t <- try (reservedOp "$" >> formula)
        <|> try(reservedOp "$" >> set) <|> try (reservedOp "$" >> progPre)
        
   return $ Left t
 
-appPr :: Parser (Either PreTerm Proof)
+appPr :: Parser (Either PreTerm Prog)
 appPr = do
-  p <- try (parens proof) <|> try termVarProof
+  p <- try (parens proof) <|> try termVarProg
   return $ Right p
   
 appProof = do
-  sp <- try termVarProof <|> parens proof
+  sp <- try termVarProg <|> parens proof
   as <- many $ indented >> (try appPreTerm <|> try appPr)
   return $ foldl' (\ z x -> helper z x) sp as
-    where helper z (Left a) = PFApp z a
-          helper z (Right a) = PApp z a
+    where helper z (Left a) = TPFApp z a
+          helper z (Right a) = TPApp z a
 
 absProof = do
   reserved "\\"
   xs <- many1 $ try termVar <|> setVar
   reservedOp "."
   f <- proof
-  return $ (foldr (\ x z -> PLam x z) f xs)
+  return $ (foldr (\ x z -> TPLam x z) f xs)
+
+pletbind = do
+  reserved "let"
+  bs <- block branch
+  reserved "in"
+  p <- proof
+  return $ Let bs p
+  where branch = do 
+          v <- termVar
+          reservedOp "="
+          p <- proof
+          return $ (v, p)
+
+match = do
+  reserved "case"
+  n <- prog
+  reserved "of"
+  bs <- block branch
+  return $ Match n bs
+  where
+    branch = do
+      v <- termVar
+      l <- many termVar
+      reservedOp "->"
+      pr <- proof
+      return $ (v, l, pr)
 
 invcmp = do
   reserved "invcmp"
   p <- proof
   f <- try (lookAhead $ reservedOp ":" >> formula) <|> (reserved "from" >> formula)
-  return $ InvCmp p f
+  return $ TInvCmp p f
 
 invbeta = do
   reserved "invbeta"
   p <- proof
   f <- try (lookAhead $ reservedOp ":" >> formula) <|> ( reserved "from" >> formula)
-  return $ InvBeta p f
+  return $ TInvBeta p f
 
 cmp = do
   reserved "cmp"
   p <- proof
-  return $ Cmp p
+  return $ TCmp p
 
 mp = do
   reserved "mp"
   p1 <- proof
   reserved "by"
   p2 <- proof
-  return $ MP p1 p2
+  return $ TMP p1 p2
 
 discharge = do
   reserved "discharge"
@@ -409,26 +444,26 @@ discharge = do
             return $ Just a})
   reservedOp "."
   p <- proof
-  return $ Discharge n f p
+  return $ TDischarge n f p
   
 inst = do
   reserved "inst"
   p <- proof
   reserved "by"
   t <- try progPre <|> try set <|> formula
-  return $ Inst p t
+  return $ TInst p t
 
 ug = do
   reserved "ug"
   m <- try setVar <|> termVar
   reservedOp "."
   p <- proof
-  return $ UG m p
+  return $ TUG m p
 
 beta = do
   reserved "beta"
   p <- proof
-  return $ Beta p
+  return $ TBeta p
   
 -----------------------Positions -------
   
@@ -437,10 +472,10 @@ wrapFPos p = pos <$> getPosition <*> p
   where pos x (Pos y e) | x==y = (Pos y e)
         pos x y = Pos x y
 
-wrapPPos :: Parser Proof -> Parser Proof
-wrapPPos p = pos <$> getPosition <*> p
-  where pos x (PPos y e) | x==y = (PPos y e)
-        pos x y = PPos x y
+-- wrapPPos :: Parser Proof -> Parser Proof
+-- wrapPPos p = pos <$> getPosition <*> p
+--   where pos x (PPos y e) | x==y = (PPos y e)
+--         pos x y = PPos x y
 
 wrapProgPos :: Parser Prog -> Parser Prog
 wrapProgPos p = pos <$> getPosition <*> p
@@ -467,7 +502,7 @@ gottlobStyle = Token.LanguageDef
                   [
                     "forall", "iota", 
                     "cmp","invcmp", "inst", "mp", "discharge", "ug", "beta", "invbeta",
-                    "by", "from",
+                    "by", "from", "in",
                     "case", "of",
                     "data", 
                     "theorem", "proof", "qed",
