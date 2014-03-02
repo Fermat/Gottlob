@@ -12,6 +12,23 @@ progTerm (Applica p1 p2) = App (progTerm p1) (progTerm p2)
 progTerm (Abs l p) = constrAbs l (progTerm p)
 progTerm (Match v l) = appBranch l (progTerm v)
 progTerm (ProgPos pos p) = Pos pos (progTerm p)
+progTerm (Let l p) = substList (helper l) (progTerm p)
+  where helper l = map (\ (x, t) -> (PVar x, progTerm t)) l
+        substList [] t = t
+        substList ((x, t1):xs) t = substList xs (runSubst t1 x t)
+progTerm (TMP p1 p2) = MP (progTerm p1) (progTerm p2)
+progTerm (TInst p1 p2) = Inst (progTerm p1) (progTerm p2)
+progTerm (TUG x p2) = UG x (progTerm p2)
+progTerm (TCmp p1) = Cmp (progTerm p1)
+progTerm (TBeta p1) = Beta (progTerm p1)
+progTerm (TInvCmp p1 p2) = InvCmp (progTerm p1) (progTerm p2)
+progTerm (TInvBeta p1 p2) = InvBeta (progTerm p1) (progTerm p2)
+progTerm (TDischarge x p1 p2) = Discharge x (Just $ progTerm p1) (progTerm p2)
+progTerm (TPLam x p2) = PLam x (progTerm p2)
+progTerm (TPApp p1 p2) = PApp (progTerm p1) (progTerm p2)
+progTerm (TPFApp p1 p2) = PFApp (progTerm p1) (progTerm p2)
+
+
 
 constrAbs :: [VName] -> PreTerm -> PreTerm
 constrAbs l t = foldr (\ x z -> Lambda x z) t l
@@ -85,15 +102,18 @@ toScott (Data d l cons) =
 -- nat = Data "Nat" [] [("z", FVar "Nat"), ("s", Arrow (FVar "Nat") (FVar "Nat"))]      
 
 -- translating proof scripts to proof.
-runToProof ::ProofScripts -> Proof
+runToProof ::ProofScripts -> PreTerm
 runToProof ps = runReader (toProof ps) []
-toProof :: ProofScripts -> Reader [(VName, PreTerm)] Proof
-toProof ((n,p,f):[]) = annotate p
-toProof ((n,Assume x, Just f):xs) = local (\ y -> (x, f):y) (toProof xs)
-toProof ((n, p, f):xs) = toProof $ substPL p n xs
-  where substPL p n xs = map (\ (n1, p1,f1) -> (n1,naiveSub p (PrVar n) p1,f1)) xs
-        
-annotate :: Proof -> Reader [(VName, PreTerm)] Proof
+
+toProof :: ProofScripts -> Reader [(VName, PreTerm)] PreTerm
+toProof ((n,Right p,f):[]) = annotate p
+toProof ((n,Left (Assume x), Just f):xs) = local (\ y -> (x, f):y) (toProof xs)
+toProof ((n,Right p, f):xs) = toProof $ substPL p n xs
+  where substPL p n xs = map helper xs
+        helper (n1, Right p1, f1) = (n1 , Right $ naiveSub p (PVar n) p1 , f1)
+        helper (n1, Left a, f1) = (n1 , Left a , f1)
+
+annotate :: PreTerm -> Reader [(VName, PreTerm)] PreTerm
 annotate (Discharge x Nothing p) = do
   l <- ask
   case lookup x l of
@@ -103,11 +123,12 @@ annotate (Discharge x Nothing p) = do
     Just f -> do
       p1 <- annotate p
       return $ Discharge x (Just f) p1
+
 annotate (Discharge x (Just f) p) = do
   p1 <- annotate p
   return $ Discharge x (Just f) p1
   
-annotate (PrVar p) = return $ PrVar p
+annotate (PVar p) = return $ PVar p
 annotate (MP p1 p2) = do
   p3 <- annotate p1
   p4 <- annotate p2
@@ -148,7 +169,7 @@ annotate (PApp p1 p2) = do
 annotate (PFApp p1 t) = do
   p3 <- annotate p1
   return $ PFApp p3 t
-annotate (PPos pos p1) = annotate p1
+annotate (Pos pos p1) = annotate p1
 
 
 

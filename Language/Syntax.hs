@@ -1,7 +1,7 @@
 module Language.Syntax
        (VName, EType(..), vars, sub,
         PreTerm(..), ProofScripts,
-        Prog(..), Args(..), FType(..),
+        Prog(..), Args(..), FType(..), Assumption(..),
         Datatype(..), Module(..), Decl(..),
         fv, runSubst, naiveSub) where
 
@@ -128,17 +128,23 @@ data Assumption = Assume VName deriving Show
 type ProofScripts = [(VName, Either Assumption PreTerm, Maybe PreTerm)]
 
 data Prog = Name VName
-          | Proof PreTerm
-          | Formula PreTerm
           | Applica Prog Prog
           | Abs [VName] Prog
           | Match Prog [(VName, [VName], Prog)]
-          | ProgPos SourcePos Prog
-            -- The way we deal with let(rec) is lift them in to global context as
-            -- prog def. Because tranlating them into lambda term will be a disaster.
           | Let [(VName, Prog)] Prog
-            -- p1 >>= p2, haskell style monadic operation
-          | Bind Prog Prog
+            -- tactic is meta program is not subjected for local reasoning
+          | TMP Prog Prog -- mp p1 by p2
+          | TInst Prog Prog -- inst p1 by p2
+          | TUG VName Prog     -- ug x . p
+          | TCmp Prog          -- cmp p
+          | TInvCmp Prog Prog  -- invcmp p from F
+          | TBeta Prog            -- beta p
+          | TInvBeta Prog Prog  -- invbeta p from F
+          | TDischarge VName Prog Prog -- discharge a : F . p
+          | TPLam VName Prog      -- \ x . p 
+          | TPApp Prog Prog     -- p1 t
+          | TPFApp Prog Prog    -- p1 p2
+          | ProgPos SourcePos Prog
           deriving (Show, Eq)
 
 -- formal type for program, e.g. Nat -> Nat
@@ -162,7 +168,8 @@ data Module = Module VName [Decl] deriving (Show)
 data Decl = ProgDecl VName Prog
           | ProofDecl VName (Maybe VName) ProofScripts PreTerm
           | DataDecl SourcePos Datatype
-          | SetDecl VName [VName] Prog
+            -- no forall n :: Nat . P (F n), where F is a "function" take in n return a formula
+          | SetDecl VName PreTerm    
           | TacDecl VName [VName] (Either Prog ProofScripts)
           | FormOperatorDecl String Int String
           | ProgOperatorDecl String Int String
