@@ -383,17 +383,18 @@ subst p (PVar x) (InvBeta p1 t) = do
 
 subst p (PVar x) (Discharge y (Just t) p1) = do
   t1 <- subst p (PVar x) t
-  if x == y || not (x `S.member` fv p1) then return $ Discharge y (Just t1) p1
-  else if not (y `S.member` fv p)
-       then do
-         c <- subst p (PVar x) p1
-         return $ Discharge y (Just t1) c
-       else do
-         n <- get
-         modify (+1)
-         c1 <- subst (PVar (y++ show n)) (PVar y) p1
-         c2 <- subst p (PVar x) c1
-         return $ Discharge (y++ show n) (Just t1) c2
+  if x == y || not (x `S.member` fv p1)
+    then return $ Discharge y (Just t1) p1
+    else if not (y `S.member` fv p)
+         then do
+           c <- subst p (PVar x) p1
+           return $ Discharge y (Just t1) c
+         else do
+           n <- get
+           modify (+1)
+           c1 <- subst (PVar (y++ show n)) (PVar y) p1
+           c2 <- subst p (PVar x) c1
+           return $ Discharge (y++ show n) (Just t1) c2
 
 subst p (PVar x) (Discharge y Nothing p1) = 
   if x == y || not (x `S.member` fv p1) then return $ Discharge y (Nothing) p1

@@ -20,11 +20,11 @@ type Global a =StateT Env (StateT PrfEnv (ReaderT [(VName, PreTerm)] (ErrorT PCE
 data Env = Env{ progDef::M.Map VName PreTerm,
                 setDef::M.Map VName (PreTerm, EType),
                 proofCxt::M.Map VName (ProofScripts, PreTerm),
-                tacticDef :: M.Map VName Proof}
+                tacticDef :: M.Map VName PreTerm}
          deriving Show
 
 data PrfEnv = PrfEnv { assumption::[(VName, PreTerm)],
-                       localProof :: M.Map VName (Proof, PreTerm),
+                       localProof :: M.Map VName (PreTerm, PreTerm),
                        localEType :: M.Map VName EType}
             deriving Show
 
@@ -41,7 +41,7 @@ newPrfEnv e = PrfEnv { assumption = [], localProof=M.empty, localEType=M.fromLis
 extendProgDef :: VName -> PreTerm -> Env -> Env
 extendProgDef v t e@(Env {progDef}) = e{progDef = M.insert v t progDef}
 
-extendTacticDef :: VName -> Proof -> Env -> Env
+extendTacticDef :: VName -> PreTerm -> Env -> Env
 extendTacticDef v t e@(Env {tacticDef}) = e{tacticDef = M.insert v t tacticDef}
 
 extendProofCxt :: VName -> ProofScripts -> PreTerm -> Env -> Env
@@ -56,7 +56,7 @@ pushAssump v f e@(PrfEnv {assumption}) = e{assumption = (v,f):assumption}
 popAssump :: PrfEnv -> PrfEnv
 popAssump e@(PrfEnv {assumption}) = e{assumption = tail assumption}
 
-extendLocalProof :: VName -> Proof -> PreTerm -> PrfEnv -> PrfEnv
+extendLocalProof :: VName -> PreTerm -> PreTerm -> PrfEnv -> PrfEnv
 extendLocalProof v p f e@(PrfEnv {localProof}) = e{localProof = M.insert v (p,f) localProof}
 
 extendLocalEType :: VName -> EType -> PrfEnv -> PrfEnv
@@ -93,7 +93,6 @@ data PCError = ErrMsg [ErrInfo]
 data ErrInfo = ErrInfo Doc -- A Summary
                [(Doc,Doc)] -- A list of details
              | ErrLocPre SourcePos PreTerm
-             | ErrLocProof SourcePos Proof
              | ErrLocProg SourcePos Prog
              deriving (Show, Typeable)
 
@@ -109,25 +108,25 @@ instance Disp PCError where
     where info = reverse rinfo
           positions = [el | el <- info, f el == True]
           f (ErrLocPre _ _) = True
-          f (ErrLocProof _ _) = True
+--          f (ErrLocProof _ _) = True
           f (ErrLocProg _ _) = True
           f _ = False
           messages = [ei | ei@(ErrInfo _ _) <- info]
           details = concat [ds | ErrInfo _ ds <- info]
           pos ((ErrLocPre sp _):_) = disp sp
-          pos ((ErrLocProof sp _):_) = disp sp
+  --        pos ((ErrLocProof sp _):_) = disp sp
           pos ((ErrLocProg sp _):_) = disp sp
           pos _ = text "unknown position" <> colon
           summary = vcat [s | ErrInfo s _ <- messages]
           detailed = vcat [(int i <> colon <+> brackets label) <+> d |
                            (label,d) <- details | i <- [1..]]
           terms = [hang (text "in the expression:") 2 (dispExpr t) |  t <- take 4 positions]
-          dispExpr (ErrLocProof _ p) = disp p
+    --      dispExpr (ErrLocProof _ p) = disp p
           dispExpr (ErrLocPre _ p) = disp p
           dispExpr (ErrLocProg _ p) = disp p
 
-addProofErrorPos ::  SourcePos -> Proof -> PCError -> Global a
-addProofErrorPos pos p (ErrMsg ps) = throwError (ErrMsg (ErrLocProof pos p:ps))
+-- addProofErrorPos ::  SourcePos -> Proof -> PCError -> Global a
+-- addProofErrorPos pos p (ErrMsg ps) = throwError (ErrMsg (ErrLocProof pos p:ps))
 
 addProgErrorPos ::  SourcePos -> Prog -> PCError -> Global a
 addProgErrorPos pos p (ErrMsg ps) = throwError (ErrMsg (ErrLocProg pos p:ps))

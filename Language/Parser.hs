@@ -502,7 +502,7 @@ gottlobStyle = Token.LanguageDef
                   [
                     "forall", "iota", 
                     "cmp","invcmp", "inst", "mp", "discharge", "ug", "beta", "invbeta",
-                    "by", "from", "in",
+                    "by", "from", "in", "let", 
                     "case", "of",
                     "data", 
                     "theorem", "proof", "qed",
