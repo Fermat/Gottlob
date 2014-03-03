@@ -357,7 +357,7 @@ proof :: Parser Prog
 proof =  cmp <|> mp <|> inst <|>
          ug <|> beta <|> discharge 
          <|>invcmp <|> invbeta <|> match <|> pletbind
-         <|> absProof <|> try appProof <|> (parens proof)
+         <|> absProof <|> try appProof <|> try progAppProof <|> (parens proof)
 -- invcmp and invbeta are abrieviation
 appPreTerm :: Parser (Either PreTerm Prog)
 appPreTerm = do
@@ -372,11 +372,19 @@ appPr = do
   return $ Right p
   
 appProof = do
-  sp <- try termVarProg <|> parens proof
+  sp <- try termVarProg <|> parens proof 
   as <- many $ indented >> (try appPreTerm <|> try appPr)
   return $ foldl' (\ z x -> helper z x) sp as
     where helper z (Left a) = TPFApp z a
           helper z (Right a) = TPApp z a
+
+progAppProof = do
+  reservedOp "$"
+  sp <- try termVarProg <|> parens prog <|> prog
+  as <- many $ indented >> (try appPreTerm <|> try appPr)
+  return $ foldl' (\ z x -> helper z x) sp as
+    where helper z (Left a) = AppPre z a
+          helper z (Right a) = AppProof z a
 
 absProof = do
   reserved "\\"

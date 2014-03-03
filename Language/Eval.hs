@@ -38,18 +38,19 @@ reduce t = do
   -- comparison here
   if m == n then return m else reduce m
 
-simp :: Proof -> S.Set VName -> Global Proof
-simp (PApp (PLam x p1) p2 ) s = return $ runSubProof p2 (PrVar x) p1
+-- simplifying proof
+simp :: PreTerm -> S.Set VName -> Global PreTerm
+simp (PApp (PLam x p1) p2 ) s = return $ runSubst p2 (PVar x) p1
 
-simp (PFApp (PLam x p1) t ) s = return $ runSubPre t (PVar x) p1
+simp (PFApp (PLam x p1) t ) s = return $ runSubst t (PVar x) p1
 
-simp (PFApp (PrVar x) t) s =
+simp (PFApp (PVar x) t) s =
   if x `S.member` s then do
     e <- get
     case M.lookup x (tacticDef e) of
-      Nothing -> return $ PFApp (PrVar x) t
+      Nothing -> return $ PFApp (PVar x) t
       Just a -> return $ PFApp a t
-  else return $ PFApp (PrVar x) t
+  else return $ PFApp (PVar x) t
        
 simp (PApp t1 t2) s = do
   a1 <- simp t1 s
@@ -62,13 +63,13 @@ simp (PFApp p1 t) s =
 simp (PLam x t) s =
   simp t s >>= \a -> return $ PLam x a
 
-simp (PrVar x) s = 
+simp (PVar x) s = 
   if x `S.member` s then do
     e <- get
     case M.lookup x (tacticDef e) of
-      Nothing -> return $ PrVar x
+      Nothing -> return $ PVar x
       Just t -> return t
-  else return $ PrVar x
+  else return $ PVar x
 
 simp (MP p1 p2) s = do
   a1 <- simp p1 s
@@ -96,7 +97,7 @@ simp (UG x p1) s =
 simp (Discharge x t p1) s = 
   simp p1 s >>= \ a1 -> return $ Discharge x t a1 
 
-simp (PPos pos p1) s = simp p1 s `catchError` addProofErrorPos pos p1
+simp (Pos pos p1) s = simp p1 s -- `catchError` addProofErrorPos pos p1
 
 simp _ _ = die "Wrong use of proof simplication."
 
@@ -104,10 +105,10 @@ simp _ _ = die "Wrong use of proof simplication."
 -- tactic to its normal-form, so that proof-checking
 -- can proceed without problem. And it is not for compiling
 -- to run, so it is fine to be inefficient.
-parSimp :: Proof -> Global Proof
+parSimp :: PreTerm -> Global PreTerm
 parSimp t = do
-  m <- simp t (fPrVar t)
-  n <- simp m (fPrVar m)
+  m <- simp t (fv t)
+  n <- simp m (fv m)
   if m == n then return m else parSimp m
 
 

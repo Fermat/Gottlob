@@ -144,6 +144,8 @@ data Prog = Name VName
           | TPLam VName Prog      -- \ x . p 
           | TPApp Prog Prog     -- p1 p
           | TPFApp Prog PreTerm    -- p1 t
+          | AppPre Prog PreTerm -- t F
+          | AppProof Prog Prog -- t p
           | ProgPos SourcePos Prog
           deriving (Show, Eq)
 

@@ -27,6 +27,8 @@ progTerm (TDischarge x p1 p2) = Discharge x p1 (progTerm p2)
 progTerm (TPLam x p2) = PLam x (progTerm p2)
 progTerm (TPApp p1 p2) = PApp (progTerm p1) (progTerm p2)
 progTerm (TPFApp p1 p2) = PFApp (progTerm p1) p2
+progTerm (AppPre p1 p2) = App (progTerm p1) p2
+progTerm (AppProof p1 p2) = App (progTerm p1) (progTerm p2)
 
 
 
