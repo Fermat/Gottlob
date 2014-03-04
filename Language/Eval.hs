@@ -43,17 +43,17 @@ simp :: PreTerm -> S.Set VName -> Global PreTerm
 
 simp (App (Lambda x p1) p2 ) s = return $ runSubst p2 (PVar x) p1
 
-simp (PApp (PLam x p1) p2 ) s = return $ runSubst p2 (PVar x) p1
+-- simp (PApp (PLam x p1) p2 ) s = return $ runSubst p2 (PVar x) p1
 
-simp (PFApp (PLam x p1) t ) s = return $ runSubst t (PVar x) p1
+-- simp (PFApp (PLam x p1) t ) s = return $ runSubst t (PVar x) p1
 
-simp (PFApp (PVar x) t) s =
-  if x `S.member` s then do
-    e <- get
-    case M.lookup x (tacticDef e) of
-      Just a -> return $ PFApp a t
-      Nothing -> return $ PFApp (PVar x) t
-  else return $ PFApp (PVar x) t
+-- simp (App (PVar x) t) s =
+--   if x `S.member` s then do
+--     e <- get
+--     case M.lookup x (tacticDef e) of
+--       Just a -> return $ PFApp a t
+--       Nothing -> return $ PFApp (PVar x) t
+--   else return $ PFApp (PVar x) t
 
 simp (App (PVar x) t) s =
   if x `S.member` s then do
@@ -63,21 +63,21 @@ simp (App (PVar x) t) s =
       Nothing -> return $ App (PVar x) t
   else return $ App (PVar x) t
 
-simp (PApp t1 t2) s = do
-  a1 <- simp t1 s
-  a2 <- simp t2 s
-  return $ PApp a1 a2
+-- simp (PApp t1 t2) s = do
+--   a1 <- simp t1 s
+--   a2 <- simp t2 s
+--   return $ PApp a1 a2
 
 simp (App t1 t2) s = do
   a1 <- simp t1 s
   a2 <- simp t2 s
   return $ App a1 a2
 
-simp (PFApp p1 t) s = 
-  simp p1 s >>= \ a -> return $ PFApp a t
+-- simp (PFApp p1 t) s = 
+--   simp p1 s >>= \ a -> return $ PFApp a t
 
-simp (PLam x t) s =
-  simp t s >>= \a -> return $ PLam x a
+-- simp (PLam x t) s =
+--   simp t s >>= \a -> return $ PLam x a
 
 simp (Lambda x t) s =
   simp t s >>= \a -> return $ Lambda x a

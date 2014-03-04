@@ -22,14 +22,14 @@ proofCheck :: ProofScripts -> Global ()
 -- proofCheck ((n, (PPos pos p ), f):l) f1 = 
 --   proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
   
-proofCheck ((n, (Assume x), Just f):l) = do
+proofCheck ((n, Left (Assume x), Just f):l) = do
 --  wellDefined f
   wellFormed f
   insertAssumption x f
 --  emit $ "checked assumption"
   proofCheck l
 
-proofCheck ((n, p, Just f):l) = do
+proofCheck ((n, Right p, Just f):l) = do
 --  emit $ "begin to check proof " ++ show p
   wellFormed f
   p1 <- parSimp p --  normalize a proof
@@ -43,7 +43,7 @@ proofCheck ((n, p, Just f):l) = do
 --  emit $ "checked non-assump"
   proofCheck l
 
-proofCheck ((n, p, Nothing):l) = do
+proofCheck ((n, Right p, Nothing):l) = do
   p1 <- parSimp p --  normalize a proof
   f0 <- checkFormula p1
   emit $ text "Infered formula:" <+> disp f0 <+> text "for proof" <+> disp n
@@ -58,7 +58,7 @@ insertAssumption x f = do
   lift $ put $ pushAssump x f env
   return ()
 
-insertPrVar :: VName -> Proof -> PreTerm -> Global ()
+insertPrVar :: VName -> PreTerm -> PreTerm -> Global ()
 insertPrVar x p f = do
   env <- lift get
   lift $ put $ extendLocalProof x p f env
@@ -70,7 +70,7 @@ wellDefined :: PreTerm -> Global ()
 wellDefined (Pos pos p) = wellDefined p `catchError` addPreErrorPos pos p
 wellDefined t = do
   env <- get
-  let l = S.toList $ fVar t 
+  let l = S.toList $ fv t 
       rs = map (\ x -> helper x env) l
       fs = [snd c | c <- rs, fst c == False] in
     if null fs then return ()
@@ -104,9 +104,9 @@ ensureForm m = do
   unless (a == Form) $ die "Ill-formed formula."
   return (a,b,c)
   
-checkFormula :: Proof -> Global PreTerm
-checkFormula (PPos pos p) = checkFormula p `catchError` addProofErrorPos pos p
-checkFormula (PrVar v)  = do
+checkFormula :: PreTerm -> Global PreTerm
+checkFormula (Pos pos p) = checkFormula p -- `catchError` addProofErrorPos pos p
+checkFormula (PVar v)  = do
   e <- get
   loc <- ask
   case M.lookup v (proofCxt e) of
