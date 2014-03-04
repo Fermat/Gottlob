@@ -76,7 +76,7 @@ instance Disp Prog where
   disp (Abs xs p) = text "\\" <+> (hsep $ map text xs) <+> text "." <+> disp p
   disp (s@(Applica s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(AppPre s1 s2)) = text "$" <+> dParen (precedence s - 1) s1 <+> text "$" <+> dParen (precedence s) s2
-  disp (s@(AppProof s1 s2)) = text "$" <+> dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
+  disp (s@(AppProof s1 s2)) = parens (text "$" <+> disp s1) <+> dParen (precedence s) s2
   disp (Match p alts) = text "case" <+> disp p <+> text "of" $$
                         nest 2 (vcat (map dAlt alts))
     where dAlt (c, args, p) =
