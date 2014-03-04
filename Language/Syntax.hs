@@ -3,7 +3,7 @@ module Language.Syntax
         PreTerm(..), ProofScripts,
         Prog(..), Args(..), FType(..), Assumption(..),
         Datatype(..), Module(..), Decl(..),
-        fv, runSubst, naiveSub) where
+        fv,fVar, runSubst, naiveSub) where
 
 import Control.Monad.State.Lazy
 import Control.Monad.Reader
@@ -193,6 +193,19 @@ fv (Beta p) = fv p
 fv (InvCmp p1 t) = fv p1 `S.union` fv t
 fv (InvBeta p1 t) = fv p1 `S.union` fv t
 fv (Pos _ p) = fv p
+
+-- get free set var
+fVar :: PreTerm -> S.Set VName
+fVar (PVar x) = S.insert x S.empty
+fVar (Imply f1 f2) = fVar f1 `S.union` fVar f2
+fVar (Forall x f) = S.delete x (fVar f)
+fVar (In t s) = fVar s
+fVar (Iota x s) = S.delete x (fVar s)
+fVar (Lambda x s) = S.empty
+fVar (App f1 f2) = S.empty
+fVar (SApp f1 f2) = fVar f1 `S.union` fVar f2
+fVar (TApp f1 f2) = fVar f1
+fVar (Pos _ f) = fVar f 
 
 type GVar a = State Int a
 

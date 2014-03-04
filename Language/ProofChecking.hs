@@ -30,9 +30,10 @@ proofCheck ((n, Left (Assume x), Just f):l) = do
   proofCheck l
 
 proofCheck ((n, Right p, Just f):l) = do
---  emit $ "begin to check proof " ++ show p
+  emit $ "begin to check proof " <++> disp p
   wellFormed f
-  p1 <- parSimp p --  normalize a proof
+  emit $ "a list of fv " ++ show (fv p)
+  p1 <- simp (fv p) p --  normalize a proof
 --  emit $ "begin to check simp proof " <++> disp p1
   f0 <- checkFormula p1
 
@@ -44,7 +45,9 @@ proofCheck ((n, Right p, Just f):l) = do
   proofCheck l
 
 proofCheck ((n, Right p, Nothing):l) = do
-  p1 <- parSimp p --  normalize a proof
+  emit $ "begin to check proof " <++> disp p
+  emit $ "a list of fv " ++ show (fv p)
+  p1 <- simp (fv p) p  --  normalize a proof
   f0 <- checkFormula p1
   emit $ text "Infered formula:" <+> disp f0 <+> text "for proof" <+> disp n
   insertPrVar n p1 (erased f0)
@@ -70,11 +73,11 @@ wellDefined :: PreTerm -> Global ()
 wellDefined (Pos pos p) = wellDefined p `catchError` addPreErrorPos pos p
 wellDefined t = do
   env <- get
-  let l = S.toList $ fv t 
+  let l = S.toList $ fVar t 
       rs = map (\ x -> helper x env) l
       fs = [snd c | c <- rs, fst c == False] in
     if null fs then return ()
-    else die $ "Undefined set variables: " <++> (unwords fs)
+    else die $ "Undefined set variables: " <++> (hsep $ punctuate comma (map text fs))
   where helper x env = case M.lookup x (setDef env) of
                             Just a -> (True, x)
                             _ -> (False, x)

@@ -159,7 +159,17 @@ annotate (InvBeta p1 t) = do
   p3 <- annotate p1
   return $ InvBeta p3 t
 
+annotate (Lambda x t) = do
+  p <- annotate t
+  return $ Lambda x p 
+
+annotate (App p1 p2) = do
+  p3 <- annotate p1
+  p4 <- annotate p2
+  return $ App p3 p4
+
 annotate (Pos pos p1) = annotate p1
+
 
 
 

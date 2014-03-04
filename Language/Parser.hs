@@ -362,7 +362,7 @@ proof =  cmp <|> mp <|> inst <|>
 -- invcmp and invbeta are abrieviation
 appPreTerm :: Parser (Either PreTerm Prog)
 appPreTerm = do
-  t <-  try formula <|> set -- <|> parens set
+  t <-  try setVarPre <|> try (parens formula) <|> parens set -- <|> parens set
 --  unexpected "hei"
        -- <|> try (reservedOp "$" >> progPre)
   return $ Left t
@@ -376,7 +376,6 @@ appPr = do
 appProof = do
   sp <- try termVarProg <|> parens proof
 --  unexpected "here"
-
   as <- many $ indented >> (try appPr <|> try appPreTerm)
   return $ foldl' (\ z x -> helper z x) sp as
     where helper z (Left a) = AppPre z a
