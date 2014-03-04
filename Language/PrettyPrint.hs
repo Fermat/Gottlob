@@ -26,6 +26,7 @@ dParen level x =
    then parens $ disp x
    else disp x
 
+
 instance Disp PreTerm where
   disp (PVar x) = text x
   disp (Forall x p) = text "forall" <+> text x <+> text "." <+> disp p
@@ -46,9 +47,6 @@ instance Disp PreTerm where
   disp (a@(Discharge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "." <+> dParen (precedence a) p1 
   disp (a@(InvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
   disp (a@(InvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
-  disp (s@(PApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
-  disp (s@(PFApp s1 s2)) = dParen (precedence s - 1) s1 <+> text "$" <+> dParen (precedence s) s2
-  disp (PLam x p) = text "\\" <+> disp x <+> text "." <+> disp p
 
   disp (Pos _ t) = disp t
   precedence (Pos _ t) = precedence t
@@ -56,11 +54,9 @@ instance Disp PreTerm where
   precedence (TApp _ _) = 10
   precedence (SApp _ _) = 10
   precedence (App _ _) = 10
-  precedence (In _ _) = 10
+  precedence (In _ _) = 7
   precedence (Forall _ _) = 4
   precedence (Imply _ _) = 4
-  precedence (PApp _ _) = 8
-  precedence (PFApp _ _) = 7
   precedence _ = 0
                           
 instance Disp EType where
@@ -75,8 +71,7 @@ instance Disp Prog where
   disp (Name x) = text x
   disp (Abs xs p) = text "\\" <+> (hsep $ map text xs) <+> text "." <+> disp p
   disp (s@(Applica s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
-  disp (s@(AppPre s1 s2)) = text "$" <+> dParen (precedence s - 1) s1 <+> text "$" <+> dParen (precedence s) s2
-  disp (s@(AppProof s1 s2)) = parens (text "$" <+> disp s1) <+> dParen (precedence s) s2
+  disp (s@(AppPre s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (Match p alts) = text "case" <+> disp p <+> text "of" $$
                         nest 2 (vcat (map dAlt alts))
     where dAlt (c, args, p) =
@@ -93,17 +88,17 @@ instance Disp Prog where
   disp (a@(TDischarge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "." <+> dParen (precedence a) p1 
   disp (a@(TInvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
   disp (a@(TInvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
-  disp (s@(TPApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
-  disp (s@(TPFApp s1 s2)) = dParen (precedence s - 1) s1 <+> text "$" <+> dParen (precedence s) s2
-  disp (TPLam x p) = text "\\" <+> disp x <+> text "." <+> disp p
+  -- disp (s@(TPApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
+  -- disp (s@(TPFApp s1 s2)) = dParen (precedence s - 1) s1 <+> text "$" <+> dParen (precedence s) s2
+  -- disp (TPLam x p) = text "\\" <+> disp x <+> text "." <+> disp p
   
   precedence (ProgPos _ pr) = precedence pr
   precedence (Name _) = 12
   precedence (Applica _ _) = 8
   precedence (AppPre _ _) = 8
-  precedence (AppProof _ _) = 8
-  precedence (TPApp _ _) = 8
-  precedence (TPFApp _ _) = 7
+--  precedence (AppProof _ _) = 8
+  -- precedence (TPApp _ _) = 8
+  -- precedence (TPFApp _ _) = 7
   precedence _ = 0
 
 instance Disp Args where

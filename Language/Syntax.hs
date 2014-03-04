@@ -52,9 +52,6 @@ data PreTerm = PVar VName
           | Beta PreTerm            -- beta p
           | InvBeta PreTerm PreTerm  -- invbeta p from F
           | Discharge VName (Maybe PreTerm) PreTerm -- discharge a : F . p
-          | PLam VName PreTerm      -- \ x . p 
-          | PApp PreTerm PreTerm     -- p1 t
-          | PFApp PreTerm PreTerm    -- p1 p2
           | Pos SourcePos PreTerm
           deriving (Show)
 
@@ -76,9 +73,6 @@ data PNameless = PV Int
              | BETA PNameless            -- beta p
              | INVB PNameless PNameless  -- invbeta p from F
              | DIS (Maybe PNameless) PNameless -- discharge a : F . p
-             | PL VName PNameless      -- \ x . p 
-             | PA PNameless PNameless     -- p1 t
-             | PFA PNameless PNameless    -- p1 p2
              deriving (Show, Eq)
 
 -- naive sub for proof 
@@ -110,15 +104,13 @@ naiveSub p (PVar x) (InvBeta p1 t) =
 
 naiveSub p (PVar x) (Discharge y t p1) = Discharge y t (naiveSub p (PVar x) p1)
   
-naiveSub p (PVar x) (PLam y p1) =  PLam y (naiveSub p (PVar x) p1)
+naiveSub p (PVar x) (Lambda y p1) =  Lambda y (naiveSub p (PVar x) p1)
   
-naiveSub p (PVar x) (PApp p1 p2) = 
+naiveSub p (PVar x) (App p1 p2) = 
   let a1 = naiveSub p (PVar x) p1
       a2 = naiveSub p (PVar x) p2 in
-  PApp a1 a2
+  App a1 a2
   
-naiveSub p (PVar x) (PFApp p1 t) = 
-  PFApp (naiveSub p (PVar x) p1) t
   
 naiveSub p (PVar x) (Pos a p1) =
   Pos a (naiveSub p (PVar x) p1)
@@ -141,12 +133,13 @@ data Prog = Name VName
           | TBeta Prog            -- beta p
           | TInvBeta Prog PreTerm  -- invbeta p from F
           | TDischarge VName (Maybe PreTerm) Prog -- discharge a : F . p
-          | TPLam VName Prog      -- \ x . p 
-          | TPApp Prog Prog     -- p1 p
-          | TPFApp Prog PreTerm    -- p1 t
-          | AppPre Prog PreTerm -- t F
-          | AppProof Prog Prog -- t p
+          | AppPre Prog PreTerm -- p F
+          -- | AppProof Prog Prog -- t p
+          -- | TPFApp Prog PreTerm -- p F
+          -- | TPApp Prog Prog -- p p
+          -- | TPLam VName Prog -- \ x. p
           | ProgPos SourcePos Prog
+            
           deriving (Show, Eq)
 
 -- formal type for program, e.g. Nat -> Nat
@@ -189,10 +182,8 @@ fv (App f1 f2) = fv f1 `S.union` fv f2
 fv (SApp f1 f2) = fv f1 `S.union` fv f2
 fv (TApp f1 f2) = fv f1 `S.union` fv f2
 fv (MP p1 p2) = fv p1 `S.union` fv p2
-fv (PApp p1 p2) = fv p1 `S.union` fv p2
 fv (Inst p1 t) = fv p1 `S.union` fv t
 fv (UG a p) = S.delete a (fv p)
-fv (PLam a p) = S.delete a (fv p)
 fv (Discharge a t p) =
   case t of
     Nothing -> S.delete a (fv p)
@@ -201,7 +192,6 @@ fv (Cmp p) = fv p
 fv (Beta p) = fv p
 fv (InvCmp p1 t) = fv p1 `S.union` fv t
 fv (InvBeta p1 t) = fv p1 `S.union` fv t
-fv (PFApp p1 t) = fv p1 `S.union` fv t
 fv (Pos _ p) = fv p
 
 type GVar a = State Int a
@@ -410,30 +400,6 @@ subst p (PVar x) (Discharge y Nothing p1) =
          c1 <- subst (PVar (y++ show n)) (PVar y) p1
          c2 <- subst p (PVar x) c1
          return $ Discharge (y++ show n) (Nothing) c2
-
-subst p (PVar x) (PLam y p1) =
-  if x == y || not (x `S.member` fv p1) then return $ PLam y p1
-  else if not (y `S.member` fv p)
-       then do
-         c <- subst p (PVar x) p1
-         return $ PLam y c
-       else do
-         n <- get
-         modify (+1)
-         c1 <- subst (PVar (y++ show n)) (PVar y) p1
-         c2 <- subst p (PVar x) c1
-         return $ PLam (y++ show n) c2
-
-subst p (PVar x) (PApp p1 p2) = do
-  a1 <- subst p (PVar x) p1
-  a2 <- subst p (PVar x) p2
-  return $ PApp a1 a2
-  
-subst p (PVar x) (PFApp p1 t) = do
-  a <- subst p (PVar x) p1
-  a1 <- subst p (PVar x) t
-  return $ PFApp a a1
-
 subst s (PVar x) (Pos _ f) = subst s (PVar x) f
 
 

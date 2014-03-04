@@ -24,11 +24,11 @@ progTerm (TBeta p1) = Beta (progTerm p1)
 progTerm (TInvCmp p1 p2) = InvCmp (progTerm p1) p2
 progTerm (TInvBeta p1 p2) = InvBeta (progTerm p1) p2
 progTerm (TDischarge x p1 p2) = Discharge x p1 (progTerm p2)
-progTerm (TPLam x p2) = PLam x (progTerm p2)
-progTerm (TPApp p1 p2) = PApp (progTerm p1) (progTerm p2)
-progTerm (TPFApp p1 p2) = PFApp (progTerm p1) p2
+-- progTerm (TPLam x p2) = Lambda x (progTerm p2)
+-- progTerm (TPApp p1 p2) = App (progTerm p1) (progTerm p2)
+-- progTerm (TPFApp p1 p2) = App (progTerm p1) p2
 progTerm (AppPre p1 p2) = App (progTerm p1) p2
-progTerm (AppProof p1 p2) = App (progTerm p1) (progTerm p2)
+--progTerm (AppProof p1 p2) = App (progTerm p1) (progTerm p2)
 
 
 
@@ -159,18 +159,6 @@ annotate (InvBeta p1 t) = do
   p3 <- annotate p1
   return $ InvBeta p3 t
 
-annotate (PLam x p1) = do
-  p3 <- annotate p1
-  return $ PLam x p3
-
-annotate (PApp p1 p2) = do
-  p3 <- annotate p1
-  p4 <- annotate p2
-  return $ PApp p3 p4
-
-annotate (PFApp p1 t) = do
-  p3 <- annotate p1
-  return $ PFApp p3 t
 annotate (Pos pos p1) = annotate p1
 
 

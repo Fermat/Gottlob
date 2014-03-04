@@ -260,7 +260,7 @@ setVarPre :: Parser PreTerm
 setVarPre = setVar >>= \ n -> return $ PVar n 
   
 set :: Parser PreTerm
-set = wrapFPos $ iotaClause <|> appClause <|> parens set
+set = wrapFPos $ iotaClause <|> try appClause <|> parens set
 
 iotaClause = do
   reserved "iota"
@@ -308,6 +308,7 @@ inClause = do
 tacticDecl :: Parser Decl
 tacticDecl = do
   reserved "tactic"
+--  unexpected "heiii"
   n <- termVar
   as <- many (try termVar <|> try setVar)
   reservedOp "="
@@ -357,40 +358,45 @@ proof :: Parser Prog
 proof =  cmp <|> mp <|> inst <|>
          ug <|> beta <|> discharge 
          <|>invcmp <|> invbeta <|> match <|> pletbind
-         <|> absProof <|> try progAppProof <|> try appProof <|> (parens proof)
+         <|> absProof <|> appProof <|> (parens proof)
 -- invcmp and invbeta are abrieviation
 appPreTerm :: Parser (Either PreTerm Prog)
 appPreTerm = do
-  t <- try (reservedOp "$" >> formula)
-       <|> try(reservedOp "$" >> set) <|> try (reservedOp "$" >> progPre)
-       
+  t <-  try formula <|> set -- <|> parens set
+--  unexpected "hei"
+       -- <|> try (reservedOp "$" >> progPre)
   return $ Left t
 
 appPr :: Parser (Either PreTerm Prog)
 appPr = do
   p <- try (parens proof) <|> try termVarProg
+--  unexpected "well"
   return $ Right p
   
 appProof = do
-  sp <- try termVarProg <|> parens proof 
-  as <- many $ indented >> (try appPreTerm <|> try appPr)
-  return $ foldl' (\ z x -> helper z x) sp as
-    where helper z (Left a) = TPFApp z a
-          helper z (Right a) = TPApp z a
+  sp <- try termVarProg <|> parens proof
+--  unexpected "here"
 
-progAppProof = do
-  sp <- try (reservedOp "$" >> termVarProg) <|> parens (reservedOp "$" >> prog) <|> (reservedOp "$" >> prog)
-  as <- many $ indented >> (try appPreTerm <|> try appPr)
+  as <- many $ indented >> (try appPr <|> try appPreTerm)
   return $ foldl' (\ z x -> helper z x) sp as
     where helper z (Left a) = AppPre z a
-          helper z (Right a) = AppProof z a
+          helper z (Right a) = Applica z a
+
+-- progAppProof = do
+--   sp <- try (reservedOp "$" >> termVarProg) <|> parens proof
+--         --(sepBy1 (progreservedOp "$") prog ) <|> (reservedOp "$" >> prog)
+--   as <- many $ indented >> (try appPreTerm <|> try appPr)
+--   return $ foldl' (\ z x -> helper z x) sp as
+--     where helper z (Left a) = AppPre z a
+--           helper z (Right a) = AppProof z a
 
 absProof = do
   reserved "\\"
   xs <- many1 $ try termVar <|> setVar
   reservedOp "."
   f <- proof
-  return $ (foldr (\ x z -> TPLam x z) f xs)
+  return $ Abs xs f
+    -- (foldr (\ x z -> TPLam x z) f xs)
 
 pletbind = do
   reserved "let"
