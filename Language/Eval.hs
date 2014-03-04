@@ -40,6 +40,9 @@ reduce t = do
 
 -- simplifying proof
 simp :: PreTerm -> S.Set VName -> Global PreTerm
+
+simp (App (Lambda x p1) p2 ) s = return $ runSubst p2 (PVar x) p1
+
 simp (PApp (PLam x p1) p2 ) s = return $ runSubst p2 (PVar x) p1
 
 simp (PFApp (PLam x p1) t ) s = return $ runSubst t (PVar x) p1
@@ -48,14 +51,27 @@ simp (PFApp (PVar x) t) s =
   if x `S.member` s then do
     e <- get
     case M.lookup x (tacticDef e) of
-      Nothing -> return $ PFApp (PVar x) t
       Just a -> return $ PFApp a t
+      Nothing -> return $ PFApp (PVar x) t
   else return $ PFApp (PVar x) t
-       
+
+simp (App (PVar x) t) s =
+  if x `S.member` s then do
+    e <- get
+    case M.lookup x (progDef e) of
+      Just a -> return $ App a t
+      Nothing -> return $ App (PVar x) t
+  else return $ App (PVar x) t
+
 simp (PApp t1 t2) s = do
   a1 <- simp t1 s
   a2 <- simp t2 s
   return $ PApp a1 a2
+
+simp (App t1 t2) s = do
+  a1 <- simp t1 s
+  a2 <- simp t2 s
+  return $ App a1 a2
 
 simp (PFApp p1 t) s = 
   simp p1 s >>= \ a -> return $ PFApp a t
@@ -63,12 +79,17 @@ simp (PFApp p1 t) s =
 simp (PLam x t) s =
   simp t s >>= \a -> return $ PLam x a
 
+simp (Lambda x t) s =
+  simp t s >>= \a -> return $ Lambda x a
+
 simp (PVar x) s = 
   if x `S.member` s then do
     e <- get
     case M.lookup x (tacticDef e) of
-      Nothing -> return $ PVar x
       Just t -> return t
+      Nothing -> case M.lookup x (progDef e) of
+                    Just t1 -> return t1
+                    Nothing -> return $ PVar x
   else return $ PVar x
 
 simp (MP p1 p2) s = do
