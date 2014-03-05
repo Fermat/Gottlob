@@ -22,17 +22,17 @@ proofCheck :: ProofScripts -> Global ()
 -- proofCheck ((n, (PPos pos p ), f):l) f1 = 
 --   proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
   
-proofCheck ((n, (Assume x), Just f):l) = do
+proofCheck ((n, Left (Assume x), Just f):l) = do
 --  wellDefined f
   wellFormed f
   insertAssumption x f
 --  emit $ "checked assumption"
   proofCheck l
 
-proofCheck ((n, p, Just f):l) = do
---  emit $ "begin to check proof " ++ show p
+proofCheck ((n, Right p, Just f):l) = do
+  emit $ "begin to check proof " <++> disp p
   wellFormed f
-  p1 <- parSimp p --  normalize a proof
+  p1 <- simp p --  normalize a proof
 --  emit $ "begin to check simp proof " <++> disp p1
   f0 <- checkFormula p1
 
@@ -43,8 +43,10 @@ proofCheck ((n, p, Just f):l) = do
 --  emit $ "checked non-assump"
   proofCheck l
 
-proofCheck ((n, p, Nothing):l) = do
-  p1 <- parSimp p --  normalize a proof
+proofCheck ((n, Right p, Nothing):l) = do
+  emit $ "begin to check proof " <++> disp p
+--  emit $ "a list of fv " ++ show (fv p)
+  p1 <- simp p  --  normalize a proof
   f0 <- checkFormula p1
   emit $ text "Infered formula:" <+> disp f0 <+> text "for proof" <+> disp n
   insertPrVar n p1 (erased f0)
@@ -58,7 +60,7 @@ insertAssumption x f = do
   lift $ put $ pushAssump x f env
   return ()
 
-insertPrVar :: VName -> Proof -> PreTerm -> Global ()
+insertPrVar :: VName -> PreTerm -> PreTerm -> Global ()
 insertPrVar x p f = do
   env <- lift get
   lift $ put $ extendLocalProof x p f env
@@ -74,7 +76,7 @@ wellDefined t = do
       rs = map (\ x -> helper x env) l
       fs = [snd c | c <- rs, fst c == False] in
     if null fs then return ()
-    else die $ "Undefined set variables: " <++> (unwords fs)
+    else die $ "Undefined set variables: " <++> (hsep $ punctuate comma (map text fs))
   where helper x env = case M.lookup x (setDef env) of
                             Just a -> (True, x)
                             _ -> (False, x)
@@ -104,9 +106,9 @@ ensureForm m = do
   unless (a == Form) $ die "Ill-formed formula."
   return (a,b,c)
   
-checkFormula :: Proof -> Global PreTerm
-checkFormula (PPos pos p) = checkFormula p `catchError` addProofErrorPos pos p
-checkFormula (PrVar v)  = do
+checkFormula :: PreTerm -> Global PreTerm
+checkFormula (Pos pos p) = checkFormula p -- `catchError` addProofErrorPos pos p
+checkFormula (PVar v)  = do
   e <- get
   loc <- ask
   case M.lookup v (proofCxt e) of
@@ -310,19 +312,19 @@ repeatComp m = do
 --  emit $ show n1
   if n == n1 then return n else repeatComp n1
 
-{-
-tr = In (PVar "m") (Iota "x" (Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (In (PVar "s") (Iota "f" (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "f") (PVar "x")) (PVar "Nat")))))) (In (PVar "x") (PVar "Nat"))))))
 
-tr1 = Forall "C" (Imply (In (PVar "z") (PVar "C")) (Imply (Forall "y" (Imply (In (PVar "y") (PVar "C")) (In (App (PVar "s") (PVar "y")) (PVar "C")))) (In (PVar "m") (PVar "C"))))
+-- tr = In (PVar "m") (Iota "x" (Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (In (PVar "s") (Iota "f" (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "f") (PVar "x")) (PVar "Nat")))))) (In (PVar "x") (PVar "Nat"))))))
 
-tr2 = Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "s") (PVar "x")) (PVar "Nat")))) (In (PVar "m") (PVar "Nat"))))
+-- tr1 = Forall "C" (Imply (In (PVar "z") (PVar "C")) (Imply (Forall "y" (Imply (In (PVar "y") (PVar "C")) (In (App (PVar "s") (PVar "y")) (PVar "C")))) (In (PVar "m") (PVar "C"))))
 
-compTest :: IO ()
-compTest = do
-  c <- runErrorT $ runStateT (runStateT (repeatComp tr) emptyEnv) emptyPrfEnv 
-  case c of
-    Left e -> print $ disp e
-    Right a -> print $ disp ((fst . fst) a)
+-- tr2 = Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "s") (PVar "x")) (PVar "Nat")))) (In (PVar "m") (PVar "Nat"))))
+
+-- compTest :: IO ()
+-- compTest = do
+--   c <- runErrorT $ runStateT (runStateT (repeatComp tr) emptyEnv) emptyPrfEnv 
+--   case c of
+--     Left e -> print $ disp e
+--     Right a -> print $ disp ((fst . fst) a)
 
 --tr1 = In (MVar "n" Ind) (In (MVar "U" (To Ind Form)) (MVar "Vec" (To (To Ind Form) (To Ind (To Ind Form)))))
 -- compTest1 :: IO ()
@@ -332,4 +334,4 @@ compTest = do
 --     Left e -> putStrLn e
 --     Right a ->
 --       putStrLn $ show $ fst a
--}
+

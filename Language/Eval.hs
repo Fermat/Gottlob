@@ -1,4 +1,4 @@
-module Language.Eval (reduce, parSimp) where
+module Language.Eval (reduce, simp) where
 import Language.Syntax
 import Language.Monad
 import Language.PrettyPrint
@@ -10,105 +10,99 @@ import Control.Monad.Error
 import qualified Data.Map as M
 import qualified Data.Set as S
 
-step :: PreTerm -> S.Set VName -> Global PreTerm
-step (App (Lambda x t1) t2 ) s = return $ runSubst t2 (PVar x) t1
+reduce :: PreTerm -> Global PreTerm
+reduce (App (Lambda x t1) t2 ) = reduce $ runSubst t2 (PVar x) t1
 
-step (App t1 t2) s = step t1 s >>= \ a -> return $ App a t2
+reduce (App t1 t2) = do
+  a <- reduce t1
+  if isLambda a
+    then reduce $ App a t2
+    else return $ App a t2
+  where isLambda (Lambda x t) = True
+        isLambda _ = False
 
-step (Lambda x t) s = return $ Lambda x t
--- to use head reduction, replace the line above by the following line 
--- step t s >>= \a -> return $ Lambda x a
+reduce (Lambda x t) = return $ Lambda x t
 
-step (PVar x) s = 
-  if x `S.member` s then do
+reduce (PVar x) = 
+  do
     e <- get
     case M.lookup x (progDef e) of
-      Nothing -> do
-      --  emit $ "continuing reduction with free prog variable" <++> x
-        return $ PVar x
-      Just t -> return t
-  else return $ PVar x
-step _ _ = die "Wrong use of eval/reduction."
+      Nothing -> return $ PVar x
+      Just t -> reduce t
 
-reduce :: PreTerm -> Global PreTerm
-reduce t = do
-  m <- step t (fv t)
-  n <- step m (fv m)
-  -- for term what we really need is just syntactic
-  -- comparison here
-  if m == n then return m else reduce m
 
-simp :: Proof -> S.Set VName -> Global Proof
-simp (PApp (PLam x p1) p2 ) s = return $ runSubProof p2 (PrVar x) p1
+reduce t = die $ "unhandle reduction for term" <++> disp t
 
-simp (PFApp (PLam x p1) t ) s = return $ runSubPre t (PVar x) p1
+simp ::  PreTerm -> Global PreTerm
+simp (App (Lambda x p1) p2 ) = simp $ runSubst p2 (PVar x) p1 
 
-simp (PFApp (PrVar x) t) s =
-  if x `S.member` s then do
+simp (App (PVar x) t) = do
+    emit $ "continuing reduction with " <++> disp x  
+    e <- get
+    case M.lookup x (progDef e) of
+      Just a -> do
+        simp $ App a t
+      Nothing ->
+        case M.lookup x (tacticDef e) of
+          Just a -> do
+            simp $ App a t
+          Nothing -> do
+            t1 <- simp t
+            return $ App (PVar x) t1
+
+simp (App t1 t2) = do
+  a1 <- simp t1 
+  a2 <- simp t2 
+  if isLambda a1
+    then simp $ App a1 t2
+    else return $ App a1 t2
+  where isLambda (Lambda x t) = True
+        isLambda _ = False
+
+simp (Lambda x t) = return $ Lambda x t
+
+simp (PVar x) = do
     e <- get
     case M.lookup x (tacticDef e) of
-      Nothing -> return $ PFApp (PrVar x) t
-      Just a -> return $ PFApp a t
-  else return $ PFApp (PrVar x) t
-       
-simp (PApp t1 t2) s = do
-  a1 <- simp t1 s
-  a2 <- simp t2 s
-  return $ PApp a1 a2
+      Just t -> simp t
+      Nothing -> case M.lookup x (progDef e) of
+                    Just t1 -> simp t1
+                    Nothing -> return $ PVar x
 
-simp (PFApp p1 t) s = 
-  simp p1 s >>= \ a -> return $ PFApp a t
-
-simp (PLam x t) s =
-  simp t s >>= \a -> return $ PLam x a
-
-simp (PrVar x) s = 
-  if x `S.member` s then do
-    e <- get
-    case M.lookup x (tacticDef e) of
-      Nothing -> return $ PrVar x
-      Just t -> return t
-  else return $ PrVar x
-
-simp (MP p1 p2) s = do
-  a1 <- simp p1 s
-  a2 <- simp p2 s
+simp (MP p1 p2) = do
+  a1 <- simp p1
+  a2 <- simp p2
   return $ MP a1 a2
 
-simp (Inst p1 t) s = 
-  simp p1 s >>= \ a1 -> return $ Inst a1 t
+simp (Inst p1 t) = 
+  simp p1 >>= \ a1 -> return $ Inst a1 t
 
-simp (InvCmp p1 t) s = 
-  simp p1 s >>= \ a1 -> return $ InvCmp a1 t
+simp (InvCmp p1 t) = 
+  simp p1 >>= \ a1 -> return $ InvCmp a1 t
 
-simp (InvBeta p1 t) s = 
-  simp p1 s >>= \ a1 -> return $ InvBeta a1 t
+simp (InvBeta p1 t) = 
+  simp p1 >>= \ a1 -> return $ InvBeta a1 t
 
-simp (Cmp p1) s = 
-  simp p1 s >>= \ a1 -> return $ Cmp a1 
+simp (Cmp p1) = 
+  simp p1 >>= \ a1 -> return $ Cmp a1 
 
-simp (Beta p1) s = 
-  simp p1 s >>= \ a1 -> return $ Beta a1 
+simp (Beta p1) = 
+  simp p1 >>= \ a1 -> return $ Beta a1 
 
-simp (UG x p1) s = 
-  simp p1 s >>= \ a1 -> return $ UG x a1 
+simp (UG x p1) = 
+  simp p1 >>= \ a1 -> return $ UG x a1 
 
-simp (Discharge x t p1) s = 
-  simp p1 s >>= \ a1 -> return $ Discharge x t a1 
+simp (Discharge x t p1) = 
+  simp p1 >>= \ a1 -> return $ Discharge x t a1 
 
-simp (PPos pos p1) s = simp p1 s `catchError` addProofErrorPos pos p1
+simp (a@(Forall _ _)) = return a
+simp (a@(Imply _ _)) = return a
+simp (a@(Iota _ _)) = return a
+simp (a@(In _ _)) = return a
+simp (a@(SApp _ _)) = return a
+simp (a@(TApp _ _)) = return a
 
-simp _ _ = die "Wrong use of proof simplication."
+simp (Pos pos p1) = simp p1 -- `catchError` addProofErrorPos pos p1
 
--- for parSimp, its goal is to reduce/simplify
--- tactic to its normal-form, so that proof-checking
--- can proceed without problem. And it is not for compiling
--- to run, so it is fine to be inefficient.
-parSimp :: Proof -> Global Proof
-parSimp t = do
-  m <- simp t (fPrVar t)
-  n <- simp m (fPrVar m)
-  if m == n then return m else parSimp m
+simp p = die $ "Wrong use of proof simplication." <++> disp p
 
-
-          

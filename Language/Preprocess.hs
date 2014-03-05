@@ -113,12 +113,12 @@ process ((TacDecl x args (Left p)):l) = do
   st <- get
   case M.lookup x $ tacticDef st of
     Nothing -> do
-      let a = foldr (\ x z -> PLam x z) p args
+      let a = foldr (\ x z -> Lambda x z) (progTerm p) args
       put $ extendTacticDef x a st
       process l
     Just a ->
      die "The tactic has been defined."
-     `catchError` addProofErrorPos (getProofPos p) (PrVar x)
+--     `catchError` addProofErrorPos (getProofPos p) (PVar x)
 
 process ((TacDecl x args (Right ps)):l) = do 
   emit $ "processing tactic decl" <++> x
@@ -126,7 +126,7 @@ process ((TacDecl x args (Right ps)):l) = do
   case M.lookup x $ tacticDef st of
     Nothing -> do
       let p = runToProof ps
-          a = foldr (\ x z -> PLam x z) p args
+          a = foldr (\ x z -> Lambda x z) p args
       put $ extendTacticDef x a st
       process l
     Just a ->
@@ -159,6 +159,6 @@ getProgPos (ProgPos pos p) =  pos
 getProgPos (Abs xs p) =  getProgPos p
 getProgPos (_) = error "Fail to get First Position"
 
-getProofPos :: Proof -> SourcePos
-getProofPos (PPos pos p) =  pos
-getProofPos (_) = error "Fail to get First Position"
+-- getProofPos :: Pre -> SourcePos
+-- getProofPos (PPos pos p) =  pos
+-- getProofPos (_) = error "Fail to get First Position"

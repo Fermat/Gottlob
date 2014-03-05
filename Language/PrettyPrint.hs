@@ -26,6 +26,7 @@ dParen level x =
    then parens $ disp x
    else disp x
 
+
 instance Disp PreTerm where
   disp (PVar x) = text x
   disp (Forall x p) = text "forall" <+> text x <+> text "." <+> disp p
@@ -37,13 +38,23 @@ instance Disp PreTerm where
   disp (s@(TApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(App s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (Lambda x t) = text "\\" <+> text x <+> text "." <+> disp t
+  disp (a@(MP p1 p2)) = text "mp" <+> dParen (precedence a) p1 <+> text "by" <+> dParen (precedence a) p2
+  disp (a@(Inst p1 t)) = text "inst" <+> dParen (precedence a) p1 <+> text "by" <+> disp t
+  disp (a@(UG x p1)) = text "ug" <+> text x <+> text "." <+> dParen (precedence a) p1 
+  disp (a@(Cmp p1)) = text "cmp" <+> dParen (precedence a) p1
+  disp (a@(Beta p1)) = text "beta" <+> dParen (precedence a) p1
+  disp (a@(Discharge x Nothing p1)) = text "discharge" <+> text x <+> text "." <+> dParen (precedence a) p1
+  disp (a@(Discharge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "." <+> dParen (precedence a) p1 
+  disp (a@(InvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
+  disp (a@(InvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
+
   disp (Pos _ t) = disp t
   precedence (Pos _ t) = precedence t
   precedence (PVar _) = 12
   precedence (TApp _ _) = 10
   precedence (SApp _ _) = 10
   precedence (App _ _) = 10
-  precedence (In _ _) = 10
+  precedence (In _ _) = 7
   precedence (Forall _ _) = 4
   precedence (Imply _ _) = 4
   precedence _ = 0
@@ -56,40 +67,38 @@ instance Disp EType where
   precedence (To _ _) = 4
   precedence _ = 12
 
-instance Disp Proof where
-  disp (Assume x) = brackets $ text x
-  disp (PrVar x) = text x
-  disp (a@(MP p1 p2)) = text "mp" <+> dParen (precedence a) p1 <+> text "by" <+> dParen (precedence a) p2
-  disp (a@(Inst p1 t)) = text "inst" <+> dParen (precedence a) p1 <+> text "by" <+> disp t
-  disp (a@(UG x p1)) = text "ug" <+> text x <+> text "." <+> dParen (precedence a) p1 
-  disp (a@(Cmp p1)) = text "cmp" <+> dParen (precedence a) p1
-  disp (a@(Beta p1)) = text "beta" <+> dParen (precedence a) p1
-  disp (a@(Discharge x Nothing p1)) = text "discharge" <+> text x <+> text "." <+> dParen (precedence a) p1
-  disp (a@(Discharge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "." <+> dParen (precedence a) p1 
-  disp (a@(InvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
-  disp (a@(InvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
-  disp (s@(PApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
-  disp (s@(PFApp s1 s2)) = dParen (precedence s - 1) s1 <+> text "$" <+> dParen (precedence s) s2
-  disp (PLam x p) = text "\\" <+> disp x <+> text "." <+> disp p
-  disp (PPos p pr) = disp pr
-  precedence (PPos _ pr) = precedence pr
-  precedence (PrVar _) = 12
-  precedence (PApp _ _) = 8
-  precedence (PFApp _ _) = 7
-  precedence _ = 4
-
 instance Disp Prog where
   disp (Name x) = text x
   disp (Abs xs p) = text "\\" <+> (hsep $ map text xs) <+> text "." <+> disp p
   disp (s@(Applica s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
+  disp (s@(AppPre s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (Match p alts) = text "case" <+> disp p <+> text "of" $$
                         nest 2 (vcat (map dAlt alts))
     where dAlt (c, args, p) =
             fsep [text c <+> hsep (map text args) <+> text "->", nest 2 $ disp p]
+  disp (Let ls p) = text "let" $$ nest 2 (vcat ( map dDefs ls)) <+> text "in" $$  disp p
+    where dDefs (v, t) = fsep [text v <+> text "=", nest 2 $ disp t]
   disp (ProgPos p pr) = disp pr
+  disp (a@(TMP p1 p2)) = text "mp" <+> dParen (precedence a) p1 <+> text "by" <+> dParen (precedence a) p2
+  disp (a@(TInst p1 t)) = text "inst" <+> dParen (precedence a) p1 <+> text "by" <+> disp t
+  disp (a@(TUG x p1)) = text "ug" <+> text x <+> text "." <+> dParen (precedence a) p1 
+  disp (a@(TCmp p1)) = text "cmp" <+> dParen (precedence a) p1
+  disp (a@(TBeta p1)) = text "beta" <+> dParen (precedence a) p1
+  disp (a@(TDischarge x Nothing p1)) = text "discharge" <+> text x <+> text "." <+> dParen (precedence a) p1
+  disp (a@(TDischarge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "." <+> dParen (precedence a) p1 
+  disp (a@(TInvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
+  disp (a@(TInvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
+  -- disp (s@(TPApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
+  -- disp (s@(TPFApp s1 s2)) = dParen (precedence s - 1) s1 <+> text "$" <+> dParen (precedence s) s2
+  -- disp (TPLam x p) = text "\\" <+> disp x <+> text "." <+> disp p
+  
   precedence (ProgPos _ pr) = precedence pr
   precedence (Name _) = 12
   precedence (Applica _ _) = 8
+  precedence (AppPre _ _) = 8
+--  precedence (AppProof _ _) = 8
+  -- precedence (TPApp _ _) = 8
+  -- precedence (TPFApp _ _) = 7
   precedence _ = 0
 
 instance Disp Args where
@@ -131,14 +140,16 @@ instance Disp Decl where
           Nothing -> text "")<+>text "." <+> disp f $$
     text "proof" $$ nest 2 (vcat (map dispPs ps))
                             $$ text "qed"
-    where dispPs (n, p, Just f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
-          dispPs (n, p, Nothing) = text n <+> text "=" <+> disp p 
+    where dispPs (n, Left a, Just f) = text "[" <> text n <> text "]" <+> text ":" <+> disp f
+          dispPs (n, Right p, Just f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
+          dispPs (n, Right p, Nothing) = text n <+> text "=" <+> disp p 
   disp (DataDecl p d) = disp d
   disp (SetDecl x s) = text x <+> text "=" <+> disp s
   disp (TacDecl x args (Left s)) = text "tactic" <+> text x <+>(hsep $ map text args) <+> text "=" <+> disp s
   disp (TacDecl x args (Right ps)) = text "tactic" <+> text x <+>(hsep $ map text args) <+> text "=" $$ nest 2 (vcat (map dispPs ps))
-    where dispPs (n, p, Just f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
-          dispPs (n, p, Nothing) = text n <+> text "=" <+> disp p 
+    where dispPs (n, Left a, Just f) = text "[" <> text n <> text "]" <+> text ":" <+> disp f
+          dispPs (n, Right p, Just f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
+          dispPs (n, Right p, Nothing) = text n <+> text "=" <+> disp p 
   disp (FormOperatorDecl s1 i s2) = text "formula" <+> text s1 <+>
                                     disp i <+> disp s2
   disp (ProgOperatorDecl s1 i s2) = text "prog" <+> text s1 <+>
