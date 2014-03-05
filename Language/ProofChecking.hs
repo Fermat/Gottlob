@@ -32,8 +32,7 @@ proofCheck ((n, Left (Assume x), Just f):l) = do
 proofCheck ((n, Right p, Just f):l) = do
   emit $ "begin to check proof " <++> disp p
   wellFormed f
-  emit $ "a list of fv " ++ show (fv p)
-  p1 <- simp (fv p) p --  normalize a proof
+  p1 <- simp p --  normalize a proof
 --  emit $ "begin to check simp proof " <++> disp p1
   f0 <- checkFormula p1
 
@@ -46,8 +45,8 @@ proofCheck ((n, Right p, Just f):l) = do
 
 proofCheck ((n, Right p, Nothing):l) = do
   emit $ "begin to check proof " <++> disp p
-  emit $ "a list of fv " ++ show (fv p)
-  p1 <- simp (fv p) p  --  normalize a proof
+--  emit $ "a list of fv " ++ show (fv p)
+  p1 <- simp p  --  normalize a proof
   f0 <- checkFormula p1
   emit $ text "Infered formula:" <+> disp f0 <+> text "for proof" <+> disp n
   insertPrVar n p1 (erased f0)

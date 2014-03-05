@@ -64,7 +64,7 @@ tactic byEval t1 t2 =
    c1 = invbeta beta c : t2::Q
    c3 = ug Q . discharge c . c1
    c5 = invcmp c3 : Eq t1 t2
-
+-- byEval invcmp (ug Q . discharge c. invbeta beta c)
 theorem isZero1 . forall x . Eq (iszero (s x)) ff
 proof 
   c = byEval (iszero (s x)) ff
@@ -197,10 +197,10 @@ proof
 
    e = (useCong s (add y z) y) d : Eq (s (add y z)) (s y)
 
-   e2 = byEval (add (s y)) z (s (add y z)) : Eq (add (s y) z) (s (add y z))
-   
-   e3 = (useTrans (add (s y) z) (s (add y z))  s y) e2 e : Eq (add (s y) z) (s y)
-   
+   e2 = byEval (add (s y) z) (s (add y z)) : Eq (add (s y) z) (s (add y z))
+   -- 
+   e3 = (useTrans (add (s y) z) (s (add y z))  (s y)) e2 e : Eq (add (s y) z) (s y)
+-- tactic useTrans a b c p1 p2 = mp mp (inst inst (inst trans by a) by b by c) by p1 by p2   
    d5 = ug y . (discharge d . e3) : forall y . Eq (add y z) y -> Eq (add (s y) z) (s y)
 
    d6 = ug n. discharge a . mp c6 by d5 -- : forall n . n :: Nat -> Eq (add n z) n
