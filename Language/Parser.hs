@@ -33,15 +33,19 @@ type Parser a = IndentParser String ParserState a
 data ParserState =
   ParserState {
     progParser :: IndentParser String ParserState Prog,
+    proofParser :: IndentParser String ParserState Prog,
     formulaParser :: IndentParser String ParserState PreTerm,
     progOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) Prog],
+    proofOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) Prog],
     formulaOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm]}
 
 initialParserState :: ParserState
 initialParserState = ParserState {
-  progParser = buildExpressionParser [] progA, --progPre,
+  progParser = buildExpressionParser [] progA, 
+  proofParser = buildExpressionParser [] proofA, 
   formulaParser = buildExpressionParser initialFormulaOpTable atom,
   progOpTable =  IM.fromAscList (zip [0 ..] [[]]),
+  proofOpTable =  IM.fromAscList (zip [0 ..] [[]]),
   formulaOpTable =  IM.fromAscList (zip [0 ..] initialFormulaOpTable)}
 
 initialFormulaOpTable :: [[Operator String u (State SourcePos) PreTerm]]
@@ -89,8 +93,7 @@ gModule = do
 gDecl :: Parser Decl
 gDecl = gDataDecl <|> try proofDecl <|> try progDecl
         <|> setDecl <|> formOperatorDecl <|>
-        progOperatorDecl <|> try tacticDecl
-
+        progOperatorDecl <|> try tacticDecl <|> proofOperatorDecl
   
 formOperatorDecl :: Parser Decl
 formOperatorDecl = do
@@ -102,7 +105,7 @@ formOperatorDecl = do
   let table' = IM.insertWith (++) level [toOp op r SApp PVar] $ formulaOpTable st
       form' = buildExpressionParser (map snd (IM.toAscList table')) atom
   putState $ ParserState
-    (progParser st) form' (progOpTable st) table'
+    (progParser st) (proofParser st) form' (progOpTable st) (proofOpTable st) table'
   return (FormOperatorDecl op level r)
 
 progOperatorDecl :: Parser Decl
@@ -115,8 +118,21 @@ progOperatorDecl = do
   let table' = IM.insertWith (++) level [toOp op r Applica Name] $ progOpTable st
       prog' = buildExpressionParser (map snd (IM.toAscList table')) progA
   putState $ ParserState
-    prog' (formulaParser st) table' (formulaOpTable st) 
+    prog' (proofParser st) (formulaParser st) table' (proofOpTable st) (formulaOpTable st) 
   return (ProgOperatorDecl op level r)
+
+proofOperatorDecl :: Parser Decl
+proofOperatorDecl = do
+  reserved "proof"
+  r <- choice [reserved i >> return i | i <- ["infix","infixr","infixl","pre","post"]]
+  level <- fromInteger <$> integer
+  op <- operator
+  st <- getState
+  let table' = IM.insertWith (++) level [toOp op r Applica Name] $ proofOpTable st
+      proof' = buildExpressionParser (map snd (IM.toAscList table')) proofA
+  putState $ ParserState
+    (progParser st) proof' (formulaParser st) (progOpTable st) table' (formulaOpTable st) 
+  return (ProofOperatorDecl op level r)
 
 gDataDecl :: Parser Decl
 gDataDecl = do
@@ -199,9 +215,12 @@ prog = getState >>= \ st -> progParser st
 
 termVarProg :: Parser Prog
 termVarProg = termVar >>= \n-> return $ Name n
-  
+
+opToProg :: Parser Prog
+opToProg = operator >>= \n-> return $ Name n
+
 appProg = do
-  sp <- termVarProg <|> parens prog
+  sp <- termVarProg <|> try (parens prog) <|> parens opToProg
   as <- many $ indented >> (try (parens prog) <|> try termVarProg)
   if null as then return sp
     else return $ foldl' (\ z x -> Applica z x) sp as
@@ -243,7 +262,7 @@ absProg = do
 
 setDecl :: Parser Decl
 setDecl = do
-  n <- try setVar <|> parens operator
+  n <- try setVar -- <|> parens operator
   as <- many $ try termVar <|> setVar
   reservedOp "="
   s <- try formula <|> set
@@ -309,7 +328,7 @@ tacticDecl :: Parser Decl
 tacticDecl = do
   reserved "tactic"
 --  unexpected "heiii"
-  n <- termVar
+  n <- termVar <|> parens operator
   as <- many (try termVar <|> try setVar)
   reservedOp "="
   p <-  try (do{p <- proof;
@@ -354,8 +373,12 @@ proofDef = do
            return $ Just g})
   return (b, Right $ progTerm p, f)
 
+
 proof :: Parser Prog
-proof =  cmp <|> mp <|> inst <|>
+proof = getState >>= \ st -> proofParser st
+
+proofA :: Parser Prog
+proofA =  cmp <|> mp <|> inst <|>
          ug <|> beta <|> discharge 
          <|>invcmp <|> invbeta <|> match <|> pletbind
          <|> absProof <|> appProof <|> (parens proof)
@@ -374,7 +397,7 @@ appPr = do
   return $ Right p
   
 appProof = do
-  sp <- try termVarProg <|> parens proof
+  sp <- try termVarProg <|> try (parens proof) <|> parens opToProg
 --  unexpected "here"
   as <- many $ indented >> (try appPr <|> try appPreTerm)
   return $ foldl' (\ z x -> helper z x) sp as
@@ -525,7 +548,7 @@ gottlobStyle = Token.LanguageDef
                     "tactic"
                   ]
                , Token.reservedOpNames =
-                    ["\\", "->", "|", ".","=", "::", ":", "$", "$$"]
+                    ["\\", "->", "|", ".","=", "::", ":"]
                 }
 
 tokenizer :: Token.GenTokenParser String u (State SourcePos)

@@ -1,4 +1,10 @@
 module nat where
+proof infixr 9 $
+prog infixr 9 !
+
+(!) x y = x y
+tactic ($) x y = x y
+
 Eq a b = forall C . a :: C -> b :: C
 ExEq f g = forall a . Eq (f a) (g a)
 Bot = forall a b . Eq a b
@@ -11,18 +17,18 @@ data Nat where
 add n m = 
   case n of
      z -> m 
-     s n'-> s (add n' m)
+     s n'-> s ! add n' m
      
-f state a = case a of
+gf state a = case a of
            z -> state
            s a' -> let f = f (plus1 state)
                        state = plus1 state in
                      f a'
 --
-tactic app n p =  n (iota q . Eq (f a) (f q)) (a :: C) (f a :: C) (p2 p3) p 
+tactic app n p =  n (iota q . Eq (f a) (f q)) $ add n z
 tactic cmpinst p s = cmp inst p by s 
-tactic test p s = (s p) (p2 p3)
-
+tactic test p s = s p $ p2 p3
+tactic test1 p s = ($) (s p) p2 p3
 -- ( f a :: C)
 -- (iota q . Eq (f a) (f q)) p 
 tactic iter n p t = case n of 

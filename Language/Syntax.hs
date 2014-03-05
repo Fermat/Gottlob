@@ -168,6 +168,7 @@ data Decl = ProgDecl VName Prog
           | TacDecl VName [VName] (Either Prog ProofScripts)
           | FormOperatorDecl String Int String
           | ProgOperatorDecl String Int String
+          | ProofOperatorDecl String Int String
           deriving Show
 
 -- get all free variables

@@ -4,6 +4,7 @@ import Language.Syntax
 import Language.TypeInference
 import Text.PrettyPrint
 import Text.Parsec.Pos
+import Data.Char
 import Text.Parsec.Error(ParseError,showErrorMessages,errorPos,errorMessages)
 
 class Disp d where
@@ -15,7 +16,9 @@ instance Disp Doc where
   disp = id
 
 instance Disp String where
-  disp  = text
+  disp x = if (isUpper $ head x) || (isLower $ head x)
+           then text x
+           else parens $ text x
 
 instance Disp Int where
   disp = integer . toInteger
@@ -23,12 +26,12 @@ instance Disp Int where
 dParen:: (Disp a) => Int -> a -> Doc
 dParen level x =
    if level >= (precedence x)
-   then parens $ disp x
+   then parens $ disp x 
    else disp x
 
 
 instance Disp PreTerm where
-  disp (PVar x) = text x
+  disp (PVar x) = disp x
   disp (Forall x p) = text "forall" <+> text x <+> text "." <+> disp p
   disp (a@(Imply p1 p2)) = dParen (precedence a) p1 <+> text "->"
                            <+> dParen (precedence a -1) p2
@@ -68,7 +71,7 @@ instance Disp EType where
   precedence _ = 12
 
 instance Disp Prog where
-  disp (Name x) = text x
+  disp (Name x) = disp x
   disp (Abs xs p) = text "\\" <+> (hsep $ map text xs) <+> text "." <+> disp p
   disp (s@(Applica s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(AppPre s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
@@ -132,11 +135,11 @@ instance Disp Module where
   disp (Module name decl) = text "module" <+> text name $$ vcat (map disp decl)
 
 instance Disp Decl where
-  disp (ProgDecl x p) = text x <+> text "=" <+>disp p
+  disp (ProgDecl x p) = disp x <+> text "=" <+>disp p
   disp (ProofDecl x m ps f) =
     text "theorem" <+> text x <+>
     (case m of
-          Just m' -> text "[" <+> disp m' <+> text "]"
+          Just m' -> text "[" <> disp m' <> text "]"
           Nothing -> text "")<+>text "." <+> disp f $$
     text "proof" $$ nest 2 (vcat (map dispPs ps))
                             $$ text "qed"
@@ -145,8 +148,8 @@ instance Disp Decl where
           dispPs (n, Right p, Nothing) = text n <+> text "=" <+> disp p 
   disp (DataDecl p d) = disp d
   disp (SetDecl x s) = text x <+> text "=" <+> disp s
-  disp (TacDecl x args (Left s)) = text "tactic" <+> text x <+>(hsep $ map text args) <+> text "=" <+> disp s
-  disp (TacDecl x args (Right ps)) = text "tactic" <+> text x <+>(hsep $ map text args) <+> text "=" $$ nest 2 (vcat (map dispPs ps))
+  disp (TacDecl x args (Left s)) = text "tactic" <+> disp x <+>(hsep $ map text args) <+> text "=" <+> disp s
+  disp (TacDecl x args (Right ps)) = text "tactic" <+> disp x <+>(hsep $ map text args) <+> text "=" $$ nest 2 (vcat (map dispPs ps))
     where dispPs (n, Left a, Just f) = text "[" <> text n <> text "]" <+> text ":" <+> disp f
           dispPs (n, Right p, Just f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
           dispPs (n, Right p, Nothing) = text n <+> text "=" <+> disp p 
@@ -154,6 +157,9 @@ instance Disp Decl where
                                     disp i <+> disp s2
   disp (ProgOperatorDecl s1 i s2) = text "prog" <+> text s1 <+>
                                     disp i <+> disp s2
+  disp (ProofOperatorDecl s1 i s2) = text "proof" <+> text s1 <+>
+                                    disp i <+> disp s2
+
   -- disp (SpecialOperatorDecl s1 i s2) = text "special" <+> text s1 <+>
   --                                   disp i <+> disp s2
 
