@@ -86,7 +86,7 @@ process ((ProofDecl n (Just m) ps f):l) = do
       emptyLocalProof
       process l
     Just (_, f0) -> do
-      emit $ show f0 
+--      emit $ show f0 
       sameFormula f0 f
       updateProofCxt n ps f
       emptyLocalProof
