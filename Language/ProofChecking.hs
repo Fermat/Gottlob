@@ -91,8 +91,14 @@ wellFormed f = do
       env = glAnt ++ (M.toList $ localEType st)
       (t,c,def) = runInference f env
       res = runSolve c in
-      if isSolvable res then
-        return ((multiSub res t), res, (subDef res def)) 
+      if isSolvable res then do
+--        emit $ ("current runInference result: " ++ (show t) ++ (show res) ++ (show def)) <++> disp f
+  --      emit $ "local env " ++ show env
+        let etype = multiSub res t
+            solvedDef = subDef res def
+    --    emit $ ("residues " ++ (show etype) ++ (show res) ++ (show solvedDef))
+        lift $ put (updateLocalEType solvedDef st)
+        return (etype, res, solvedDef) 
       else pcError "Ill-formed formula or set definition."
            [(disp "Unsolvable constraints", disp res)]
 
@@ -103,7 +109,7 @@ ensureForm :: PreTerm -> Global (EType, Constraints, [(VName, EType)])
 ensureForm (Pos pos f) = ensureForm f `catchError` addPreErrorPos pos f
 ensureForm m = do
   (a, b, c) <- wellFormed m
-  unless (a == Form) $ die "Ill-formed formula."
+  unless (a == Form) $ die $ ("Ill-formed formula." ++ show c ++ show b ++ show a) <++> disp m
   return (a,b,c)
   
 checkFormula :: PreTerm -> Global PreTerm

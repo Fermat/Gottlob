@@ -49,7 +49,7 @@ initialParserState = ParserState {
   formulaOpTable =  IM.fromAscList (zip [0 ..] initialFormulaOpTable)}
 
 initialFormulaOpTable :: [[Operator String u (State SourcePos) PreTerm]]
-initialFormulaOpTable = [[], [], [], [binOp AssocRight "->" Imply]]
+initialFormulaOpTable = [[], [], [], [], [], [binOp AssocRight "->" Imply]]
 
 ftypeOpTable :: [[Operator String u (State SourcePos) FType]]
 ftypeOpTable = [[binOp AssocRight "->" Arrow]]
@@ -262,7 +262,7 @@ absProg = do
 
 setDecl :: Parser Decl
 setDecl = do
-  n <- try setVar -- <|> parens operator
+  n <- try setVar <|> parens operator
   as <- many $ try termVar <|> setVar
   reservedOp "="
   s <- try formula <|> set
@@ -531,7 +531,7 @@ gottlobStyle = Token.LanguageDef
                 , Token.identStart     = letter
                 , Token.identLetter    = alphaNum <|> oneOf "_'"
                 , Token.opStart        = oneOf ":!#$%&*+.,/<=>?@\\^|-"
-                , Token.opLetter       = oneOf ":!#$%&*+.,/<=>?@\\^|-"
+                , Token.opLetter       = (oneOf ":!#$%&*+.,/<=>?@\\^|-") <|> alphaNum
                 , Token.caseSensitive  = True
                 , Token.reservedNames =
                   [
