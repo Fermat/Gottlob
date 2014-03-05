@@ -1,5 +1,12 @@
 module sum where
 
+Eq a b = forall C . a :: C -> b :: C
+
+tactic byEval t1 t2 =   
+   [c] : t1 :: Q
+   c1 = invbeta beta c : (t2 :: Q)
+   c3 = ug Q . discharge c . c1
+   c5 = invcmp c3 : Eq t1 t2
 
 formula infixl 3 *
 -- proof infixl 3 &
@@ -10,11 +17,22 @@ data Product U V where
   times :: U -> V -> Product U V
 
 
-getFist a = case a of
+getFst a = case a of
              times c d -> c
              
 getSec a = case a of
              times c d -> d
+
+theorem indProd . forall U V P . (forall a. a :: U -> forall b . b :: V -> times a b :: P U V) -> (forall x . x :: Product U V -> x :: P U V)
+
+
+theorem equiv . forall a U V . a :: Product U V -> Eq (times (getFst a) (getSec a)) a
+proof
+   [as] : a :: Product U V
+--   a0 = cmp as : C
+   a1 = cmp inst cmp as by iota U V x . (x :: Product U V -> Eq (times (getFst x) (getSec x)) x) : C
+qed
+
 -- logical 'and' and there
 (*) U V = forall Y . (U -> V -> Y) -> Y
 
