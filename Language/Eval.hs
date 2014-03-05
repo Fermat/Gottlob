@@ -10,66 +10,47 @@ import Control.Monad.Error
 import qualified Data.Map as M
 import qualified Data.Set as S
 
-step :: PreTerm -> S.Set VName -> Global PreTerm
-step (App (Lambda x t1) t2 ) s = return $ runSubst t2 (PVar x) t1
+reduce :: PreTerm -> Global PreTerm
+reduce (App (Lambda x t1) t2 ) = reduce $ runSubst t2 (PVar x) t1
 
-step (App t1 t2) s = step t1 s >>= \ a -> return $ App a t2
+reduce (App t1 t2) = do
+  a <- reduce t1
+  if isLambda a
+    then reduce $ App a t2
+    else return $ App a t2
+  where isLambda (Lambda x t) = True
+        isLambda _ = False
 
-step (Lambda x t) s = return $ Lambda x t
--- to use head reduction, replace the line above by the following line 
--- step t s >>= \a -> return $ Lambda x a
+reduce (Lambda x t) = return $ Lambda x t
 
-step (PVar x) s = 
-  if x `S.member` s then do
+reduce (PVar x) = 
+  do
     e <- get
     case M.lookup x (progDef e) of
-      Nothing -> do
-      --  emit $ "continuing reduction with free prog variable" <++> x
-        return $ PVar x
-      Just t -> return t
-  else return $ PVar x
+      Nothing -> return $ PVar x
+      Just t -> reduce t
 
-step _ _ = die "Wrong use of eval/reduction."
 
-reduce :: PreTerm -> Global PreTerm
-reduce t = do
-  m <- step t (fv t)
-  n <- step m (fv m)
-  if m == n then return m else reduce m
+reduce t = die $ "unhandle reduction for term" <++> disp t
 
--- simplifying proof
 simp ::  PreTerm -> Global PreTerm
-simp (App (Lambda x p1) p2 ) = do
---  emit $ "continuing reduction with " <++> x
-  simp $ runSubst p2 (PVar x) p1 
+simp (App (Lambda x p1) p2 ) = simp $ runSubst p2 (PVar x) p1 
 
-simp (App (PVar x) t) = --do
---  emit $ "continuing reduction here:" <++> disp x
---  emit $ "a list of fv " ++ show s
-  do
+simp (App (PVar x) t) = do
     emit $ "continuing reduction with " <++> disp x  
     e <- get
     case M.lookup x (progDef e) of
       Just a -> do
---        emit $ "reducing1 " <++> (disp $ App a t)
         simp $ App a t
       Nothing ->
         case M.lookup x (tacticDef e) of
           Just a -> do
---            emit $ "reducing " <++> (disp $ App a t)
             simp $ App a t
           Nothing -> do
---            emit $ "reducing2 " <++> (disp $ t)
             t1 <- simp t
             return $ App (PVar x) t1
 
--- simp (PApp t1 t2) s = do
---   a1 <- simp t1 s
---   a2 <- simp t2 s
---   return $ PApp a1 a2
-
 simp (App t1 t2) = do
---  emit $ "reducing " <++> (disp $ App t1 t2)
   a1 <- simp t1 
   a2 <- simp t2 
   if isLambda a1
@@ -78,31 +59,15 @@ simp (App t1 t2) = do
   where isLambda (Lambda x t) = True
         isLambda _ = False
 
--- simp (PFApp p1 t) s = 
---   simp p1 s >>= \ a -> return $ PFApp a t
-
--- simp (PLam x t) s =
---   simp t s >>= \a -> return $ PLam x a
-
 simp (Lambda x t) = return $ Lambda x t
 
-simp (PVar x) =
-  do
---    emit $ "continuing reduction with a " <++> disp x  
-
+simp (PVar x) = do
     e <- get
     case M.lookup x (tacticDef e) of
-      Just t -> do
-  --      emit $ "fin one " <++> disp t
-        simp t
+      Just t -> simp t
       Nothing -> case M.lookup x (progDef e) of
-                    Just t1 -> do
-    --                  emit $ "find one " <++> disp t1
-                      simp t1
-                    Nothing -> do
---                      emit $ "not find "
-                      return $ PVar x
-
+                    Just t1 -> simp t1
+                    Nothing -> return $ PVar x
 
 simp (MP p1 p2) = do
   a1 <- simp p1
@@ -141,15 +106,3 @@ simp (Pos pos p1) = simp p1 -- `catchError` addProofErrorPos pos p1
 
 simp p = die $ "Wrong use of proof simplication." <++> disp p
 
--- for parSimp, its goal is to reduce/simplify
--- tactic to its normal-form, so that proof-checking
--- can proceed without problem. And it is not for compiling
--- to run, so it is fine to be inefficient.
--- parSimp :: PreTerm -> Global PreTerm
--- parSimp t = do
---   m <- simp t (fv t)
---   n <- simp m (fv m)
---   if m == n then return m else parSimp m
-
-
-          

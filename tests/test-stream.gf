@@ -37,7 +37,7 @@ data Observer A R where
   
 -- Stream A is a function: 
 -- for any R, Observer A R -> R
-id x = x 
+ident x = x 
 tactic cmpinst p s = cmp inst p by s 
 tactic id F =  discharge a : F . a     
 
@@ -45,9 +45,9 @@ theorem cong . forall f a b. Eq a b -> Eq (f a) (f b)
 proof 
  [a] : Eq a b
  b = cmp a : forall C . a :: C -> b :: C
- b1 = cmpinst b $ iota q. Eq (f a) (f q) : 
+ b1 = cmpinst b (iota q. Eq (f a) (f q)) : 
     (forall C . f a :: C -> f a :: C) -> forall C . f a :: C -> f b :: C
- d = ug C . id $ f a :: C : forall C. f a :: C -> f a :: C 
+ d = ug C . id (f a :: C) : forall C. f a :: C -> f a :: C 
  e = mp b1 by d : forall C . f a :: C -> f b :: C
  f = invcmp e : Eq (f a) (f b)
  q = ug f . ug a . ug b . discharge a . f : forall f . forall a . forall b . Eq a b -> Eq (f a) (f b)
@@ -62,7 +62,7 @@ tactic smartCong f a b p n m =
    c6 = invcmp (cmp c5) from Eq n m
    -- Eq n m
 
-head s = s (getHead id)
+head s = s (getHead ident)
 
 tail s = \ o . s (getTail o)
 
@@ -118,28 +118,28 @@ proof
 qed 
 
 tactic byInd P F base step = 
-    a0 = cmpinst indOb $ P 
+    a0 = cmpinst indOb P 
     a01 = cmp base 
     a02 = cmp step 
     a03 = invcmp (mp mp a0 by a01 by a02) from F
 
 theorem tes0 . Eq (add z (s z)) (s z)
 proof
- c = byEval $ (add z (s z)) $ (s z)
+ c = byEval  (add z (s z)) (s z)
 qed
 
 theorem tes1 . Eq (plus1 (head (repeat (s z))))  (s (s z))
 proof
- b0 = byEval $ add z (s z) $ s z
- b01 = (smartCong $ \ q z0 s1 . s1 q $ add z (s z) $ s z) b0 $ \ z0 s1 . s1 (add z (s z)) $ \ z0 s1 . s1 (s z) : Eq (\ z0 . \ s1 . s1 (add z (s z))) (\ z0 . \ s1 . s1 (s z))
- b = byEval $ (plus1 (head (repeat (s z)))) $ (\ z0 . \ s1 . s1 (add z (s z)))
- b02 = byEval  $ (\ z0 . \ s1 . s1 (s z)) $ (s (s z))
- b03 = (useTrans $ (plus1 (head (repeat (s z)))) $ (\ z0 . \ s1 . s1 (add z (s z))) $ (\ z0 . \ s1 . s1 (s z))) b b01 
- b04 = (useTrans $ (plus1 (head (repeat (s z)))) $ (\ z0 . \ s1 . s1 (s z)) $ (s (s z))) b03 b02
+ b0 = byEval (plus1 (head (repeat (s z)))) (s (s z))
+ -- b01 = (smartCong $ \ q z0 s1 . s1 q $ add z (s z) $ s z) b0 $ \ z0 s1 . s1 (add z (s z)) $ \ z0 s1 . s1 (s z) : Eq (\ z0 . \ s1 . s1 (add z (s z))) (\ z0 . \ s1 . s1 (s z))
+ -- b = byEval $ (plus1 (head (repeat (s z)))) $ (\ z0 . \ s1 . s1 (add z (s z)))
+ -- b02 = byEval  $ (\ z0 . \ s1 . s1 (s z)) $ (s (s z))
+ -- b03 = (useTrans $ (plus1 (head (repeat (s z)))) $ (\ z0 . \ s1 . s1 (add z (s z))) $ (\ z0 . \ s1 . s1 (s z))) b b01 
+ -- b04 = (useTrans $ (plus1 (head (repeat (s z)))) $ (\ z0 . \ s1 . s1 (s z)) $ (s (s z))) b03 b02
 qed
 
 tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
-
+{-
 theorem ext . forall o A R . o :: Observer A R -> Eq (map plus1 (repeat (s z)) o) (repeat (s (s z)) o) 
 proof
  [a1] : forall x . x :: A -> a x :: R
@@ -192,5 +192,5 @@ qed
 --   c = byEval $  (natStream (s z) (getTail (getTail (getHead id)))) $ (s (s (s z)))
 -- qed
 
-
+-}
 
