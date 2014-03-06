@@ -1,5 +1,5 @@
 module Language.ProofChecking
-       (proofCheck, wellDefined, wellFormed,
+       (proofCheck, wellDefined, wellFormed, repeatComp,
         ensureForm, erased) where
 import Language.Syntax
 import Language.Monad
@@ -266,7 +266,11 @@ comp (In m1 (PVar x)) s =
 comp (In m1 (SApp s1 s2)) s = do
   r <- comp (SApp s1 s2) s
   return $ In m1 r
-  
+
+comp (In m1 (TApp s1 s2)) s = do
+  r <- comp (TApp s1 s2) s
+  return $ In m1 r
+
 comp (SApp (Iota x m) m1) s = return $ runSubst m1 (PVar x) m
 
 comp (SApp (PVar x) m1) s =

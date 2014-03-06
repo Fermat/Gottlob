@@ -13,25 +13,12 @@ formula infixl 3 *
 -- proof pre 2 *1
 -- proof pre 2 *2
 
-data Product U V where
-  times :: U -> V -> Product U V
-
-
-getFst a = case a of
-             times c d -> c
-             
-getSec a = case a of
-             times c d -> d
-
-theorem indProd . forall U V P . (forall a. a :: U -> forall b . b :: V -> times a b :: P U V) -> (forall x . x :: Product U V -> x :: P U V)
-
-
-theorem equiv . forall a U V . a :: Product U V -> Eq (times (getFst a) (getSec a)) a
-proof
-   [as] : a :: Product U V
---   a0 = cmp as : C
-   a1 = cmp inst cmp as by iota U V x . (x :: Product U V -> Eq (times (getFst x) (getSec x)) x) : C
-qed
+-- theorem equiv . forall a U V . a :: Product U V -> Eq (times (getFst a) (getSec a)) a
+-- proof
+--    [as] : a :: Product U V
+-- --   a0 = cmp as : C
+--    a1 = cmp inst cmp as by iota U V x . (x :: Product U V -> Eq (times (getFst x) (getSec x)) x) : C
+-- qed
 
 -- logical 'and' and there
 (*) U V = forall Y . (U -> V -> Y) -> Y

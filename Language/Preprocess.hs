@@ -47,12 +47,13 @@ process ((DataDecl pos d):l) =
       sd = toSet d
       sdd = snd sd in do
     emit $ "processing data decl" <++> (fst sd)
-    wellDefined sdd `catchError` addPreErrorPos pos sdd
+    sdd1 <- repeatComp sdd
+    wellDefined sdd1 `catchError` addPreErrorPos pos sdd1
     (t, res, _) <- withErrorInfo "During the set transformation"
                    [(disp "The target set", disp (snd sd))] (wellFormed sdd)
                    `catchError` addPreErrorPos pos sdd
     state <- get
-    let s1 = extendSetDef (fst sd) sdd t state
+    let s1 = extendSetDef (fst sd) sdd1 t state
         s3 = foldl' (\ z (x1, x2) -> extendProgDef x1 x2 z) s1 progs in
       put s3
     process l

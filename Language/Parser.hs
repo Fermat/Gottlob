@@ -144,7 +144,7 @@ gDataDecl = do
   cs <- block cons 
   return $ DataDecl pos (Data n ps cs)
   where cons = do
-          c <- termVar
+          c <- try termVar <|> parens operator
           reservedOp "::"
           t <- ftype
           return (c,t)
