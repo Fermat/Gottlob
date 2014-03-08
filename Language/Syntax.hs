@@ -48,6 +48,7 @@ data PreTerm = PVar VName
           | Inst PreTerm PreTerm -- inst p1 by p2
           | UG VName PreTerm     -- ug x . p
           | Cmp PreTerm          -- cmp p
+          | SimpCmp PreTerm     -- simpCmp p
           | InvCmp PreTerm PreTerm  -- invcmp p from F
           | Beta PreTerm            -- beta p
           | InvBeta PreTerm PreTerm  -- invbeta p from F

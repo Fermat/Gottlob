@@ -45,6 +45,7 @@ instance Disp PreTerm where
   disp (a@(Inst p1 t)) = text "inst" <+> dParen (precedence a) p1 <+> text "by" <+> disp t
   disp (a@(UG x p1)) = text "ug" <+> text x <+> text "." <+> dParen (precedence a) p1 
   disp (a@(Cmp p1)) = text "cmp" <+> dParen (precedence a) p1
+  disp (a@(SimpCmp p1)) = text "simpCmp" <+> dParen (precedence a) p1
   disp (a@(Beta p1)) = text "beta" <+> dParen (precedence a) p1
   disp (a@(Discharge x Nothing p1)) = text "discharge" <+> text x <+> text "." <+> dParen (precedence a) p1
   disp (a@(Discharge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "." <+> dParen (precedence a) p1 
