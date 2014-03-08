@@ -47,7 +47,7 @@ process ((DataDecl pos d):l) =
       sd = toSet d
       sdd = snd sd in do
     emit $ "processing data decl" <++> (fst sd)
-    sdd1 <- repeatComp sdd
+    sdd1 <- repeatComp False sdd
     wellDefined sdd1 `catchError` addPreErrorPos pos sdd1
     (t, res, _) <- withErrorInfo "During the set transformation"
                    [(disp "The target set", disp (snd sd))] (wellFormed sdd)

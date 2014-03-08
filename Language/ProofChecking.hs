@@ -190,14 +190,14 @@ checkFormula (UG x p)  = do
 
 checkFormula (Cmp p1) = do
   f1 <- checkFormula p1
-  a <- repeatComp $ erased f1
+  a <- repeatComp True $ erased f1
   ensureForm a
   return a
 
 checkFormula (InvCmp p1 m1) = do
   ensureForm m1
   f1 <- checkFormula p1
-  a <- repeatComp $ erased m1
+  a <- repeatComp True $ erased m1
   sameFormula a f1
   return m1
 
@@ -246,82 +246,92 @@ isFree :: VName -> [(VName, PreTerm)] -> Bool
 isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
 
 
-comp :: PreTerm -> S.Set VName  -> Global PreTerm
-comp (Pos pos p) s = comp p s
-comp (Forall x f) s = comp f s >>= \ f1 -> return $ Forall x f1
-comp (Imply f1 f) s = do
-  a <- comp f1 s
-  b <- comp f s
+comp :: Bool -> PreTerm -> S.Set VName  -> Global PreTerm
+comp b (Pos pos p) s = comp b p s
+comp b (Forall x f) s = comp b f s >>= \ f1 -> return $ Forall x f1
+comp b (Imply f1 f) s = do
+  a <- comp b f1 s
+  b <- comp b f s
   return $ Imply a b
 
-comp (In m1 (Iota x m)) s = return $ runSubst m1 (PVar x) m
+comp b (In m1 (Iota x m)) s = return $ runSubst m1 (PVar x) m
 
-comp (In m1 (PVar x)) s = 
-  if x `S.member` s then do
+comp b (In m1 (PVar x)) s = 
+  if x `S.member` s && b then do
     e <- get
     case M.lookup x (setDef e) of
       Nothing -> return $ In m1 (PVar x)
       Just (s1, t) -> return $ In m1 s1
   else return $ In m1 (PVar x)
-comp (In m1 (SApp s1 s2)) s = do
-  r <- comp (SApp s1 s2) s
+
+comp b (In m1 (SApp s1 s2)) s = do
+  r <- comp b (SApp s1 s2) s
   return $ In m1 r
 
-comp (In m1 (TApp s1 s2)) s = do
-  r <- comp (TApp s1 s2) s
+comp b (In m1 (TApp s1 s2)) s = do
+  r <- comp b (TApp s1 s2) s
   return $ In m1 r
 
-comp (SApp (Iota x m) m1) s = return $ runSubst m1 (PVar x) m
+comp b (SApp (Iota x m) m1) s = return $ runSubst m1 (PVar x) m
 
-comp (SApp (PVar x) m1) s =
-  if x `S.member` s then do
+comp b (SApp (PVar x) m1) s =
+  if (x `S.member` s) && b then do
     e <- get
     case M.lookup x (setDef e) of
       Nothing -> return $ SApp (PVar x) m1
       Just (s1, t) -> return $ SApp s1 m1
   else return $ SApp (PVar x) m1
        
-comp (TApp (Iota x m) m1) s = return $ runSubst m1 (PVar x) m
+comp b (TApp (Iota x m) m1) s = return $ runSubst m1 (PVar x) m
 
-comp (TApp (PVar x) m1) s =
-  if x `S.member` s then do
+comp b (TApp (PVar x) m1) s =
+  if (x `S.member` s) && b then do
     e <- get
     case M.lookup x (setDef e) of
       Nothing -> return $ TApp (PVar x) m1
       Just (s1, t) -> return $ TApp s1 m1
   else return $ TApp (PVar x) m1
 -- t :: (a :: C ) 
-comp (SApp (SApp m3 m2) m1) s = 
-  comp (SApp m3 m2) s >>= \ a-> return $ SApp a m1
+comp b (SApp (SApp m3 m2) m1) s = 
+  comp b (SApp m3 m2) s >>= \ a-> return $ SApp a m1
 
-comp (TApp (SApp m3 m2) m1) s = 
-   comp (SApp m3 m2) s >>= \ a -> return $ TApp a m1
+comp b (TApp (SApp m3 m2) m1) s = 
+   comp b (SApp m3 m2) s >>= \ a -> return $ TApp a m1
 
-comp (SApp (TApp m3 m2) m1) s =
-  comp (TApp m3 m2) s >>= \ a -> return $ SApp a m1
+comp b (SApp (TApp m3 m2) m1) s =
+  comp b (TApp m3 m2) s >>= \ a -> return $ SApp a m1
 
-comp (TApp (TApp m3 m2) m1) s = 
-  comp (TApp m3 m2) s >>= \ a -> return $ TApp a m1
+comp b (TApp (TApp m3 m2) m1) s = 
+  comp b (TApp m3 m2) s >>= \ a -> return $ TApp a m1
 
-comp (Iota x m) s = comp m s >>= \ a -> return $ Iota x a
+comp b (Iota x m) s = comp b m s >>= \ a -> return $ Iota x a
 
-comp (PVar x) s = 
-  if x `S.member` s then do
+comp b (PVar x) s = 
+  if (x `S.member` s) && b then do
     e <- get
     case  M.lookup x (setDef e) of
       Nothing -> return $ PVar x
       Just (s1, t) -> return $ s1
   else return $ PVar x
 
-comp n s = die $ text "unhandle case in comp" <++> disp n
-repeatComp :: PreTerm -> Global PreTerm
-repeatComp m = do
-  n <- comp m (fv m)
---  emit $ show n
-  n1 <- comp n (fv n)
---  emit $ show n1
-  if n == n1 then return n else repeatComp n1
+comp b n s = die $ text "unhandle case in comp" <++> disp n
 
+-- the first arg is a flag, if false we don't do
+-- definitional sub, else we do
+repeatComp :: Bool -> PreTerm -> Global PreTerm
+repeatComp b m = 
+  if b
+  then do
+    n <- comp b m (fv m)
+--  emit $ show n
+    n1 <- comp b n (fv n)
+--  emit $ show n1
+    if n == n1 then return n else repeatComp b n1
+  else do
+    n <- comp b m S.empty
+    n1 <- comp b n S.empty
+    if n == n1 then return n else repeatComp b n1
+    
 
 -- tr = In (PVar "m") (Iota "x" (Forall "Nat" (Imply (In (PVar "z") (PVar "Nat")) (Imply (In (PVar "s") (Iota "f" (Forall "x" (Imply (In (PVar "x") (PVar "Nat")) (In (App (PVar "f") (PVar "x")) (PVar "Nat")))))) (In (PVar "x") (PVar "Nat"))))))
 
