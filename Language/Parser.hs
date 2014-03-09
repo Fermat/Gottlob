@@ -209,7 +209,7 @@ progDecl = do
     else return $ ProgDecl n (Abs as p)
 
 progA :: Parser Prog  
-progA = wrapProgPos $ absProg <|> caseTerm <|> appProg <|> letbind <|> parens prog
+progA = wrapProgPos $ absProg <|> ifprog <|> caseTerm <|> appProg <|> letbind <|> parens prog
 
 prog :: Parser Prog
 prog = getState >>= \ st -> progParser st
@@ -226,6 +226,15 @@ appProg = do
   if null as then return sp
     else return $ foldl' (\ z x -> Applica z x) sp as
 
+ifprog = do
+  reserved "if"
+  cond <- prog
+  reserved "then"
+  t <- prog
+  reserved "else"
+  e <- prog
+  return $ If cond t e
+  
 letbind = do
   reserved "let"
   bs <- block branch
@@ -246,7 +255,7 @@ caseTerm = do
   return $ Match n bs
   where
     branch = do
-      v <- termVar
+      v <- try termVar <|> parens operator
       l <- many termVar
       reservedOp "->"
       pr <- prog
@@ -380,7 +389,7 @@ proof = getState >>= \ st -> proofParser st
 
 proofA :: Parser Prog
 proofA =  cmp <|> mp <|> inst <|>
-         ug <|> beta <|> discharge 
+         ug <|> beta <|> discharge <|> ifproof
          <|>invcmp <|> invsimp <|> simp <|> invbeta <|> match <|> pletbind
          <|> absProof <|> appProof <|> (parens proof)
 -- invcmp and invbeta are abrieviation
@@ -393,7 +402,7 @@ appPreTerm = do
 
 appPr :: Parser (Either PreTerm Prog)
 appPr = do
-  p <- try (parens proof) <|> try termVarProg
+  p <- try (parens proof) <|> try termVarProg <|> parens prog
 --  unexpected "well"
   return $ Right p
   
@@ -421,6 +430,15 @@ absProof = do
   return $ Abs xs f
     -- (foldr (\ x z -> TPLam x z) f xs)
 
+ifproof = do
+  reserved "if"
+  cond <- proof
+  reserved "then"
+  t <- proof
+  reserved "else"
+  e <- proof
+  return $ If cond t e
+
 pletbind = do
   reserved "let"
   bs <- block branch
@@ -441,7 +459,7 @@ match = do
   return $ Match n bs
   where
     branch = do
-      v <- termVar
+      v <- try termVar <|> parens operator
       l <- many termVar
       reservedOp "->"
       pr <- proof
@@ -551,7 +569,7 @@ gottlobStyle = Token.LanguageDef
                     "cmp","invcmp", "inst", "mp", "discharge", "ug", "beta", "invbeta",
                     "by", "from", "in", "let", "simpCmp", "invSimp",
                     "case", "of",
-                    "data", 
+                    "data", "if", "then", "else",
                     "theorem", "proof", "qed",
                     "show",
                     "where", "module",

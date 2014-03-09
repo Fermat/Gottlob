@@ -126,6 +126,7 @@ data Prog = Name VName
           | Abs [VName] Prog
           | Match Prog [(VName, [VName], Prog)]
           | Let [(VName, Prog)] Prog
+          | If Prog Prog Prog
             -- tactic is meta program is not subjected for local reasoning
           | TMP Prog Prog -- mp p1 by p2
           | TInst Prog PreTerm -- inst p1 by p2

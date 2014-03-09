@@ -7,8 +7,15 @@
 -- 2. get rid of special infix notation 
 --------------------------------------------
 
-(*critical feature if you don't want to deal with four or five nested cases code. ughh....*)
+---(*critical feature if you don't want to deal with four or five nested cases code. ughh....*)
 3. *smarter* pattern matching.
+Admitably, not implement it will make the language more cumbersome to 
+program with. But, I think it may be a good thing since we don't want
+to hide the complexity  of the program from the programmer. So if we use
+nested pattern, we will realize that we are doing something complicated, even
+though the code says the other way. The goal of programming should be 
+to make it easy to verify and keep it simple. 
+
 
 -- 4. prettyprint for infix notaton(get handled by a less impressive way.)
 

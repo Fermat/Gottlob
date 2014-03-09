@@ -40,7 +40,7 @@ instance Disp PreTerm where
   disp (s@(SApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(TApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(App s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
-  disp (Lambda x t) = text "\\" <+> text x <+> text "." <+> disp t
+  disp (Lambda x t) = text "\\" <+> disp x <+> text "." <+> disp t
   disp (a@(MP p1 p2)) = text "mp" <+> dParen (precedence a) p1 <+> text "by" <+> dParen (precedence a) p2
   disp (a@(Inst p1 t)) = text "inst" <+> dParen (precedence a) p1 <+> text "by" <+> disp t
   disp (a@(UG x p1)) = text "ug" <+> text x <+> text "." <+> dParen (precedence a) p1 
@@ -73,13 +73,13 @@ instance Disp EType where
 
 instance Disp Prog where
   disp (Name x) = disp x
-  disp (Abs xs p) = text "\\" <+> (hsep $ map text xs) <+> text "." <+> disp p
+  disp (Abs xs p) = text "\\" <+> (hsep $ map disp xs) <+> text "." <+> disp p
   disp (s@(Applica s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(AppPre s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (Match p alts) = text "case" <+> disp p <+> text "of" $$
                         nest 2 (vcat (map dAlt alts))
     where dAlt (c, args, p) =
-            fsep [text c <+> hsep (map text args) <+> text "->", nest 2 $ disp p]
+            fsep [disp c <+> hsep (map text args) <+> text "->", nest 2 $ disp p]
   disp (Let ls p) = text "let" $$ nest 2 (vcat ( map dDefs ls)) <+> text "in" $$  disp p
     where dDefs (v, t) = fsep [text v <+> text "=", nest 2 $ disp t]
   disp (ProgPos p pr) = disp pr
@@ -92,6 +92,7 @@ instance Disp Prog where
   disp (a@(TDischarge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "." <+> dParen (precedence a) p1 
   disp (a@(TInvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
   disp (a@(TInvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
+  disp (a@(If c p1 p2)) = text "if" <+> disp c <+> text "then" <+> disp p1 <+> text "else" <+> disp p2
   -- disp (s@(TPApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   -- disp (s@(TPFApp s1 s2)) = dParen (precedence s - 1) s1 <+> text "$" <+> dParen (precedence s) s2
   -- disp (TPLam x p) = text "\\" <+> disp x <+> text "." <+> disp p
@@ -130,7 +131,7 @@ instance Disp Datatype where
   disp (Data d params cons) = 
     hang (text "data" <+> text d <+> hsep (map text params)
           <+> text "where") 2 (vcat (map dispCon cons))
-   where dispCon (n, t) = text n <+> text "::" <+> disp t
+   where dispCon (n, t) = disp n <+> text "::" <+> disp t
     
 instance Disp Module where
   disp (Module name decl) = text "module" <+> text name $$ vcat (map disp decl)
