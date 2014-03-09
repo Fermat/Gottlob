@@ -48,7 +48,7 @@
 
 10. Incorparate/Handling Typing. At least HM-polymorphic type inference.
 
-11. Automatic deriving induction principle for data type.
+-- Done. 11. Automatic deriving induction principle for data type.
 
 ----------
 Big picture:
