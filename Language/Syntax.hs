@@ -48,7 +48,8 @@ data PreTerm = PVar VName
           | Inst PreTerm PreTerm -- inst p1 by p2
           | UG VName PreTerm     -- ug x . p
           | Cmp PreTerm          -- cmp p
-          | SimpCmp PreTerm     -- simpCmp p
+          | SimpCmp PreTerm -- simpCmp p
+          | InvSimp PreTerm PreTerm
           | InvCmp PreTerm PreTerm  -- invcmp p from F
           | Beta PreTerm            -- beta p
           | InvBeta PreTerm PreTerm  -- invbeta p from F
@@ -66,14 +67,14 @@ data PNameless = PV Int
              | TAP PNameless PNameless
              | AP PNameless PNameless
              | LM PNameless
-             | MODP PNameless PNameless -- mp p1 by p2
-             | INST PNameless PNameless -- inst p1 by p2
-             | UNGN PNameless     -- ug x . p
-             | CMP PNameless          -- cmp p
-             | INVCMP PNameless PNameless  -- invcmp p from F
-             | BETA PNameless            -- beta p
-             | INVB PNameless PNameless  -- invbeta p from F
-             | DIS (Maybe PNameless) PNameless -- discharge a : F . p
+             -- | MODP PNameless PNameless -- mp p1 by p2
+             -- | INST PNameless PNameless -- inst p1 by p2
+             -- | UNGN PNameless     -- ug x . p
+             -- | CMP PNameless          -- cmp p
+             -- | INVCMP PNameless PNameless  -- invcmp p from F
+             -- | BETA PNameless            -- beta p
+             -- | INVB PNameless PNameless  -- invbeta p from F
+             -- | DIS (Maybe PNameless) PNameless -- discharge a : F . p
              deriving (Show, Eq)
 
 -- naive sub for proof 
@@ -131,6 +132,8 @@ data Prog = Name VName
           | TUG VName Prog     -- ug x . p
           | TCmp Prog          -- cmp p
           | TInvCmp Prog PreTerm  -- invcmp p from F
+          | TSimpCmp Prog          -- cmp p
+          | TInvSimp Prog PreTerm  -- invcmp p from F
           | TBeta Prog            -- beta p
           | TInvBeta Prog PreTerm  -- invbeta p from F
           | TDischarge VName (Maybe PreTerm) Prog -- discharge a : F . p
@@ -163,7 +166,7 @@ data Module = Module VName [Decl] deriving (Show)
 
 data Decl = ProgDecl VName Prog
           | ProofDecl VName (Maybe VName) ProofScripts PreTerm
-          | DataDecl SourcePos Datatype
+          | DataDecl SourcePos Datatype Bool
             -- no forall n :: Nat . P (F n), where F is a "function" take in n return a formula
           | SetDecl VName PreTerm    
           | TacDecl VName [VName] (Either Prog ProofScripts)

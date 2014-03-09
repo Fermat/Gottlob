@@ -1,5 +1,6 @@
 module Language.Preprocess where
 import Language.TypeInference
+import Language.Induction
 import Language.ProofChecking
 import Language.PrettyPrint
 import Language.Syntax
@@ -42,7 +43,7 @@ process ((ProgDecl x p):l) = do
      die "The program has been defined."
      `catchError` addProgErrorPos (getProgPos p) (Name x)
 
-process ((DataDecl pos d):l) =
+process ((DataDecl pos d False):l) =
   let progs = toScott d    
       sd = toSet d
       sdd = snd sd in do
@@ -56,6 +57,36 @@ process ((DataDecl pos d):l) =
     let s1 = extendSetDef (fst sd) sdd1 t state
         s3 = foldl' (\ z (x1, x2) -> extendProgDef x1 x2 z) s1 progs in
       put s3
+    emptyLocalProof
+    process l
+
+process ((DataDecl pos d True):l) =
+  let progs = toScott d    
+      sd = toSet d
+      sdd = snd sd in
+   do
+    emit $ "processing data decl" <++> (fst sd)
+    sdd1 <- repeatComp False sdd
+    let indF = getInd sdd1
+        indP = runDerive indF
+    wellDefined sdd1 `catchError` addPreErrorPos pos sdd1
+    (t, res, _) <- withErrorInfo "During the set transformation"
+                   [(disp "The target set", disp sdd1)] (wellFormed sdd1)
+                   `catchError` addPreErrorPos pos sdd1
+    state <- get
+    let s1 = extendSetDef (fst sd) sdd1 t state
+        s3 = foldl' (\ z (x1, x2) -> extendProgDef x1 x2 z) s1 progs in
+      put s3
+    ih <- checkFormula indP `catchError` addPreErrorPos pos indP
+    withErrorInfo "During the automatic derivation"
+                   [(disp "The target formula ", disp ih)] (wellFormed ih)
+                   `catchError` addPreErrorPos pos ih
+    sameFormula ih indF `catchError` addPreErrorPos pos ih
+    state1 <- get
+    let s2 = extendSetDef ("Ind"++fst sd) ih Form state1
+        s4 = extendProofCxt ("ind"++fst sd) [("p", Right indP, Nothing)] ih s2 in
+      put s4
+    emptyLocalProof
     process l
 
 process ((SetDecl x set):l) = do
@@ -69,6 +100,7 @@ process ((SetDecl x set):l) = do
   (t, res, _) <- wellFormed set `catchError` addPreErrorPos pos set
   state <- get
   put $ extendSetDef x set t state
+  emptyLocalProof
   process l
 
 process ((ProofDecl n (Just m) ps f):l) = do

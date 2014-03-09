@@ -22,7 +22,8 @@ library
                       Language.Preprocess, 
                       Language.Eval,
                       Language.ProofChecking,
-                      Language.PrettyPrint
+                      Language.PrettyPrint,
+                      Language.Induction
   -- other-modules:       
   build-depends:       base >= 4, parsec >= 3.0, array, indents >= 0.3.0, pretty, mtl, containers, transformers, cmdargs   
 

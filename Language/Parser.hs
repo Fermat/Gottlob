@@ -141,8 +141,9 @@ gDataDecl = do
   pos <- getPosition
   ps <- params
   reserved "where"
-  cs <- block cons 
-  return $ DataDecl pos (Data n ps cs)
+  cs <- block cons
+  b <- option False $ reserved "deriving" >> reserved "Ind" >> return True
+  return $ DataDecl pos (Data n ps cs) b
   where cons = do
           c <- try termVar <|> parens operator
           reservedOp "::"
@@ -380,7 +381,7 @@ proof = getState >>= \ st -> proofParser st
 proofA :: Parser Prog
 proofA =  cmp <|> mp <|> inst <|>
          ug <|> beta <|> discharge 
-         <|>invcmp <|> invbeta <|> match <|> pletbind
+         <|>invcmp <|> invsimp <|> simp <|> invbeta <|> match <|> pletbind
          <|> absProof <|> appProof <|> (parens proof)
 -- invcmp and invbeta are abrieviation
 appPreTerm :: Parser (Either PreTerm Prog)
@@ -452,6 +453,12 @@ invcmp = do
   f <- try (lookAhead $ reservedOp ":" >> formula) <|> (reserved "from" >> formula)
   return $ TInvCmp p f
 
+invsimp = do
+  reserved "invSimp"
+  p <- proof
+  f <- try (lookAhead $ reservedOp ":" >> formula) <|> (reserved "from" >> formula)
+  return $ TInvSimp p f
+
 invbeta = do
   reserved "invbeta"
   p <- proof
@@ -462,6 +469,11 @@ cmp = do
   reserved "cmp"
   p <- proof
   return $ TCmp p
+
+simp = do
+  reserved "simpCmp"
+  p <- proof
+  return $ TSimpCmp p
 
 mp = do
   reserved "mp"
@@ -537,7 +549,7 @@ gottlobStyle = Token.LanguageDef
                   [
                     "forall", "iota", 
                     "cmp","invcmp", "inst", "mp", "discharge", "ug", "beta", "invbeta",
-                    "by", "from", "in", "let", 
+                    "by", "from", "in", "let", "simpCmp", "invSimp",
                     "case", "of",
                     "data", 
                     "theorem", "proof", "qed",
@@ -545,7 +557,7 @@ gottlobStyle = Token.LanguageDef
                     "where", "module",
                     "infix", "infixl", "infixr", "pre", "post",
                     "formula", "prog", "set",
-                    "tactic"
+                    "tactic", "deriving"
                   ]
                , Token.reservedOpNames =
                     ["\\", "->", "|", ".","=", "::", ":"]

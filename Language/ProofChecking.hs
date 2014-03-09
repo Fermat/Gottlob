@@ -1,6 +1,6 @@
 module Language.ProofChecking
        (proofCheck, wellDefined, wellFormed, repeatComp,
-        ensureForm, erased) where
+        ensureForm, erased, checkFormula) where
 import Language.Syntax
 import Language.Monad
 import Language.TypeInference
@@ -194,10 +194,23 @@ checkFormula (Cmp p1) = do
   ensureForm a
   return a
 
+checkFormula (SimpCmp p1) = do
+  f1 <- checkFormula p1
+  a <- repeatComp False $ erased f1
+  ensureForm a
+  return a
+
 checkFormula (InvCmp p1 m1) = do
   ensureForm m1
   f1 <- checkFormula p1
   a <- repeatComp True $ erased m1
+  sameFormula a f1
+  return m1
+
+checkFormula (InvSimp p1 m1) = do
+  ensureForm m1
+  f1 <- checkFormula p1
+  a <- repeatComp False $ erased m1
   sameFormula a f1
   return m1
 

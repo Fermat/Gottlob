@@ -147,7 +147,8 @@ instance Disp Decl where
     where dispPs (n, Left a, Just f) = text "[" <> text n <> text "]" <+> text ":" <+> disp f
           dispPs (n, Right p, Just f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
           dispPs (n, Right p, Nothing) = text n <+> text "=" <+> disp p 
-  disp (DataDecl p d) = disp d
+  disp (DataDecl p d False) = disp d
+  disp (DataDecl p d True) = disp d $$ nest 2 (text "deriving" <+> text "Ind")
   disp (SetDecl x s) = disp x <+> text "=" <+> disp s
   disp (TacDecl x args (Left s)) = text "tactic" <+> disp x <+>(hsep $ map text args) <+> text "=" <+> disp s
   disp (TacDecl x args (Right ps)) = text "tactic" <+> disp x <+>(hsep $ map text args) <+> text "=" $$ nest 2 (vcat (map dispPs ps))
