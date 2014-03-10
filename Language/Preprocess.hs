@@ -47,11 +47,12 @@ process state ((ProgDecl x p):l) = do
 
 process state ((PatternDecl x pats p):l) = 
   let (a, ls) = getAll [(PatternDecl x pats p)] x l
+      a' = reverse a
       lth = length pats in do
     emit $ "processing prog decl" <++> x
 --    emit $ hsep (map disp  )
-    checkArity a lth
-    eqs <- mapM (toEquation state) a
+    checkArity a' lth
+    eqs <- mapM (toEquation state) a'
     let 
         args = [makeVar i | i <- [1..lth] ]
         prog = Abs args (match state lth args eqs (Name "Error"))

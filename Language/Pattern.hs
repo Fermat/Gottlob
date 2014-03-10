@@ -99,7 +99,8 @@ replace y x (Match p ls) =
   Match a ls'
   where subb y x [] = []
         subb y x ((c,ps,p):ls) =
-          (c, ps, replace y x p): subb y x ls
+          (c, subb' y x ps, replace y x p): subb y x ls
+        subb' y x ps = map (\ z -> if z == x then y else z) ps
 
 replace y x (If p0 p1 p2) =
   let a0 = replace y x p0
