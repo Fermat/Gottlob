@@ -4,6 +4,7 @@ import Language.PrettyPrint
 import Text.Parsec
 import Text.Parsec.Pos
 import Data.List hiding(partition)
+import Debug.Trace
 -- This file implement(almost the same) Wadler's pattern matching
 -- compiler found at section 5.3 in SPJ's
 -- the implementation of functional programming language
@@ -57,26 +58,28 @@ partition f (x:x1:xs) | f x == f x1 = tack x (partition f (x1:xs))
         
 match :: [Decl] -> Int -> [VName] -> [Equation] -> Prog -> Prog
 match env k [] qs def =
-  let p = [e | ([], e) <- qs] in
-  if null p then def else head p
+  let p = [e | ([], e) <- qs] in -- trace ("spit p "++ show p ++ show qs ++ show def) (head p)
+  if null p then def else head p -- trace ("nonempty head") (head p)
 --  foldr Applica def [e | ([], e) <- qs]
 --  if null qs then (Name "Error") else let ([], p) = head qs in p
-match env k (u:us) qs def =  foldr (matchVarCon env k (u:us)) def (partition isVar qs)
+match env k (u:us) qs def = foldr (matchVarCon env k (u:us)) def (partition isVar qs)
 
 matchVarCon env k us qs def | isVar $ head qs = matchVar env k us qs def
 matchVarCon env k us qs def | otherwise = matchCon env k us qs def
 
 matchVar env k (u:us) qs def = match env k us [(ps, replace u v e) | (Var v : ps, e) <- qs] def
 
-matchCon env k (u:us) qs def = 
+matchCon env k (u:us) qs def =
   Match (Name u) [matchClause env c k (u:us) (choose c qs) def | c <- cs]
   where cs = constructors (getCon $ head qs) env
         
 matchClause env c k (u:us) qs def =
-  (c, us', match env (k'+ k) (us' ++ us) [(ps' ++ ps, e) | (Cons a ps' : ps, e) <- qs] def )
-  where k' = arity c env
-        us' = [makeVar (i + k) | i <- [1..k'] ]
-        makeVar k = "_u"++ show k
+  let k' = arity c env in
+  (c, (us' k'), match env (k'+ k) ((us' k') ++ us) [(ps' ++ ps, e) | (Cons c ps' : ps, e) <- qs] def )
+  where
+    us' q = [makeVar (i + k) | i <- [1..q]]
+    makeVar l = "_u"++ show l
+
 choose c qs = [q | q <- qs, getCon q == c]
 
 replace y x (Name z) =
@@ -99,8 +102,8 @@ replace y x (Match p ls) =
   Match a ls'
   where subb y x [] = []
         subb y x ((c,ps,p):ls) =
-          (c, subb' y x ps, replace y x p): subb y x ls
-        subb' y x ps = map (\ z -> if z == x then y else z) ps
+          (c, ps, replace y x p): subb y x ls
+--        subb' y x ps = map (\ z -> if z == x then y else z) ps
 
 replace y x (If p0 p1 p2) =
   let a0 = replace y x p0
