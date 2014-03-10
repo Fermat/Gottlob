@@ -40,7 +40,7 @@ instance Disp PreTerm where
   disp (s@(SApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(TApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(App s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
-  disp (Lambda x t) = text "\\" <+> disp x <+> text "." <+> disp t
+  disp (Lambda x t) = text "\\" <+> text x <+> text "." <+> disp t
   disp (a@(MP p1 p2)) = text "mp" <+> dParen (precedence a) p1 <+> text "by" <+> dParen (precedence a) p2
   disp (a@(Inst p1 t)) = text "inst" <+> dParen (precedence a) p1 <+> text "by" <+> disp t
   disp (a@(UG x p1)) = text "ug" <+> text x <+> text "." <+> dParen (precedence a) p1 
@@ -162,7 +162,7 @@ instance Disp Decl where
                                     disp i <+> disp s2
   disp (ProofOperatorDecl s1 i s2) = text "proof" <+> text s1 <+>
                                     disp i <+> disp s2
-  disp (PatternDecl x pats prog) = disp x <+> hsep (map disp pats) <+> text "=" <+> disp prog
+  disp (PatternDecl x pats prog) = disp x <+> hsep (map (parens.disp) pats) <+> text "=" <+> disp prog
   -- disp (SpecialOperatorDecl s1 i s2) = text "special" <+> text s1 <+>
   --                                   disp i <+> disp s2
 

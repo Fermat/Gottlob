@@ -48,12 +48,15 @@ process state ((ProgDecl x p):l) = do
 process state ((PatternDecl x pats p):l) = 
   let (a, ls) = getAll [(PatternDecl x pats p)] x l
       lth = length pats in do
-    checkArity ls lth
+    emit $ "processing prog decl" <++> x
+--    emit $ hsep (map disp  )
+    checkArity a lth
     eqs <- mapM (toEquation state) a
     let 
         args = [makeVar i | i <- [1..lth] ]
         prog = Abs args (match state lth args eqs (Name "Error"))
     st <- get
+    emit $ disp prog
     case M.lookup x $ progDef st of
       Nothing -> do
         put $ extendProgDef x (progTerm prog) st
@@ -70,7 +73,7 @@ process state ((PatternDecl x pats p):l) =
             checkArity [] lth = return ()
             checkArity ((PatternDecl y pats' p'):ys) lth =
               if length pats' == lth then checkArity ys lth
-              else die "Different arity for the same function."
+              else die $ "Different arity for the same function." <++> disp lth <++> disp y 
 
 process state ((DataDecl pos d False):l) =
   let progs = toScott d    
@@ -237,6 +240,7 @@ toEquation state (PatternDecl y pats p) = do
           toPat (Applica a b) state = do
             (Cons v ls) <- toPat a state
             return $ Cons v (ls ++ (toVar b))
+          toPat (ProgPos pos p) state = toPat p state
           toVar (Name a) = [Var a]
           toVar (Applica a b) = (toVar a) ++ (toVar b)
 

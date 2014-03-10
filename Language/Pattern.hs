@@ -56,7 +56,11 @@ partition f (x:x1:xs) | f x == f x1 = tack x (partition f (x1:xs))
   where tack x xss = (x : head xss) : tail xss
         
 match :: [Decl] -> Int -> [VName] -> [Equation] -> Prog -> Prog
-match env k [] qs def = let ([], p) = head qs in p
+match env k [] qs def =
+  let p = [e | ([], e) <- qs] in
+  if null p then def else head p
+--  foldr Applica def [e | ([], e) <- qs]
+--  if null qs then (Name "Error") else let ([], p) = head qs in p
 match env k (u:us) qs def =  foldr (matchVarCon env k (u:us)) def (partition isVar qs)
 
 matchVarCon env k us qs def | isVar $ head qs = matchVar env k us qs def
@@ -69,7 +73,7 @@ matchCon env k (u:us) qs def =
   where cs = constructors (getCon $ head qs) env
         
 matchClause env c k (u:us) qs def =
-  (c, us', match env (k'+ k) (us' ++ us) [(ps' ++ ps, e) | (Cons c ps' : ps, e) <- qs] def )
+  (c, us', match env (k'+ k) (us' ++ us) [(ps' ++ ps, e) | (Cons a ps' : ps, e) <- qs] def )
   where k' = arity c env
         us' = [makeVar (i + k) | i <- [1..k'] ]
         makeVar k = "_u"++ show k
