@@ -128,10 +128,10 @@ instance Disp FType where
   precedence (Pi _ _ _) = 4
 
 instance Disp Datatype where
-  disp (Data d params cons) = 
-    hang (text "data" <+> text d <+> hsep (map text params)
-          <+> text "where") 2 (vcat (map dispCon cons))
-   where dispCon (n, t) = disp n <+> text "::" <+> disp t
+  disp d1@(Data d params cons) = disp $ show d1
+   --  hang (text "data" <+> text d <+> hsep (map text params)
+   --        <+> text "where") 2 (vcat (map dispCon cons))
+   -- where dispCon (n, t) = disp n <+> text "::" <+> disp t
     
 instance Disp Module where
   disp (Module name decl) = text "module" <+> text name $$ vcat (map disp decl)
@@ -162,7 +162,7 @@ instance Disp Decl where
                                     disp i <+> disp s2
   disp (ProofOperatorDecl s1 i s2) = text "proof" <+> text s1 <+>
                                     disp i <+> disp s2
-
+  disp p = text $ show p
   -- disp (SpecialOperatorDecl s1 i s2) = text "special" <+> text s1 <+>
   --                                   disp i <+> disp s2
 

@@ -91,8 +91,8 @@ gModule = do
   return $ Module modName bs
 
 gDecl :: Parser Decl
-gDecl = gDataDecl <|> try proofDecl <|> try progDecl
-        <|> setDecl <|> formOperatorDecl <|>
+gDecl = gDataDecl <|> try proofDecl -- <|> try progDecl
+        <|> setDecl <|> formOperatorDecl <|> try patternDecl <|>
         progOperatorDecl <|> try tacticDecl <|> proofOperatorDecl
   
 formOperatorDecl :: Parser Decl
@@ -198,6 +198,14 @@ compoundArgs =
 
 
 -----  Parser for Program ------
+
+patternDecl :: Parser Decl
+patternDecl = do 
+  n <- try termVar <|> parens operator
+  as <- many $ (try (parens prog) <|> try termVarProg)
+  reservedOp "="
+  p <- prog
+  return $ PatternDecl n as p
 
 progDecl :: Parser Decl
 progDecl = do

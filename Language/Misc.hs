@@ -23,15 +23,13 @@ add n m = case n of
 f = \ y -> let x = y in y
 g = \ y -> let x = y in y
 
-data Tree a = Leaf
-            | Node (Tree a) a (Tree a)
-            deriving(Show, Eq)
 
 insertion b Leaf = Node Leaf b Leaf
 insertion b (Node tr1 a tr2) =
   if b < a
   then Node (insertion b tr1) a tr2
   else Node tr1 a (insertion b tr2)
+
 
 deletion b Leaf = Leaf
 
@@ -156,3 +154,7 @@ knapsack' = foldr addItem (repeat (0,[]))
 
 
 fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
+
+data Tree a = Leaf
+            | Node (Tree a) a (Tree a)
+            deriving(Show, Eq)

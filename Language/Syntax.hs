@@ -1,6 +1,6 @@
 module Language.Syntax
-       (VName, EType(..), vars, sub,
-        PreTerm(..), ProofScripts,
+       (VName, EType(..), vars, sub, farity,
+        PreTerm(..), ProofScripts, 
         Prog(..), Args(..), FType(..), Assumption(..),
         Datatype(..), Module(..), Decl(..),
         fv,fVar, runSubst, naiveSub) where
@@ -159,13 +159,22 @@ data FType = FVar VName
            | FTPos SourcePos FType
            deriving (Show, Eq)
 
+farity :: FType -> Int
+farity (FVar _) = 0
+farity (FCons _ _) = 0
+farity (Arrow f1 f2) = 1 + farity f2
+farity (Pi x f1 f2) = 1 + farity f2
+farity (FTPos pos f) = farity f
 data Datatype =
   Data VName [VName] [(VName,FType)]    
   deriving (Show)
 
 data Module = Module VName [Decl] deriving (Show)
 
+-- type Pattern = Prog
+
 data Decl = ProgDecl VName Prog
+          | PatternDecl VName [Prog] Prog
           | ProofDecl VName (Maybe VName) ProofScripts PreTerm
           | DataDecl SourcePos Datatype Bool
             -- no forall n :: Nat . P (F n), where F is a "function" take in n return a formula
