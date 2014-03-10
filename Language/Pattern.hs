@@ -1,14 +1,12 @@
-module Language.Pattern(match) where
+module Language.Pattern(match, Equation, Pattern(..)) where
 import Language.Syntax
-import Language.Monad
 import Language.PrettyPrint
 import Text.Parsec
 import Text.Parsec.Pos
 import Data.List hiding(partition)
--- This file implement Wadler's pattern matching
+-- This file implement(almost the same) Wadler's pattern matching
 -- compiler found at section 5.3 in SPJ's
 -- the implementation of functional programming language
-
 
 -- during preprocessing,
 -- a group of PatternDecl get analyzed and
@@ -21,8 +19,8 @@ data Pattern = Var VName
              deriving Show
                       
 type Equation = ([Pattern], Prog)
-data Definition = Def VName [Equation]
-                deriving Show
+-- data Definition = Def VName [Equation]
+--                 deriving Show
 
 isVar :: Equation -> Bool
 isVar (Var x:ps,e) = True
@@ -74,7 +72,7 @@ matchClause env c k (u:us) qs def =
   (c, us', match env (k'+ k) (us' ++ us) [(ps' ++ ps, e) | (Cons c ps' : ps, e) <- qs] def )
   where k' = arity c env
         us' = [makeVar (i + k) | i <- [1..k'] ]
-        makeVar k = "u"++ show k
+        makeVar k = "_u"++ show k
 choose c qs = [q | q <- qs, getCon q == c]
 
 replace y x (Name z) =
@@ -110,4 +108,7 @@ decl = Data "Nat" [] [("z",FVar "Nat"),("s",Arrow (FVar "Nat") (FVar "Nat"))]
 eqs = [([(Cons "s" [(Var "n'")]),Var "m"],
                                           ((Applica (Name "s") ((Applica (Applica (Name "add") (Name "n'")) (Name "m")))))), ([Cons "z" [],Var "m"], (Name "m"))]
 
-test111 = disp $ match [DataDecl (newPos "ha" 1 1) decl True] 2 ["u1", "u2"] eqs (Name "Error")
+eqs1 = [([Var "s",Var "m"],
+        ((Applica (Name "s") ((Applica (Applica (Name "add") (Name "n'")) (Name "m"))))))]
+
+test111 = disp $ match [DataDecl (newPos "ha" 1 1) decl True] 2 ["_u1", "_u2"] eqs1 (Name "Error")

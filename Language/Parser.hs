@@ -202,7 +202,7 @@ compoundArgs =
 patternDecl :: Parser Decl
 patternDecl = do 
   n <- try termVar <|> parens operator
-  as <- many $ (try (parens prog) <|> try termVarProg)
+  as <- many $ (try (parens appProg) <|> try termVarProg)
   reservedOp "="
   p <- prog
   return $ PatternDecl n as p

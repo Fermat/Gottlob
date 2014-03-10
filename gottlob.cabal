@@ -23,7 +23,8 @@ library
                       Language.Eval,
                       Language.ProofChecking,
                       Language.PrettyPrint,
-                      Language.Induction
+                      Language.Induction,
+                      Language.Pattern
   -- other-modules:       
   build-depends:       base >= 4, parsec >= 3.0, array, indents >= 0.3.0, pretty, mtl, containers, transformers, cmdargs   
 
