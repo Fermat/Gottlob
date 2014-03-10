@@ -59,8 +59,8 @@ popAssump e@(PrfEnv {assumption}) = e{assumption = tail assumption}
 extendLocalProof :: VName -> PreTerm -> PreTerm -> PrfEnv -> PrfEnv
 extendLocalProof v p f e@(PrfEnv {localProof}) = e{localProof = M.insert v (p,f) localProof}
 
-extendLocalEType :: VName -> EType -> PrfEnv -> PrfEnv
-extendLocalEType v p e@(PrfEnv {localEType}) = e{localEType = M.insert v p localEType}
+updateLocalEType :: [(VName, EType)] -> PrfEnv -> PrfEnv
+updateLocalEType p e@(PrfEnv {localEType}) = e{localEType = M.fromList p}
 
 --------------
 

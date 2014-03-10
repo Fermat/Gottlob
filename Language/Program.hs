@@ -28,6 +28,11 @@ progTerm (TDischarge x p1 p2) = Discharge x p1 (progTerm p2)
 -- progTerm (TPApp p1 p2) = App (progTerm p1) (progTerm p2)
 -- progTerm (TPFApp p1 p2) = App (progTerm p1) p2
 progTerm (AppPre p1 p2) = App (progTerm p1) p2
+
+progTerm (If c p1 p2) = App (App (App iff (progTerm c)) (progTerm p1)) (progTerm p2)
+-- it is a little ad hoc
+iff = Lambda "a" (Lambda "then" (Lambda "else"
+                                 (App (App (PVar "a") (PVar "then")) (PVar "else"))))
 --progTerm (AppProof p1 p2) = App (progTerm p1) (progTerm p2)
 
 

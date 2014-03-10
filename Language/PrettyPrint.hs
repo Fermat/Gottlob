@@ -4,6 +4,7 @@ import Language.Syntax
 import Language.TypeInference
 import Text.PrettyPrint
 import Text.Parsec.Pos
+import Data.Char
 import Text.Parsec.Error(ParseError,showErrorMessages,errorPos,errorMessages)
 
 class Disp d where
@@ -15,7 +16,9 @@ instance Disp Doc where
   disp = id
 
 instance Disp String where
-  disp  = text
+  disp x = if (isUpper $ head x) || (isLower $ head x)
+           then text x
+           else parens $ text x
 
 instance Disp Int where
   disp = integer . toInteger
@@ -23,12 +26,12 @@ instance Disp Int where
 dParen:: (Disp a) => Int -> a -> Doc
 dParen level x =
    if level >= (precedence x)
-   then parens $ disp x
+   then parens $ disp x 
    else disp x
 
 
 instance Disp PreTerm where
-  disp (PVar x) = text x
+  disp (PVar x) = disp x
   disp (Forall x p) = text "forall" <+> text x <+> text "." <+> disp p
   disp (a@(Imply p1 p2)) = dParen (precedence a) p1 <+> text "->"
                            <+> dParen (precedence a -1) p2
@@ -42,6 +45,7 @@ instance Disp PreTerm where
   disp (a@(Inst p1 t)) = text "inst" <+> dParen (precedence a) p1 <+> text "by" <+> disp t
   disp (a@(UG x p1)) = text "ug" <+> text x <+> text "." <+> dParen (precedence a) p1 
   disp (a@(Cmp p1)) = text "cmp" <+> dParen (precedence a) p1
+  disp (a@(SimpCmp p1)) = text "simpCmp" <+> dParen (precedence a) p1
   disp (a@(Beta p1)) = text "beta" <+> dParen (precedence a) p1
   disp (a@(Discharge x Nothing p1)) = text "discharge" <+> text x <+> text "." <+> dParen (precedence a) p1
   disp (a@(Discharge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "." <+> dParen (precedence a) p1 
@@ -68,14 +72,14 @@ instance Disp EType where
   precedence _ = 12
 
 instance Disp Prog where
-  disp (Name x) = text x
-  disp (Abs xs p) = text "\\" <+> (hsep $ map text xs) <+> text "." <+> disp p
+  disp (Name x) = disp x
+  disp (Abs xs p) = text "\\" <+> (hsep $ map disp xs) <+> text "." <+> disp p
   disp (s@(Applica s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(AppPre s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (Match p alts) = text "case" <+> disp p <+> text "of" $$
                         nest 2 (vcat (map dAlt alts))
     where dAlt (c, args, p) =
-            fsep [text c <+> hsep (map text args) <+> text "->", nest 2 $ disp p]
+            fsep [disp c <+> hsep (map disp args) <+> text "->", nest 2 $ disp p]
   disp (Let ls p) = text "let" $$ nest 2 (vcat ( map dDefs ls)) <+> text "in" $$  disp p
     where dDefs (v, t) = fsep [text v <+> text "=", nest 2 $ disp t]
   disp (ProgPos p pr) = disp pr
@@ -88,6 +92,7 @@ instance Disp Prog where
   disp (a@(TDischarge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "." <+> dParen (precedence a) p1 
   disp (a@(TInvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
   disp (a@(TInvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
+  disp (a@(If c p1 p2)) = text "if" <+> disp c <+> text "then" <+> disp p1 <+> text "else" <+> disp p2
   -- disp (s@(TPApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   -- disp (s@(TPFApp s1 s2)) = dParen (precedence s - 1) s1 <+> text "$" <+> dParen (precedence s) s2
   -- disp (TPLam x p) = text "\\" <+> disp x <+> text "." <+> disp p
@@ -123,30 +128,31 @@ instance Disp FType where
   precedence (Pi _ _ _) = 4
 
 instance Disp Datatype where
-  disp (Data d params cons) = 
+  disp d1@(Data d params cons) = -- disp $ show d1
     hang (text "data" <+> text d <+> hsep (map text params)
           <+> text "where") 2 (vcat (map dispCon cons))
-   where dispCon (n, t) = text n <+> text "::" <+> disp t
+   where dispCon (n, t) = disp n <+> text "::" <+> disp t
     
 instance Disp Module where
   disp (Module name decl) = text "module" <+> text name $$ vcat (map disp decl)
 
 instance Disp Decl where
-  disp (ProgDecl x p) = text x <+> text "=" <+>disp p
+  disp (ProgDecl x p) = disp x <+> text "=" <+>disp p
   disp (ProofDecl x m ps f) =
     text "theorem" <+> text x <+>
     (case m of
-          Just m' -> text "[" <+> disp m' <+> text "]"
+          Just m' -> text "[" <> disp m' <> text "]"
           Nothing -> text "")<+>text "." <+> disp f $$
     text "proof" $$ nest 2 (vcat (map dispPs ps))
                             $$ text "qed"
     where dispPs (n, Left a, Just f) = text "[" <> text n <> text "]" <+> text ":" <+> disp f
           dispPs (n, Right p, Just f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
           dispPs (n, Right p, Nothing) = text n <+> text "=" <+> disp p 
-  disp (DataDecl p d) = disp d
-  disp (SetDecl x s) = text x <+> text "=" <+> disp s
-  disp (TacDecl x args (Left s)) = text "tactic" <+> text x <+>(hsep $ map text args) <+> text "=" <+> disp s
-  disp (TacDecl x args (Right ps)) = text "tactic" <+> text x <+>(hsep $ map text args) <+> text "=" $$ nest 2 (vcat (map dispPs ps))
+  disp (DataDecl p d False) = disp d
+  disp (DataDecl p d True) = disp d $$ nest 2 (text "deriving" <+> text "Ind")
+  disp (SetDecl x s) = disp x <+> text "=" <+> disp s
+  disp (TacDecl x args (Left s)) = text "tactic" <+> disp x <+>(hsep $ map text args) <+> text "=" <+> disp s
+  disp (TacDecl x args (Right ps)) = text "tactic" <+> disp x <+>(hsep $ map text args) <+> text "=" $$ nest 2 (vcat (map dispPs ps))
     where dispPs (n, Left a, Just f) = text "[" <> text n <> text "]" <+> text ":" <+> disp f
           dispPs (n, Right p, Just f) = text n <+> text "=" <+> disp p <+> text ":" <+> disp f
           dispPs (n, Right p, Nothing) = text n <+> text "=" <+> disp p 
@@ -154,6 +160,9 @@ instance Disp Decl where
                                     disp i <+> disp s2
   disp (ProgOperatorDecl s1 i s2) = text "prog" <+> text s1 <+>
                                     disp i <+> disp s2
+  disp (ProofOperatorDecl s1 i s2) = text "proof" <+> text s1 <+>
+                                    disp i <+> disp s2
+  disp (PatternDecl x pats prog) = disp x <+> hsep (map (parens.disp) pats) <+> text "=" <+> disp prog
   -- disp (SpecialOperatorDecl s1 i s2) = text "special" <+> text s1 <+>
   --                                   disp i <+> disp s2
 

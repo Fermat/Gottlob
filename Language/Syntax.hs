@@ -1,6 +1,6 @@
 module Language.Syntax
-       (VName, EType(..), vars, sub,
-        PreTerm(..), ProofScripts,
+       (VName, EType(..), vars, sub, farity,
+        PreTerm(..), ProofScripts, 
         Prog(..), Args(..), FType(..), Assumption(..),
         Datatype(..), Module(..), Decl(..),
         fv,fVar, runSubst, naiveSub) where
@@ -48,6 +48,8 @@ data PreTerm = PVar VName
           | Inst PreTerm PreTerm -- inst p1 by p2
           | UG VName PreTerm     -- ug x . p
           | Cmp PreTerm          -- cmp p
+          | SimpCmp PreTerm -- simpCmp p
+          | InvSimp PreTerm PreTerm
           | InvCmp PreTerm PreTerm  -- invcmp p from F
           | Beta PreTerm            -- beta p
           | InvBeta PreTerm PreTerm  -- invbeta p from F
@@ -65,14 +67,14 @@ data PNameless = PV Int
              | TAP PNameless PNameless
              | AP PNameless PNameless
              | LM PNameless
-             | MODP PNameless PNameless -- mp p1 by p2
-             | INST PNameless PNameless -- inst p1 by p2
-             | UNGN PNameless     -- ug x . p
-             | CMP PNameless          -- cmp p
-             | INVCMP PNameless PNameless  -- invcmp p from F
-             | BETA PNameless            -- beta p
-             | INVB PNameless PNameless  -- invbeta p from F
-             | DIS (Maybe PNameless) PNameless -- discharge a : F . p
+             -- | MODP PNameless PNameless -- mp p1 by p2
+             -- | INST PNameless PNameless -- inst p1 by p2
+             -- | UNGN PNameless     -- ug x . p
+             -- | CMP PNameless          -- cmp p
+             -- | INVCMP PNameless PNameless  -- invcmp p from F
+             -- | BETA PNameless            -- beta p
+             -- | INVB PNameless PNameless  -- invbeta p from F
+             -- | DIS (Maybe PNameless) PNameless -- discharge a : F . p
              deriving (Show, Eq)
 
 -- naive sub for proof 
@@ -124,12 +126,15 @@ data Prog = Name VName
           | Abs [VName] Prog
           | Match Prog [(VName, [VName], Prog)]
           | Let [(VName, Prog)] Prog
+          | If Prog Prog Prog
             -- tactic is meta program is not subjected for local reasoning
           | TMP Prog Prog -- mp p1 by p2
           | TInst Prog PreTerm -- inst p1 by p2
           | TUG VName Prog     -- ug x . p
           | TCmp Prog          -- cmp p
           | TInvCmp Prog PreTerm  -- invcmp p from F
+          | TSimpCmp Prog          -- cmp p
+          | TInvSimp Prog PreTerm  -- invcmp p from F
           | TBeta Prog            -- beta p
           | TInvBeta Prog PreTerm  -- invbeta p from F
           | TDischarge VName (Maybe PreTerm) Prog -- discharge a : F . p
@@ -154,20 +159,30 @@ data FType = FVar VName
            | FTPos SourcePos FType
            deriving (Show, Eq)
 
+farity :: FType -> Int
+farity (FVar _) = 0
+farity (FCons _ _) = 0
+farity (Arrow f1 f2) = 1 + farity f2
+farity (Pi x f1 f2) = 1 + farity f2
+farity (FTPos pos f) = farity f
 data Datatype =
   Data VName [VName] [(VName,FType)]    
   deriving (Show)
 
 data Module = Module VName [Decl] deriving (Show)
 
+-- type Pattern = Prog
+
 data Decl = ProgDecl VName Prog
+          | PatternDecl VName [Prog] Prog
           | ProofDecl VName (Maybe VName) ProofScripts PreTerm
-          | DataDecl SourcePos Datatype
+          | DataDecl SourcePos Datatype Bool
             -- no forall n :: Nat . P (F n), where F is a "function" take in n return a formula
           | SetDecl VName PreTerm    
           | TacDecl VName [VName] (Either Prog ProofScripts)
           | FormOperatorDecl String Int String
           | ProgOperatorDecl String Int String
+          | ProofOperatorDecl String Int String
           deriving Show
 
 -- get all free variables
