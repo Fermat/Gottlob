@@ -46,7 +46,7 @@
 
 9. Good error info, aka, location.   
 
-10. Incorparate/Handling Typing. At least HM-polymorphic type inference.
+10. Incorparate/Handling Typing. No dependent typing, only HM-polymorphic type inference.
 
 -- Done. 11. Automatic deriving induction principle for data type.
 
