@@ -1,5 +1,5 @@
 module Language.Program
-       (progTerm, toSet, toScott, runToProof, toPat) where
+       (progTerm, toSet, toScott) where
 import Language.Syntax
 import Language.Pattern
 import Text.PrettyPrint
@@ -7,16 +7,97 @@ import Control.Monad.Reader
 import Data.List
 import Data.Char
 
--- instance Error Doc where
---   strMsg s = disp s
---   noMsg = strMsg "<unknown>"
+-- Translating Flat Program to meta term
 
--- Translating Program to meta term
-runProgTerm :: Prog -> [Decl] -> Either VName PreTerm
-runProgTerm p env = runReaderT (progTerm p) env
+progTerm :: Prog -> PreTerm
+progTerm (Name n) = PVar n
+progTerm (Applica p1 p2) = 
+  let a1 = progTerm p1
+      a2 = progTerm p2 in App a1 a2
 
-progTerm :: Prog -> ReaderT [Decl] (Either VName) PreTerm
-progTerm (Name n) = return $ PVar n
+progTerm (Abs l p) =
+  let a = progTerm p in constrAbs l a
+                        
+progTerm (Match v l) =
+  let a = progTerm v in appBranch l a
+                        
+progTerm (ProgPos pos p) =
+  let a = progTerm p in Pos pos a
+
+progTerm (Let l p) = 
+  let a = progTerm p in
+  substList (helper l) a
+  where helper l = map (\ (x, t) -> (PVar x, progTerm t)) l
+        substList [] t = t
+        substList ((x, t1):xs) t = substList xs (runSubst t1 x t)
+
+progTerm (TForall x p) =
+  let a = progTerm p in Forall x a
+
+progTerm (TImply f1 f2) =
+  let a1 = progTerm f1
+      a2 = progTerm f2 in Imply a1 a2
+
+progTerm (TIota x p) =
+  let a = progTerm p in Iota x a
+
+progTerm (TIn f1 f2) =
+  let a1 = progTerm f1
+      a2 = progTerm f2 in In a1 a2
+
+progTerm (TSApp f1 f2) =
+  let a1 = progTerm f1
+      a2 = progTerm f2 in SApp a1 a2
+
+progTerm (TSTApp f1 f2) =
+  let a1 = progTerm f1
+      a2 = progTerm f2 in TApp a1 a2
+  
+progTerm (TMP p1 p2) = 
+  let a1 = progTerm p1
+      a2 = progTerm p2 in MP a1 a2
+  
+progTerm (TInst p1 p2) =
+  let a = progTerm p1
+      a2 = progTerm p2
+  in Inst a a2
+                         
+progTerm (TUG x p2) =
+  let a = progTerm p2 in UG x a
+progTerm (TCmp p1) =
+  let a = progTerm p1 in Cmp a
+
+progTerm (TBeta p1) =
+  let a = progTerm p1 in Beta a
+
+progTerm (TInvCmp p1 p2) =
+  let a = progTerm p1
+      a2 = progTerm p2
+  in InvCmp a a2
+progTerm (TInvBeta p1 p2) =
+  let a = progTerm p1
+      a2 = progTerm p2
+  in InvBeta a a2
+progTerm (TDischarge x p1 p2) =
+  case p1 of
+    Nothing -> 
+      let a = progTerm p2 in Discharge x Nothing a
+    Just t ->
+      let a0 = progTerm t
+          a = progTerm p2
+      in Discharge x (Just a0) a
+
+progTerm (AppPre p1 p2) =
+  let a = progTerm p1
+      a2 = progTerm p2 in App a a2
+
+progTerm (If c p1 p2) = 
+  let c1 = progTerm c
+      a1 = progTerm p1
+      a2 = progTerm p2
+  in App (App (App iff c1) a1 ) a2
+{-
+  progTerm (Name n) = PVar n
 progTerm (Applica p1 p2) = do
   a1 <- progTerm p1
   a2 <- progTerm p2
@@ -54,7 +135,7 @@ progTerm (If c p1 p2) = do
   c1 <- progTerm c
   a1 <- progTerm p1
   a2 <- progTerm p2
-  return $ App (App (App iff c1) a1 ) a2
+  return $ App (App (App iff c1) a1 ) a2 -}
 -- it is a little ad hoc
 iff = Lambda "a" (Lambda "then" (Lambda "else"
                                  (App (App (PVar "a") (PVar "then")) (PVar "else"))))
@@ -63,15 +144,15 @@ iff = Lambda "a" (Lambda "then" (Lambda "else"
 constrAbs :: [VName] -> PreTerm -> PreTerm
 constrAbs l t = foldr (\ x z -> Lambda x z) t l
 
---appBranch :: [(VName, [Prog], Prog)] -> PreTerm -> PreTerm
+appBranch :: [(VName, [Prog], Prog)] -> PreTerm -> PreTerm
 appBranch l m = 
-  foldM (\ z x -> helper x >>= \ a -> return $ App z a) m l
+  foldl' (\ z x ->  App z (helper x)) m l
   where
-    helper (v,l,p) = do
-      a <- progTerm p
-      let l1 = map (\ (Name x) -> x) l in
-        return $ constrAbs l1 a 
-
+    helper (v,l,p) = 
+      let l1 = map (\ (Name x) -> x) l
+          a = progTerm p in
+      constrAbs l1 a 
+{-
 patProg :: Prog -> ReaderT [Decl] (Either VName) Prog
 patProg (Name n) = return $ Name n
 patProg (Applica p1 p2) = do
@@ -112,7 +193,7 @@ isConstr v ((DataDecl pos (Data name params cons) b):l) =
 
 isConstr v (x:l) = isConstr v l
 isConstr v [] = False
-
+-}
 -- Translating Formal-Type to Set
 interp :: FType -> PreTerm
 interp (FVar x) = PVar x
@@ -120,7 +201,7 @@ interp (FCons x l) =
   foldl' helper (PVar x) l 
   where helper z (ArgType tf) = SApp z $ interp tf
         helper z (ArgProg t) =
-          let Right t1 = runProgTerm t [] in 
+          let t1 = progTerm t in 
           TApp z t1
 
 interp (Arrow t1 t2) = template "x" (interp t1) (interp t2)
@@ -180,6 +261,7 @@ toScott (Data d l cons) =
 -- nat = Data "Nat" [] [("z", FVar "Nat"), ("s", Arrow (FVar "Nat") (FVar "Nat"))]      
 
 -- translating proof scripts to proof.
+{-
 runToProof ::ProofScripts -> PreTerm
 runToProof ps = runReader (toProof ps) []
 
@@ -245,7 +327,7 @@ annotate (App p1 p2) = do
   return $ App p3 p4
 
 annotate (Pos pos p1) = annotate p1
-
+-}
 
 
 

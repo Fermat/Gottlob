@@ -61,7 +61,7 @@ tactic smartInst p s A = invcmp (cmp inst p by s) from A
 
 tactic byEval t1 t2 =   
    [c] : t1 :: Q
-   c1 = invbeta beta c : t2::Q
+   c1 = invbeta beta c : t2 :: Q
    c3 = ug Q . discharge c . c1
    c5 = invcmp c3 : Eq t1 t2
 -- byEval invcmp (ug Q . discharge c. invbeta beta c)
@@ -119,14 +119,14 @@ proof
        [a2] : forall y . y :: C -> s y :: C
        [a3] : m :: Nat
        b1 = cmp a3 : forall C . z :: C -> (forall y . y :: C -> s y :: C) -> m :: C
-       b2 = inst b1 by C : z :: C -> (forall y .y:: C  -> s y :: C) -> m :: C
+       b2 = inst b1 by C : z :: C -> (forall y . y :: C  -> s y :: C) -> m :: C
        b3 = mp b2 by a1 : (forall y. y :: C -> s y :: C) -> m :: C
        b4 = mp b3 by a2 : m :: C
        b5 = discharge a3 . b4 : m :: Nat -> m :: C
        a6 = ug m . b5 : forall m. m :: Nat -> m :: C
        b7 = discharge a2 . a6 : (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
-       b8 = discharge a1 . b7 : z::C -> (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
-       b9 = ug C . b8 : forall C. z::C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
+       b8 = discharge a1 . b7 : z :: C -> (forall y. y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
+       b9 = ug C . b8 : forall C. z :: C -> (forall y.  y :: C -> s y :: C) -> forall m . m :: Nat -> m :: C
 qed
 
 tactic useSym a b p = mp (inst inst sym by a by b) by p
