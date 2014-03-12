@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Language.PrettyPrint where
 import Language.Syntax
-import Language.TypeInference
+--import Language.TypeInference
 import Text.PrettyPrint
 import Text.Parsec.Pos
 import Data.Char
@@ -82,6 +82,13 @@ instance Disp Prog where
             fsep [disp c <+> hsep (map disp args) <+> text "->", nest 2 $ disp p]
   disp (Let ls p) = text "let" $$ nest 2 (vcat ( map dDefs ls)) <+> text "in" $$  disp p
     where dDefs (v, t) = fsep [text v <+> text "=", nest 2 $ disp t]
+  disp (TForall x p) = text "forall" <+> text x <+> text "." <+> disp p
+  disp (a@(TImply p1 p2)) = dParen (precedence a) p1 <+> text "->"
+                           <+> dParen (precedence a -1) p2
+  disp (TIota x p) = text "iota" <+> text x <+> text "." <+> disp p
+  disp (a@(TIn t s)) = disp t <+> text "::" <+> dParen (precedence a - 1) s
+  disp (s@(TSApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
+  disp (s@(TSTApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (ProgPos p pr) = disp pr
   disp (a@(TMP p1 p2)) = text "mp" <+> dParen (precedence a) p1 <+> text "by" <+> dParen (precedence a) p2
   disp (a@(TInst p1 t)) = text "inst" <+> dParen (precedence a) p1 <+> text "by" <+> disp t
@@ -165,11 +172,11 @@ instance Disp Decl where
   disp (PatternDecl x pats prog) = disp x <+> hsep (map (parens.disp) pats) <+> text "=" <+> disp prog
   -- disp (SpecialOperatorDecl s1 i s2) = text "special" <+> text s1 <+>
   --                                   disp i <+> disp s2
-
+{-
 instance Disp Constraints where
   disp l = vcat $ map dispPair l
     where dispPair (t1,t2) = disp t1 <+> text "=" <+> disp t2
-
+-}
 instance Disp SourcePos where
   disp sp =  text (sourceName sp) <> colon <> int (sourceLine sp)
              <> colon <> int (sourceColumn sp) <> colon

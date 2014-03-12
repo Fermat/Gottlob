@@ -39,7 +39,7 @@ tactic smartInst p s A = invcmp (cmp inst p by s) from A
 tactic id F =  discharge a : F . a     
 tactic byEval t1 t2 =   
    [c] : t1 :: Q
-   c1 = invbeta beta c : (t2::Q)
+   c1 = invbeta beta c : (t2 :: Q)
    c3 = ug Q . discharge c . c1
    c5 = invcmp c3 : Eq t1 t2
 

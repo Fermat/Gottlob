@@ -54,6 +54,7 @@ data PreTerm = PVar VName
           | Beta PreTerm            -- beta p
           | InvBeta PreTerm PreTerm  -- invbeta p from F
           | Discharge VName (Maybe PreTerm) PreTerm -- discharge a : F . p
+
           | Pos SourcePos PreTerm
           deriving (Show)
 
@@ -110,9 +111,8 @@ naiveSub p (PVar x) (Pos a p1) =
   Pos a (naiveSub p (PVar x) p1)
 
 data Assumption = Assume VName deriving Show
-
-type ProofScripts = [(VName, Either Assumption PreTerm, Maybe PreTerm)]
-
+--                      a = p1 : F or [a] : F
+type ProofScripts = [(VName, Either Assumption Prog, Maybe Prog)]
 
 data Prog = Name VName
           | Applica Prog Prog
@@ -120,22 +120,26 @@ data Prog = Name VName
           | Match Prog [(VName, [Prog], Prog)]
           | Let [(VName, Prog)] Prog
           | If Prog Prog Prog
-            -- tactic is meta program is not subjected for local reasoning
+            -- Formula at Surface
+          | TForall VName Prog
+          | TImply Prog Prog
+          | TIota VName Prog
+          | TIn Prog Prog
+          | TSApp Prog Prog
+          | TSTApp Prog Prog
+            -- tactic at Surface
           | TMP Prog Prog -- mp p1 by p2
-          | TInst Prog PreTerm -- inst p1 by p2
+          | TInst Prog Prog -- inst p1 by p2
           | TUG VName Prog     -- ug x . p
           | TCmp Prog          -- cmp p
-          | TInvCmp Prog PreTerm  -- invcmp p from F
+          | TInvCmp Prog Prog  -- invcmp p from F
           | TSimpCmp Prog          -- cmp p
-          | TInvSimp Prog PreTerm  -- invcmp p from F
+          | TInvSimp Prog Prog  -- invcmp p from F
           | TBeta Prog            -- beta p
-          | TInvBeta Prog PreTerm  -- invbeta p from F
-          | TDischarge VName (Maybe PreTerm) Prog -- discharge a : F . p
-          | AppPre Prog PreTerm -- p F
-          -- | AppProof Prog Prog -- t p
-          -- | TPFApp Prog PreTerm -- p F
-          -- | TPApp Prog Prog -- p p
-          -- | TPLam VName Prog -- \ x. p
+          | TInvBeta Prog Prog  -- invbeta p from F
+          | TDischarge VName (Maybe Prog) Prog -- discharge a : F . p
+          | AppPre Prog Prog -- p F
+            
           | ProgPos SourcePos Prog
             
           deriving (Show, Eq)
@@ -158,6 +162,7 @@ farity (FCons _ _) = 0
 farity (Arrow f1 f2) = 1 + farity f2
 farity (Pi x f1 f2) = 1 + farity f2
 farity (FTPos pos f) = farity f
+
 data Datatype =
   Data VName [VName] [(VName,FType)]    
   deriving (Show)
@@ -168,10 +173,10 @@ data Module = Module VName [Decl] deriving (Show)
 
 data Decl = ProgDecl VName Prog
           | PatternDecl VName [Prog] Prog
-          | ProofDecl VName (Maybe VName) ProofScripts PreTerm
+          | ProofDecl VName (Maybe VName) ProofScripts Prog
           | DataDecl SourcePos Datatype Bool
             -- no forall n :: Nat . P (F n), where F is a "function" take in n return a formula
-          | SetDecl VName PreTerm    
+          | SetDecl VName Prog
           | TacDecl VName [VName] (Either Prog ProofScripts)
           | FormOperatorDecl String Int String
           | ProgOperatorDecl String Int String
@@ -192,10 +197,8 @@ fv (TApp f1 f2) = fv f1 `S.union` fv f2
 fv (MP p1 p2) = fv p1 `S.union` fv p2
 fv (Inst p1 t) = fv p1 `S.union` fv t
 fv (UG a p) = S.delete a (fv p)
-fv (Discharge a t p) =
-  case t of
-    Nothing -> S.delete a (fv p)
-    Just b -> S.delete a (fv p) `S.union` fv b
+fv (Discharge a Nothing p) = S.delete a (fv p)
+fv (Discharge a (Just b) p) = S.delete a (fv p) `S.union` fv b
 fv (Cmp p) = fv p
 fv (Beta p) = fv p
 fv (InvCmp p1 t) = fv p1 `S.union` fv t
@@ -265,7 +268,7 @@ debruijn (Lambda x f) = do
 
 debruijn (Pos _ f) = debruijn f
 
-plus1 = Data.List.map (\x ->(fst x,snd x + 1))
+plus1 = map $ \(x, y) ->(x, y + 1)
 
 -- debruijn only deals with closed preterm. To
 -- compare open preterms, we simply closed these

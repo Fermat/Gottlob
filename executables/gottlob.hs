@@ -3,9 +3,9 @@
 module Main where
 import Language.Parser
 import Language.Syntax
-import Language.ProofChecking
+--import Language.ProofChecking
 import Language.Monad
-import Language.Preprocess
+-- import Language.Preprocess
 import Language.PrettyPrint
 import Control.Monad.Error hiding (join)
 import Text.PrettyPrint(render)
@@ -29,13 +29,13 @@ main = flip catches handlers $ do
              Left e -> throw e
              Right a -> do putStrLn $ "Parsing success! \n"
                            print $ disp a
-                           putStrLn $ "Preprocessing.. \n"
-                           b <- checkDefs a
-                           case b of
-                             Left e1 -> throw e1
-                             Right (env, e) ->  do
-                               putStrLn "ProofChecking success!"
-                               print $ disp env
+                           -- putStrLn $ "Preprocessing.. \n"
+                           -- b <- checkDefs a
+                           -- case b of
+                           --   Left e1 -> throw e1
+                           --   Right (env, e) ->  do
+                           --     putStrLn "ProofChecking success!"
+                           --     print $ disp env
 -- look at local variable                              print $ disp e
 
 

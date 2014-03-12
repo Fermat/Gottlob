@@ -2,12 +2,10 @@
 module Language.Parser
        (parseModule) where
 import Language.Syntax
-import Language.Program (progTerm)
 
 import Text.Parsec hiding (ParseError,Empty, State)
 import qualified Text.Parsec as P
 import Text.Parsec.Language
---import Text.PrettyPrint(text)
 import Text.Parsec.Expr(Operator(..),Assoc(..),buildExpressionParser)
 import qualified Text.Parsec.Token as Token
 import Text.Parsec.Indent
@@ -34,10 +32,10 @@ data ParserState =
   ParserState {
     progParser :: IndentParser String ParserState Prog,
     proofParser :: IndentParser String ParserState Prog,
-    formulaParser :: IndentParser String ParserState PreTerm,
+    formulaParser :: IndentParser String ParserState Prog,
     progOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) Prog],
     proofOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) Prog],
-    formulaOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) PreTerm]}
+    formulaOpTable :: IM.IntMap [Operator String ParserState (State SourcePos) Prog]}
 
 initialParserState :: ParserState
 initialParserState = ParserState {
@@ -48,8 +46,8 @@ initialParserState = ParserState {
   proofOpTable =  IM.fromAscList (zip [0 ..] [[]]),
   formulaOpTable =  IM.fromAscList (zip [0 ..] initialFormulaOpTable)}
 
-initialFormulaOpTable :: [[Operator String u (State SourcePos) PreTerm]]
-initialFormulaOpTable = [[], [], [], [], [], [binOp AssocRight "->" Imply]]
+initialFormulaOpTable :: [[Operator String u (State SourcePos) Prog]]
+initialFormulaOpTable = [[], [], [], [], [], [binOp AssocRight "->" TImply]]
 
 ftypeOpTable :: [[Operator String u (State SourcePos) FType]]
 ftypeOpTable = [[binOp AssocRight "->" Arrow]]
@@ -86,7 +84,7 @@ gModule = do
   reserved "module"
   modName <- identifier
   reserved "where"
-  bs <- many1 gDecl
+  bs <- many gDecl
   eof
   return $ Module modName bs
 
@@ -102,7 +100,7 @@ formOperatorDecl = do
   level <- fromInteger <$> integer
   op <- operator
   st <- getState
-  let table' = IM.insertWith (++) level [toOp op r SApp PVar] $ formulaOpTable st
+  let table' = IM.insertWith (++) level [toOp op r TSApp Name] $ formulaOpTable st
       form' = buildExpressionParser (map snd (IM.toAscList table')) atom
   putState $ ParserState
     (progParser st) (proofParser st) form' (progOpTable st) (proofOpTable st) table'
@@ -217,13 +215,16 @@ progDecl = do
     else return $ ProgDecl n (Abs as p)
 
 progA :: Parser Prog  
-progA = wrapProgPos $ absProg <|> ifprog <|> caseTerm <|> appProg <|> letbind <|> parens prog
+progA = wrapPos $ absProg <|> ifprog <|> caseTerm <|> appProg <|> letbind <|> parens prog
 
 prog :: Parser Prog
 prog = getState >>= \ st -> progParser st
 
 termVarProg :: Parser Prog
 termVarProg = termVar >>= \n-> return $ Name n
+
+setVarProg :: Parser Prog
+setVarProg = setVar >>= \n-> return $ Name n
 
 opToProg :: Parser Prog
 opToProg = operator >>= \n-> return $ Name n
@@ -264,7 +265,7 @@ caseTerm = do
   where
     branch = do
       v <- try termVar <|> parens operator
-      l <- many termVar
+      l <- many $ try termVarProg <|> parens appProg
       reservedOp "->"
       pr <- prog
       return $ (v, l, pr)
@@ -285,46 +286,36 @@ setDecl = do
   reservedOp "="
   s <- try formula <|> set
   if (null as) then return $ SetDecl n s
-    else return $ SetDecl n (foldr (\ x z -> Iota x z) s as)
+    else return $ SetDecl n (foldr (\ x z -> TIota x z) s as)
 
-progPre :: Parser PreTerm
-progPre = wrapProgPos prog >>= \ p -> return $ progTerm p
-
-termVarPre :: Parser PreTerm
-termVarPre = termVar >>= \ n -> return $ PVar n 
-
-setVarPre :: Parser PreTerm
-setVarPre = setVar >>= \ n -> return $ PVar n 
-  
-set :: Parser PreTerm
-set = wrapFPos $ iotaClause <|> try appClause <|> parens set
+set :: Parser Prog
+set = wrapPos $ iotaClause <|> try appClause <|> parens set
 
 iotaClause = do
   reserved "iota"
   xs <- many1 $ try termVar <|> setVar
   reservedOp "."
   f <- formula
-  return $ (foldr (\ x z -> Iota x z) f xs)
+  return $ (foldr (\ x z -> TIota x z) f xs)
 
 appClause = do
-  n <- setVarPre <|> parens set
+  n <- setVarProg <|> parens set
   as <- many $ indented >>
-         (try setVarPre  <|> try termVarPre <|>
-          try (parens progPre) <|> parens set)
-  if null as then return n
-    else return $ foldl' (\ z x -> helper z x) n as
-  where helper z (x@(App _ _)) = TApp z x
-        helper z (x@(Lambda _ _)) = TApp z x
-        helper z (x@(PVar a)) = if isLower $ head a then TApp z x
-                            else SApp z x
-        helper z (Pos _ t) = helper z t
-        helper z x = SApp z x
+         (try setVarProg  <|> try termVarProg <|>
+          try (parens prog) <|> parens set)
+  return $ foldl' (\ z x -> helper z x) n as
+  where helper z (x@(Applica _ _)) = TSTApp z x
+        helper z (x@(Abs _ _)) = TSTApp z x
+        helper z (x@(Name a)) = if isLower $ head a then TSTApp z x
+                            else TSApp z x
+        helper z (ProgPos _ t) = helper z t
+        helper z x = TSApp z x
         
-formula :: Parser PreTerm
-formula = getState >>= \st -> wrapFPos $ formulaParser st
+formula :: Parser Prog
+formula = getState >>= \st -> wrapPos $ formulaParser st
 
-atom :: Parser PreTerm
-atom = wrapFPos $ try forallClause <|> try inClause <|>
+atom :: Parser Prog
+atom = wrapPos $ try forallClause <|> try inClause <|>
        try appClause <|> parens formula 
 
 forallClause = do
@@ -332,13 +323,13 @@ forallClause = do
   xs <- many1 $ try termVar <|> setVar
   reservedOp "."
   f <- formula
-  return $ (foldr (\ x z -> Forall x z) f xs)
+  return $ (foldr (\ x z -> TForall x z) f xs)
 
 inClause = do
-  p <- progPre
+  p <- prog
   reservedOp "::"
   s <- set
-  return $ In p s
+  return $ TIn p s
 
 -- tactic decl ---
 
@@ -373,14 +364,14 @@ proofDecl = do
   reserved "qed"
   return $ ProofDecl n m ps f
 
-assumption :: Parser (VName, Either Assumption PreTerm, Maybe PreTerm)
+assumption :: Parser (VName, Either Assumption Prog, Maybe Prog)
 assumption = do
  a <- brackets termVar
  reservedOp ":"
  f <- formula
  return (a, Left $ Assume a, Just f)
 
-proofDef :: Parser (VName, Either Assumption PreTerm, Maybe PreTerm)
+proofDef :: Parser (VName, Either Assumption Prog, Maybe Prog)
 proofDef = do
   b <- termVar
   reservedOp "="
@@ -389,7 +380,7 @@ proofDef = do
        (do{reservedOp ":";
            g <- formula;
            return $ Just g})
-  return (b, Right $ progTerm p, f)
+  return (b, Right p, f)
 
 
 proof :: Parser Prog
@@ -401,14 +392,14 @@ proofA =  cmp <|> mp <|> inst <|>
          <|>invcmp <|> invsimp <|> simp <|> invbeta <|> match <|> pletbind
          <|> absProof <|> appProof <|> (parens proof)
 -- invcmp and invbeta are abrieviation
-appPreTerm :: Parser (Either PreTerm Prog)
+appPreTerm :: Parser (Either Prog Prog)
 appPreTerm = do
-  t <-  try setVarPre <|> try (parens formula) <|> parens set -- <|> parens set
+  t <-  try setVarProg <|> try (parens formula) <|> parens set 
 --  unexpected "hei"
        -- <|> try (reservedOp "$" >> progPre)
   return $ Left t
 
-appPr :: Parser (Either PreTerm Prog)
+appPr :: Parser (Either Prog Prog)
 appPr = do
   p <- try (parens proof) <|> try termVarProg <|> parens prog
 --  unexpected "well"
@@ -422,21 +413,12 @@ appProof = do
     where helper z (Left a) = AppPre z a
           helper z (Right a) = Applica z a
 
--- progAppProof = do
---   sp <- try (reservedOp "$" >> termVarProg) <|> parens proof
---         --(sepBy1 (progreservedOp "$") prog ) <|> (reservedOp "$" >> prog)
---   as <- many $ indented >> (try appPreTerm <|> try appPr)
---   return $ foldl' (\ z x -> helper z x) sp as
---     where helper z (Left a) = AppPre z a
---           helper z (Right a) = AppProof z a
-
 absProof = do
   reserved "\\"
   xs <- many1 $ try termVar <|> setVar
   reservedOp "."
   f <- proof
   return $ Abs xs f
-    -- (foldr (\ x z -> TPLam x z) f xs)
 
 ifproof = do
   reserved "if"
@@ -468,7 +450,7 @@ match = do
   where
     branch = do
       v <- try termVar <|> parens operator
-      l <- many termVar
+      l <- many $ try termVarProg <|> parens prog
       reservedOp "->"
       pr <- proof
       return $ (v, l, pr)
@@ -523,7 +505,7 @@ inst = do
   reserved "inst"
   p <- proof
   reserved "by"
-  t <- try progPre <|> try set <|> formula
+  t <- try prog <|> try set <|> formula
   return $ TInst p t
 
 ug = do
@@ -540,18 +522,8 @@ beta = do
   
 -----------------------Positions -------
   
-wrapFPos :: Parser PreTerm -> Parser PreTerm
-wrapFPos p = pos <$> getPosition <*> p
-  where pos x (Pos y e) | x==y = (Pos y e)
-        pos x y = Pos x y
-
--- wrapPPos :: Parser Proof -> Parser Proof
--- wrapPPos p = pos <$> getPosition <*> p
---   where pos x (PPos y e) | x==y = (PPos y e)
---         pos x y = PPos x y
-
-wrapProgPos :: Parser Prog -> Parser Prog
-wrapProgPos p = pos <$> getPosition <*> p
+wrapPos :: Parser Prog -> Parser Prog
+wrapPos p = pos <$> getPosition <*> p
   where pos x (ProgPos y e) | x==y = (ProgPos y e)
         pos x y = ProgPos x y
 
