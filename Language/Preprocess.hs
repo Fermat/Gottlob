@@ -228,32 +228,12 @@ getProgPos (_) = error "Fail to get First Position"
 
 toEquation :: [Decl] -> Decl -> Global Equation
 toEquation state (PatternDecl y pats p) = do
-  patterns <- mapM (\x -> toPat x state) pats
+  patterns <- mapM (\x -> helper x state) pats
   return $ (patterns, p)
-    where toPat (Name c) state = 
-            if isConstr c state then
-              return $ (Cons c [])
-            else return $ (Var c)
-          toPat (Applica (Name c) b) state =
-            if isConstr c state then
-              return $ Cons c (toVar b)
-            else die $ "non constructor: " <++> disp c
-          toPat (Applica a b) state = do
-            (Cons v ls) <- toPat a state
-            return $ Cons v (ls ++ (toVar b))
-          toPat (ProgPos pos p) state = toPat p state
-          toVar (Name a) = [Var a]
-          toVar (Applica a b) = (toVar a) ++ (toVar b)
-
-isConstr v ((DataDecl pos (Data name params cons) b):l) =
-  case lookup v cons of
-    Just _ -> True
-    Nothing -> isConstr v l
-
-isConstr v (x:l) = isConstr v l
-isConstr v [] = False
-
-  
+  where helper a st = case toPat a st of
+                        Left c -> die $ "Not a constructor " <++> disp c
+                        Right p -> return p
+                        
 -- getProofPos :: Pre -> SourcePos
 -- getProofPos (PPos pos p) =  pos
 -- getProofPos (_) = error "Fail to get First Position"

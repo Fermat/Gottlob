@@ -48,6 +48,8 @@
 
 10. Incorparate/Handling Typing. No dependent typing, only HM-polymorphic type inference.
 
+11. a nice REPL
+
 -- Done. 11. Automatic deriving induction principle for data type.
 
 ----------

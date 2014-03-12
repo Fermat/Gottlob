@@ -75,7 +75,7 @@ matchCon env k (u:us) qs def =
         
 matchClause env c k (u:us) qs def =
   let k' = arity c env in
-  (c, (us' k'), match env (k'+ k) ((us' k') ++ us) [(ps' ++ ps, e) | (Cons c ps' : ps, e) <- qs] def )
+  (c, map (\x -> Name x) (us' k'), match env (k'+ k) ((us' k') ++ us) [(ps' ++ ps, e) | (Cons c ps' : ps, e) <- qs] def )
   where
     us' q = [makeVar (i + k) | i <- [1..q]]
     makeVar l = "_u"++ show l

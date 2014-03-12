@@ -92,7 +92,7 @@ gModule = do
 
 gDecl :: Parser Decl
 gDecl = gDataDecl <|> try proofDecl -- <|> try progDecl
-        <|> setDecl <|> formOperatorDecl <|> try patternDecl <|>
+        <|> try setDecl <|> try formOperatorDecl <|> try patternDecl <|>
         progOperatorDecl <|> try tacticDecl <|> proofOperatorDecl
   
 formOperatorDecl :: Parser Decl
@@ -229,7 +229,7 @@ opToProg :: Parser Prog
 opToProg = operator >>= \n-> return $ Name n
 
 appProg = do
-  sp <- termVarProg <|> try (parens prog) <|> parens opToProg
+  sp <- try termVarProg <|> try (parens prog) <|> parens opToProg
   as <- many $ indented >> (try (parens prog) <|> try termVarProg)
   if null as then return sp
     else return $ foldl' (\ z x -> Applica z x) sp as

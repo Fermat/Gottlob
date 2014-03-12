@@ -67,14 +67,6 @@ data PNameless = PV Int
              | TAP PNameless PNameless
              | AP PNameless PNameless
              | LM PNameless
-             -- | MODP PNameless PNameless -- mp p1 by p2
-             -- | INST PNameless PNameless -- inst p1 by p2
-             -- | UNGN PNameless     -- ug x . p
-             -- | CMP PNameless          -- cmp p
-             -- | INVCMP PNameless PNameless  -- invcmp p from F
-             -- | BETA PNameless            -- beta p
-             -- | INVB PNameless PNameless  -- invbeta p from F
-             -- | DIS (Maybe PNameless) PNameless -- discharge a : F . p
              deriving (Show, Eq)
 
 -- naive sub for proof 
@@ -121,10 +113,11 @@ data Assumption = Assume VName deriving Show
 
 type ProofScripts = [(VName, Either Assumption PreTerm, Maybe PreTerm)]
 
+
 data Prog = Name VName
           | Applica Prog Prog
           | Abs [VName] Prog
-          | Match Prog [(VName, [VName], Prog)]
+          | Match Prog [(VName, [Prog], Prog)]
           | Let [(VName, Prog)] Prog
           | If Prog Prog Prog
             -- tactic is meta program is not subjected for local reasoning
