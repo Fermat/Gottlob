@@ -1,9 +1,12 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Language.Program
        (progTerm, toSet, toScott) where
 import Language.Syntax
 import Language.Pattern
+import Language.PrettyPrint
 import Text.PrettyPrint
 import Control.Monad.Reader
+import Control.Monad.Error
 import Data.List
 import Data.Char
 
@@ -96,46 +99,122 @@ progTerm (If c p1 p2) =
       a1 = progTerm p1
       a2 = progTerm p2
   in App (App (App iff c1) a1 ) a2
-{-
-  progTerm (Name n) = PVar n
-progTerm (Applica p1 p2) = do
-  a1 <- progTerm p1
-  a2 <- progTerm p2
-  return $ App a1 a2
 
-progTerm (Abs l p) = progTerm p >>= \ a -> return $ constrAbs l a 
-progTerm (Match v l) = progTerm v >>= \ a -> appBranch l a
-progTerm (ProgPos pos p) = progTerm p >>= \ a -> return $ Pos pos a
+data PatError a = ConstrError a
+                | OtherError Doc
+               deriving (Show)
 
--- progTerm (Let l p) = do
---   a <- progTerm p
---   return $ substList (helper l) a
---   where helper l = map (\ (x, t) -> (PVar x, progTerm t)) l
---         substList [] t = t
---         substList ((x, t1):xs) t = substList xs (runSubst t1 x t)
-        
-progTerm (TMP p1 p2) = do
-  a1 <- progTerm p1
-  a2 <- progTerm p2
-  return $ MP a1 a2
+instance Disp a => Error (PatError a) where
+  strMsg x = OtherError $ text x
+  noMsg = strMsg "<unknown>"
+
+dePattern :: Prog -> ReaderT [Decl] (Either (PatError Prog)) Prog
+dePattern (Name n) = return $ Name n
+dePattern (Applica p1 p2) = do
+  a1 <- dePattern p1
+  a2 <- dePattern p2
+  return $ Applica a1 a2
+
+dePattern (Abs l p) = do
+  a <- dePattern p
+  return $ Abs l a
+
+dePattern (ProgPos pos p) = do
+  a <- dePattern p
+  return $ ProgPos pos a
+
+dePattern (Match v l) = do
+  a <- dePattern v
+  ps <- mapM helper l
+  eqs <- mapM helper2 ps
+  env <- ask
+  let r = match env 1 ["_v"] eqs (Name "Error")
+  return $ Applica r a
+  where helper (x, xs, p) = do
+          p' <- dePattern p
+          return ((Name x):xs, p')
+        helper2 (ps, p) = do
+          pats <- mapM toPat ps
+          return (pats, p)
+
+dePattern (Let l p) = do
+  a <- dePattern p
+  l1 <- mapM helper l
+  return $ Let l1 a
+    where helper (x , t) = do
+            t' <- dePattern t
+            return (x, t')
+            
+dePattern (TMP p1 p2) = do
+  a1 <- dePattern p1
+  a2 <- dePattern p2
+  return $ TMP a1 a2
   
-progTerm (TInst p1 p2) = progTerm p1 >>= \a -> return $ Inst a p2
-progTerm (TUG x p2) = progTerm p2 >>= \ a -> return $ UG x a
-progTerm (TCmp p1) = progTerm p1 >>= \ a -> return $ Cmp a
-progTerm (TBeta p1) = progTerm p1 >>= \ a -> return $ Beta a
-progTerm (TInvCmp p1 p2) = progTerm p1 >>= \a -> return $ InvCmp a p2
-progTerm (TInvBeta p1 p2) = progTerm p1 >>= \ a -> return $ InvBeta a p2
-progTerm (TDischarge x p1 p2) = progTerm p2 >>= \a -> return $ Discharge x p1 a
--- progTerm (TPLam x p2) = Lambda x (progTerm p2)
--- progTerm (TPApp p1 p2) = App (progTerm p1) (progTerm p2)
--- progTerm (TPFApp p1 p2) = App (progTerm p1) p2
-progTerm (AppPre p1 p2) = progTerm p1 >>= \ a -> return $ App a p2
+dePattern (TInst p1 p2) = do
+  a <- dePattern p1
+  return $ TInst a p2
+  
+dePattern (TUG x p2) = do
+  a <- dePattern p2
+  return $ TUG x a
 
-progTerm (If c p1 p2) = do
-  c1 <- progTerm c
-  a1 <- progTerm p1
-  a2 <- progTerm p2
-  return $ App (App (App iff c1) a1 ) a2 -}
+dePattern (TCmp p1) = do
+  a <- dePattern p1
+  return $ TCmp a
+
+dePattern (TBeta p1) = do
+  a <- dePattern p1
+  return $ TBeta a
+
+dePattern (TInvCmp p1 p2) = do
+  a <- dePattern p1
+  return $ TInvCmp a p2
+
+dePattern (TInvBeta p1 p2) = do
+  a <- dePattern p1
+  return $ TInvBeta a p2
+  
+dePattern (TDischarge x p1 p2) = do
+  a <- dePattern p2
+  return $ TDischarge x p1 a
+  
+dePattern (AppPre p1 p2) = do
+  a <- dePattern p1
+  return $ AppPre a p2
+
+dePattern (If c p1 p2) = do
+  c1 <- dePattern c
+  a1 <- dePattern p1
+  a2 <- dePattern p2
+  return $ If c1 a1 a2
+dePattern (TForall x p) = do
+  c1 <- dePattern p
+  return $ TForall x c1
+dePattern (TImply f1 f2) = do
+  c1 <- dePattern f1
+  c2 <- dePattern f2
+  return $ TImply c1 c2
+
+dePattern (TIota x p) = do
+  c1 <- dePattern p
+  return $ TIota x c1
+
+dePattern (TIn f1 f2) = do
+  c1 <- dePattern f1
+  c2 <- dePattern f2
+  return $ TIn c1 c2
+
+dePattern (TSApp f1 f2) = do
+  c1 <- dePattern f1
+  c2 <- dePattern f2
+  return $ TSApp c1 c2
+
+dePattern (TSTApp f1 f2) = do
+  c1 <- dePattern f1
+  c2 <- dePattern f2
+  return $ TSTApp c1 c2
+
+
 -- it is a little ad hoc
 iff = Lambda "a" (Lambda "then" (Lambda "else"
                                  (App (App (PVar "a") (PVar "then")) (PVar "else"))))
@@ -152,22 +231,8 @@ appBranch l m =
       let l1 = map (\ (Name x) -> x) l
           a = progTerm p in
       constrAbs l1 a 
-{-
-patProg :: Prog -> ReaderT [Decl] (Either VName) Prog
-patProg (Name n) = return $ Name n
-patProg (Applica p1 p2) = do
-  return $ Applica p1 p2
 
-patProg (Abs l p) = do
-  p1 <- patProg p
-  return $ Abs l p1
-
-patProg (ProgPos pos p) = patProg p >>= \ a -> return $ ProgPos pos a  
-
-patProg (Match v l) = patProg v >>= \ a -> appBranch l a
-
-
-toPat :: Prog -> ReaderT [Decl] (Either VName) Pattern 
+toPat :: Prog -> ReaderT [Decl] (Either (PatError Prog)) Pattern 
 toPat (Name c) = do
   state <- ask
   if isConstr c state then return $ (Cons c [])
@@ -176,12 +241,13 @@ toPat (Applica (Name c) b) = do
   state <- ask
   if isConstr c state then
     return $ Cons c (toVar b)
-  else fail c
+  else throwError $ ConstrError (Name c)
 toPat (Applica a b) = do
   (Cons v ls) <- toPat a
   return $ Cons v (ls ++ (toVar b))
-
 toPat (ProgPos pos p) = toPat p
+
+toPat p = throwError $ ConstrError p
 
 toVar (Name a) = [Var a]
 toVar (Applica a b) = (toVar a) ++ (toVar b)
@@ -193,7 +259,7 @@ isConstr v ((DataDecl pos (Data name params cons) b):l) =
 
 isConstr v (x:l) = isConstr v l
 isConstr v [] = False
--}
+
 -- Translating Formal-Type to Set
 interp :: FType -> PreTerm
 interp (FVar x) = PVar x
