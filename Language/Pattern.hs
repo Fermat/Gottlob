@@ -114,10 +114,10 @@ decl = Data "Nat" [] [("z",FVar "Nat"),("s",Arrow (FVar "Nat") (FVar "Nat"))]
 eqs = [([(Cons "s" [(Var "n'")]),Var "m"],
                                           ((Applica (Name "s") ((Applica (Applica (Name "add") (Name "n'")) (Name "m")))))), ([Cons "z" [],Var "m"], (Name "m"))]
 
-eqs1 = [([Var "s",Var "m"],
+eqs1 = [([Var "n",Cons "s"[Var "m"]],
         ((Applica (Name "s") ((Applica (Applica (Name "add") (Name "n'")) (Name "m"))))))]
 
 
-test112 = show $ match "_v" [DataDecl (newPos "ha" 1 1) decl True] 2 ["_u1", "_u2"] eqs (Name "Error")
+test112 = show $ match "_u" [DataDecl (newPos "ha" 1 1) decl True] 2 ["_u1", "_u2"] eqs (Name "Error")
 
-test13 = disp $ match "_v" [DataDecl (newPos "ha" 1 1) decl True] 2 ["_u1", "_u2"] eqs1 (Name "Error")
+test13 = disp $ match "_u" [DataDecl (newPos "ha" 1 1) decl True] 2 ["_u1", "_u2"] eqs1 (Name "Error")
