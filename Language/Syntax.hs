@@ -71,44 +71,53 @@ data PNameless = PV Int
              deriving (Show, Eq)
 
 -- naive sub for proof 
-naiveSub :: PreTerm -> PreTerm -> PreTerm -> PreTerm
-naiveSub p (PVar x) (PVar y) =
-  if x == y then p else PVar y
+naiveSub :: Prog -> Prog -> Prog -> Prog
+naiveSub p (Name x) (Name y) =
+  if x == y then p else Name y
                                
-naiveSub p (PVar x) (MP p1 p2) = 
-  let a1 = naiveSub p (PVar x) p1
-      a2 = naiveSub p (PVar x) p2 in
-  MP a1 a2
+naiveSub p (Name x) (TMP p1 p2) = 
+  let a1 = naiveSub p (Name x) p1
+      a2 = naiveSub p (Name x) p2 in
+  TMP a1 a2
   
-naiveSub p (PVar x) (Inst p1 t) =
-  let a = naiveSub p (PVar x) p1 in
-  Inst a t
+naiveSub p (Name x) (TInst p1 t) =
+  let a = naiveSub p (Name x) p1 in
+  TInst a t
   
-naiveSub p (PVar x) (UG y p1) = UG y (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (TUG y p1) = TUG y (naiveSub p (Name x) p1)
                                      
-naiveSub p (PVar x) (Cmp p1) = Cmp (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (TCmp p1) = TCmp (naiveSub p (Name x) p1)
                                      
-naiveSub p (PVar x) (InvCmp p1 t) =
-  InvCmp (naiveSub p (PVar x) p1) t
+naiveSub p (Name x) (TInvCmp p1 t) =
+  TInvCmp (naiveSub p (Name x) p1) t
 
-naiveSub p (PVar x) (Beta p1) =
-  Beta (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (TSimpCmp p1) = TSimpCmp (naiveSub p (Name x) p1)
+                                     
+naiveSub p (Name x) (TInvSimp p1 t) =
+  TInvSimp (naiveSub p (Name x) p1) t
+
+naiveSub p (Name x) (TBeta p1) =
+  TBeta (naiveSub p (Name x) p1)
                                     
-naiveSub p (PVar x) (InvBeta p1 t) =
-  InvBeta ( naiveSub p (PVar x) p1) t
+naiveSub p (Name x) (TInvBeta p1 t) =
+  TInvBeta ( naiveSub p (Name x) p1) t
 
-naiveSub p (PVar x) (Discharge y t p1) = Discharge y t (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (TDischarge y t p1) = TDischarge y t (naiveSub p (Name x) p1)
   
-naiveSub p (PVar x) (Lambda y p1) =  Lambda y (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (Abs y p1) =  Abs y (naiveSub p (Name x) p1)
   
-naiveSub p (PVar x) (App p1 p2) = 
-  let a1 = naiveSub p (PVar x) p1
-      a2 = naiveSub p (PVar x) p2 in
-  App a1 a2
-  
-  
-naiveSub p (PVar x) (Pos a p1) =
-  Pos a (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (AppPre p1 p2) = 
+  let a1 = naiveSub p (Name x) p1
+      a2 = naiveSub p (Name x) p2 in
+  AppPre a1 a2
+
+naiveSub p (Name x) (Applica p1 p2) = 
+  let a1 = naiveSub p (Name x) p1
+      a2 = naiveSub p (Name x) p2 in
+  Applica a1 a2
+
+naiveSub p (Name x) (ProgPos a p1) =
+  ProgPos a (naiveSub p (Name x) p1)
 
 data Assumption = Assume VName deriving Show
 --                      a = p1 : F or [a] : F

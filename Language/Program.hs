@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Language.Program
-       (progTerm, toSet, toScott) where
+       (progTerm, toSet, toScott, dePattern, PatError(..), runToProof, toPat) where
 import Language.Syntax
 import Language.Pattern
 import Language.PrettyPrint
@@ -128,7 +128,7 @@ dePattern (Match v l) = do
   ps <- mapM helper l
   eqs <- mapM helper2 ps
   env <- ask
-  let r = match env 1 ["_v"] eqs (Name "Error")
+  let r = match "_v" env 1 ["_v1"] eqs (Name "Error")
   return $ Applica r a
   where helper (x, xs, p) = do
           p' <- dePattern p
@@ -235,13 +235,15 @@ appBranch l m =
 toPat :: Prog -> ReaderT [Decl] (Either (PatError Prog)) Pattern 
 toPat (Name c) = do
   state <- ask
-  if isConstr c state then return $ (Cons c [])
-  else return $ (Var c)
+  if isConstr c state
+    then return $ (Cons c [])
+    else return $ (Var c)
 toPat (Applica (Name c) b) = do
   state <- ask
-  if isConstr c state then
+  if isConstr c state
+    then
     return $ Cons c (toVar b)
-  else throwError $ ConstrError (Name c)
+    else throwError $ ConstrError (Name c)
 toPat (Applica a b) = do
   (Cons v ls) <- toPat a
   return $ Cons v (ls ++ (toVar b))
@@ -327,73 +329,86 @@ toScott (Data d l cons) =
 -- nat = Data "Nat" [] [("z", FVar "Nat"), ("s", Arrow (FVar "Nat") (FVar "Nat"))]      
 
 -- translating proof scripts to proof.
-{-
-runToProof ::ProofScripts -> PreTerm
+
+runToProof ::ProofScripts -> Prog
 runToProof ps = runReader (toProof ps) []
 
-toProof :: ProofScripts -> Reader [(VName, PreTerm)] PreTerm
+toProof :: ProofScripts -> Reader [(VName, Prog)] Prog
 toProof ((n,Right p,f):[]) = annotate p
 toProof ((n,Left (Assume x), Just f):xs) = local (\ y -> (x, f):y) (toProof xs)
 toProof ((n,Right p, f):xs) = toProof $ substPL p n xs
   where substPL p n xs = map helper xs
-        helper (n1, Right p1, f1) = (n1 , Right $ naiveSub p (PVar n) p1 , f1)
+        helper (n1, Right p1, f1) = (n1 , Right $ naiveSub p (Name n) p1 , f1)
         helper (n1, Left a, f1) = (n1 , Left a , f1)
 
-annotate :: PreTerm -> Reader [(VName, PreTerm)] PreTerm
-annotate (Discharge x Nothing p) = do
+annotate :: Prog -> Reader [(VName, Prog)] Prog
+annotate (TDischarge x Nothing p) = do
   l <- ask
   case lookup x l of
     Nothing -> do
       p1 <- annotate p
-      return $ Discharge x Nothing p1
+      return $ TDischarge x Nothing p1
     Just f -> do
       p1 <- annotate p
-      return $ Discharge x (Just f) p1
+      return $ TDischarge x (Just f) p1
 
-annotate (Discharge x (Just f) p) = do
+annotate (TDischarge x (Just f) p) = do
   p1 <- annotate p
-  return $ Discharge x (Just f) p1
+  return $ TDischarge x (Just f) p1
   
-annotate (PVar p) = return $ PVar p
-annotate (MP p1 p2) = do
+annotate (Name p) = return $ Name p
+annotate (TMP p1 p2) = do
   p3 <- annotate p1
   p4 <- annotate p2
-  return $ MP p3 p4
-annotate (Inst p1 t) = do
+  return $ TMP p3 p4
+annotate (TInst p1 t) = do
   p3 <- annotate p1
-  return $ Inst p3 t
+  return $ TInst p3 t
 
-annotate (UG x p1) = do
+annotate (TUG x p1) = do
   p3 <- annotate p1
-  return $ UG x p3
+  return $ TUG x p3
 
-annotate (Cmp p1) = do
+annotate (TCmp p1) = do
   p3 <- annotate p1
-  return $ Cmp p3
+  return $ TCmp p3
 
-annotate (Beta p1) = do
+annotate (TSimpCmp p1) = do
   p3 <- annotate p1
-  return $ Beta p3
+  return $ TSimpCmp p3
 
-annotate (InvCmp p1 t) = do
+annotate (TBeta p1) = do
   p3 <- annotate p1
-  return $ InvCmp p3 t
+  return $ TBeta p3
 
-annotate (InvBeta p1 t) = do
+annotate (TInvCmp p1 t) = do
   p3 <- annotate p1
-  return $ InvBeta p3 t
+  return $ TInvCmp p3 t
 
-annotate (Lambda x t) = do
+annotate (TInvSimp p1 t) = do
+  p3 <- annotate p1
+  return $ TInvSimp p3 t
+
+annotate (TInvBeta p1 t) = do
+  p3 <- annotate p1
+  return $ TInvBeta p3 t
+
+annotate (Abs x t) = do
   p <- annotate t
-  return $ Lambda x p 
+  return $ Abs x p 
 
-annotate (App p1 p2) = do
+annotate (AppPre p1 p2) = do
   p3 <- annotate p1
   p4 <- annotate p2
-  return $ App p3 p4
+  return $ AppPre p3 p4
 
-annotate (Pos pos p1) = annotate p1
--}
+annotate (Applica p1 p2) = do
+  p3 <- annotate p1
+  p4 <- annotate p2
+  return $ Applica p3 p4
+
+annotate (ProgPos pos p1) = annotate p1
+
 
 
 

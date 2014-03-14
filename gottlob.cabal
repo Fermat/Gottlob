@@ -16,15 +16,15 @@ cabal-version:       >=1.10
 library
   exposed-modules:    Language.Parser, 
                       Language.Syntax,
-                      -- Language.Program,
+                      Language.Program,
                       Language.Monad,
-                      -- Language.TypeInference, 
-                      -- Language.Preprocess, 
-                      -- Language.Eval,
-                      -- Language.ProofChecking,
-                      Language.PrettyPrint
-                      -- Language.Induction,
-                      -- Language.Pattern
+                      Language.TypeInference, 
+                      Language.Preprocess, 
+                      Language.Eval,
+                      Language.ProofChecking,
+                      Language.PrettyPrint,
+                      Language.Induction,
+                      Language.Pattern
   -- other-modules:       
   build-depends:       base >= 4, parsec >= 3.0, array, indents >= 0.3.0, pretty, mtl, containers, transformers, cmdargs   
 

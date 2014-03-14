@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
 module Language.PrettyPrint where
 import Language.Syntax
---import Language.TypeInference
+import Language.TypeInference
 import Text.PrettyPrint
 import Text.Parsec.Pos
 import Data.Char
@@ -172,11 +172,11 @@ instance Disp Decl where
   disp (PatternDecl x pats prog) = disp x <+> hsep (map (parens.disp) pats) <+> text "=" <+> disp prog
   -- disp (SpecialOperatorDecl s1 i s2) = text "special" <+> text s1 <+>
   --                                   disp i <+> disp s2
-{-
+
 instance Disp Constraints where
   disp l = vcat $ map dispPair l
     where dispPair (t1,t2) = disp t1 <+> text "=" <+> disp t2
--}
+
 instance Disp SourcePos where
   disp sp =  text (sourceName sp) <> colon <> int (sourceLine sp)
              <> colon <> int (sourceColumn sp) <> colon

@@ -34,16 +34,16 @@ process state ((FormOperatorDecl _ _ _):l) = process state l
 process state ((ProofOperatorDecl _ _ _):l) = process state l
 process state ((ProgOperatorDecl _ _ _):l) = process state l
 
-process state ((ProgDecl x p):l) = do
-  emit $ "processing prog decl" <++> x
-  st <- get
-  case M.lookup x $ progDef st of
-    Nothing -> do
-      put $ extendProgDef x (progTerm p) st
-      process state l
-    Just a ->
-     die "The program has been defined."
-     `catchError` addProgErrorPos (getProgPos p) (Name x)
+-- process state ((ProgDecl x p):l) = do
+--   emit $ "processing prog decl" <++> x
+--   st <- get
+--   case M.lookup x $ progDef st of
+--     Nothing -> do
+--       put $ extendProgDef x (progTerm p) st
+--       process state l
+--     Just a ->
+--      die "The program has been defined."
+--      `catchError` addProgErrorPos (getProgPos p) (Name x)
 
 process state ((PatternDecl x pats p):l) = 
   let (a, ls) = getAll [(PatternDecl x pats p)] x l
@@ -55,11 +55,12 @@ process state ((PatternDecl x pats p):l) =
     eqs <- mapM (toEquation state) a'
     let 
         args = [makeVar i | i <- [1..lth] ]
-        prog = Abs args (match state lth args eqs (Name "Error"))
+        prog = Abs args (match "_u" state lth args eqs (Name "Error"))
     st <- get
     emit $ disp prog
     case M.lookup x $ progDef st of
       Nothing -> do
+        prog' <- flat state prog
         put $ extendProgDef x (progTerm prog) st
         process state ls
       Just a ->
@@ -117,7 +118,7 @@ process state ((DataDecl pos d True):l) =
     sameFormula ih indF `catchError` addPreErrorPos pos ih
     state1 <- get
     let s2 = extendSetDef ("Ind"++fst sd) ih Form state1
-        s4 = extendProofCxt ("ind"++fst sd) [("p", Right indP, Nothing)] ih s2 in
+        s4 = extendProofCxt ("ind"++fst sd) indP ih s2 in
       put s4
     emptyLocalProof
     process state l
@@ -125,52 +126,67 @@ process state ((DataDecl pos d True):l) =
 process state ((SetDecl x set):l) = do
   let pos = getFirstPos set
   emit $ "processing set decl" <++> x
-  a <- isTerm set
-  when a $ pcError "Improper set definition. Can't define a set as a term"
-    [(disp "Definiendum",disp x),(disp "Defininen", disp set)]
-    `catchError` addPreErrorPos pos set
-  wellDefined set `catchError` addPreErrorPos pos set
-  (t, res, _) <- wellFormed set `catchError` addPreErrorPos pos set
+  -- a <- isTerm set
+  -- when a $ pcError "Improper set definition. Can't define a set as a term"
+  --   [(disp "Definiendum",disp x),(disp "Defininen", disp set)]
+  --   `catchError` addPreErrorPos pos set
+  set1 <- flat state set 
+  let set' = progTerm set1
+  wellDefined set' `catchError` addPreErrorPos pos set'
+  (t, res, _) <- wellFormed set' `catchError` addPreErrorPos pos set'
   state1 <- get
-  put $ extendSetDef x set t state1
+  put $ extendSetDef x set' t state1
   emptyLocalProof
   process state l
 
-process state ((ProofDecl n (Just m) ps f):l) = do
+process state ((ProofDecl n (Just m) ps f1):l) = do
   emit $ "processing proof decl" <++> n <++> disp m
+  f' <- flat state f1
+  let f = progTerm f'
   wellDefined f 
   (t, c, d) <- ensureForm f
   env <- get
   put $ extendSetDef m (erased f) Form env 
   lift $ put $ newPrfEnv d -- default type def for the proofs.
-  proofCheck ps
+  proofCheck state ps
   let (x,_, _)= last ps
   localEnv <- lift $ get
   case M.lookup x (localProof localEnv) of
     Just (_ , PVar f0) | f0 == m -> do
-      updateProofCxt n ps f
+      let ps' = runToProof ps
+      ps1 <- flat state ps'
+      let ps2 = progTerm ps1
+      updateProofCxt n ps2 f
       emptyLocalProof
       process state l
     Just (_, f0) -> do
 --      emit $ show f0 
       sameFormula f0 f
-      updateProofCxt n ps f
+      let ps' = runToProof ps
+      ps1 <- flat state ps'
+      let ps2 = progTerm ps1
+      updateProofCxt n ps2 f
       emptyLocalProof
       process state l
     Nothing -> die "Impossible situation. Ask Frank to keep hacking."
 
-process state ((ProofDecl n Nothing ps f):l) = do
+process state ((ProofDecl n Nothing ps f1):l) = do
   emit $ "processing proof decl" <++> n
+  f' <- flat state f1
+  let f = progTerm f'
   wellDefined f 
   (t, c, d) <- ensureForm f
   lift $ put $ newPrfEnv d -- default type def for the proofs.
-  proofCheck ps
+  proofCheck state ps
   let (x,_, _)= last ps
   localEnv <- lift $ get
   case M.lookup x (localProof localEnv) of
     Just (_ , f0) -> do
-      sameFormula f0 f 
-      updateProofCxt n ps f
+      sameFormula f0 f
+      let ps' = runToProof ps
+      ps1 <- flat state ps'
+      let ps2 = progTerm ps1
+      updateProofCxt n ps2 f
       emptyLocalProof
       process state l
     Nothing -> die "Impossible situation."
@@ -180,7 +196,8 @@ process state ((TacDecl x args (Left p)):l) = do
   st <- get
   case M.lookup x $ tacticDef st of
     Nothing -> do
-      let a = foldr (\ x z -> Lambda x z) (progTerm p) args
+      p' <- flat state p
+      let a = foldr (\ x z -> Lambda x z) (progTerm p') args
       put $ extendTacticDef x a st
       process state l
     Just a ->
@@ -193,32 +210,32 @@ process state ((TacDecl x args (Right ps)):l) = do
   case M.lookup x $ tacticDef st of
     Nothing -> do
       let p = runToProof ps
-          a = foldr (\ x z -> Lambda x z) p args
+      p' <- flat state p
+      let a = foldr (\ x z -> Lambda x z) (progTerm p') args
       put $ extendTacticDef x a st
       process state l
     Just a ->
       die $ "The tactic has been defined. Namely, " <++> disp x
 
-
-isTerm :: PreTerm -> Global Bool
-isTerm p = do
-  (a, _, _) <- wellFormed p
-  return $ a == Ind
+-- isTerm :: PreTerm -> Global Bool
+-- isTerm p = do
+--   (a, _, _) <- wellFormed p
+--   return $ a == Ind
 
 emptyLocalProof :: Global()
 emptyLocalProof = do
   lift $ put emptyPrfEnv
   return ()
   
-updateProofCxt :: VName -> ProofScripts -> PreTerm -> Global()
+updateProofCxt :: VName -> PreTerm -> PreTerm -> Global()
 updateProofCxt n ps f = do
   env <- get
   put $ extendProofCxt n ps f env
   return ()
 
-getFirstPos :: PreTerm -> SourcePos
-getFirstPos (Pos pos p) =  pos
-getFirstPos (Iota x p) =  getFirstPos p
+getFirstPos :: Prog -> SourcePos
+getFirstPos (ProgPos pos p) = pos
+getFirstPos (TIota x p) =  getFirstPos p
 getFirstPos (_) = error "Fail to get First Position"
 
 getProgPos :: Prog -> SourcePos
@@ -230,11 +247,18 @@ toEquation :: [Decl] -> Decl -> Global Equation
 toEquation state (PatternDecl y pats p) = do
   patterns <- mapM (\x -> helper x state) pats
   return $ (patterns, p)
-  where helper a st = case toPat a st of
-                        Left c -> die $ "Not a constructor " <++> disp c
+  where helper a st = case runReaderT (toPat a) st of
+                        Left (ConstrError a) -> die $ "Not a constructor " <++> disp a
+                        Left (OtherError a) -> die $ disp a
                         Right p -> return p
                         
 -- getProofPos :: Pre -> SourcePos
 -- getProofPos (PPos pos p) =  pos
 -- getProofPos (_) = error "Fail to get First Position"
 
+flat :: [Decl] -> Prog -> Global Prog
+flat st p = case runReaderT (dePattern p) st of
+              Left (ConstrError a) -> die $ "Not a constructor " <++> disp a
+              Left (OtherError a) -> die $ disp a
+              Right p -> return p
+  

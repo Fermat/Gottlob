@@ -71,6 +71,12 @@ repeat a o = case o of
                getHead f -> f a
                getTail o' -> repeat a o'
 
+fib o = case o of  
+           getHead f -> f z
+           getTail (getHead f) -> f (s z)
+           getTail (getTail o') -> zipPlus (fib (getTail o')) (fib o')
+           
+
 natStream a o = case o of  
                   getHead f -> f a
                   getTail o' -> natStream (plus1 a) o'
