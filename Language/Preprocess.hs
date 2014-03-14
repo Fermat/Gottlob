@@ -61,7 +61,8 @@ process state ((PatternDecl x pats p):l) =
     case M.lookup x $ progDef st of
       Nothing -> do
         prog' <- flat state prog
-        put $ extendProgDef x (progTerm prog) st
+        emit $ "after flattening:" $$$ disp prog'
+        put $ extendProgDef x (progTerm prog') st
         process state ls
       Just a ->
         die "The program has been defined."
