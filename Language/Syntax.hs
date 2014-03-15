@@ -107,17 +107,21 @@ naiveSub p (Name x) (TDischarge y t p1) = TDischarge y t (naiveSub p (Name x) p1
 naiveSub p (Name x) (Abs y p1) =  Abs y (naiveSub p (Name x) p1)
   
 naiveSub p (Name x) (AppPre p1 p2) = 
-  let a1 = naiveSub p (Name x) p1
-      a2 = naiveSub p (Name x) p2 in
-  AppPre a1 a2
+  let a1 = naiveSub p (Name x) p1 in
+      -- a2 = naiveSub p (Name x) p2 in
+  AppPre a1 p2
 
 naiveSub p (Name x) (Applica p1 p2) = 
   let a1 = naiveSub p (Name x) p1
       a2 = naiveSub p (Name x) p2 in
   Applica a1 a2
 
+--naiveSub p (Name x) (TIota y p1) =  TI y (naiveSub p (Name x) p1)
+
 naiveSub p (Name x) (ProgPos a p1) =
   ProgPos a (naiveSub p (Name x) p1)
+
+naiveSub p (Name x) er = error $ show er
 
 data Assumption = Assume VName deriving Show
 --                      a = p1 : F or [a] : F

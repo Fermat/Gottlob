@@ -399,8 +399,8 @@ annotate (Abs x t) = do
 
 annotate (AppPre p1 p2) = do
   p3 <- annotate p1
-  p4 <- annotate p2
-  return $ AppPre p3 p4
+--  p4 <- annotate p2
+  return $ AppPre p3 p2
 
 annotate (Applica p1 p2) = do
   p3 <- annotate p1
@@ -408,7 +408,7 @@ annotate (Applica p1 p2) = do
   return $ Applica p3 p4
 
 annotate (ProgPos pos p1) = annotate p1
-
+annotate p = error $ show p
 
 
 

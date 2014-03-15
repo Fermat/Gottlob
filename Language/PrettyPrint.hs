@@ -171,7 +171,9 @@ instance Disp Decl where
                                     disp i <+> disp s2
   disp (ProofOperatorDecl s1 i s2) = text "proof" <+> text s1 <+>
                                     disp i <+> disp s2
-  disp (PatternDecl x pats prog) = disp x <+> hsep (map (parens.disp) pats) <+> text "=" <+> disp prog
+  disp (PatternDecl x pats prog) = disp x <+> hsep (map helper pats) <+> text "=" <+> disp prog
+    where helper (Name x) = disp x
+          helper a = parens $ disp a
   -- disp (SpecialOperatorDecl s1 i s2) = text "special" <+> text s1 <+>
   --                                   disp i <+> disp s2
 
