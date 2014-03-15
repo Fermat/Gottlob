@@ -81,6 +81,7 @@ matchClause name env c k (u:us) qs def =
 
 choose c qs = [q | q <- qs, getCon q == c]
 
+-- the naive replace will be replace by capture avoiding subst later.
 replace y x (Name z) =
   if x == z then Name y else Name z
 

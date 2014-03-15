@@ -17,6 +17,10 @@ data Nuts where
 append nil l = l
 append (cons u l') l = cons u (append l' l)
 
+neapp l l' = case l of
+--             nil -> l'
+             cons u l1 -> cons u (neapp l1 l')
+             
 data Tree U where
   leaf :: Tree U
   node :: Tree U -> U -> Tree U -> Tree U

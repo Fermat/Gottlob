@@ -54,20 +54,20 @@ process state ((PatternDecl x pats p):l) =
     checkArity a' lth
     eqs <- mapM (toEquation state) a'
     let 
-        args = [makeVar i | i <- [1..lth] ]
-        prog = Abs args (match "_u" state lth args eqs (Name "Error"))
+        args = [makeVar "`u" i | i <- [1..lth] ]
+        prog = Abs args (match "`u" state lth args eqs (Name "Error"))
     st <- get
     emit $ disp prog
     case M.lookup x $ progDef st of
       Nothing -> do
-        prog' <- flat state prog
-        emit $ "after flattening:" $$$ disp prog'
-        put $ extendProgDef x (progTerm prog') st
+        -- prog' <- flat state prog
+        -- emit $ "after flattening:" $$$ disp prog'
+        put $ extendProgDef x (progTerm prog) st
         process state ls
       Just a ->
         die "The program has been defined."
       `catchError` addProgErrorPos (getProgPos p) (Name x)
-      where makeVar i = "_u"++ show i
+      where makeVar n i = n ++ show i
             getAll s x r@((PatternDecl y pats' p'):ys)
               | x == y = 
                 getAll ((PatternDecl y pats' p'):s) x ys
@@ -247,7 +247,8 @@ getProgPos (_) = error "Fail to get First Position"
 toEquation :: [Decl] -> Decl -> Global Equation
 toEquation state (PatternDecl y pats p) = do
   patterns <- mapM (\x -> helper x state) pats
-  return $ (patterns, p)
+  p' <- flat state p
+  return $ (patterns, p')
   where helper a st = case runReaderT (toPat a) st of
                         Left (ConstrError a) -> die $ "Not a constructor " <++> disp a
                         Left (OtherError a) -> die $ disp a

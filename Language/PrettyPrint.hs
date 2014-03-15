@@ -18,7 +18,9 @@ instance Disp Doc where
 instance Disp String where
   disp x = if (isUpper $ head x) || (isLower $ head x)
            then text x
-           else parens $ text x
+           else if head x == '`'
+                then text x
+                else parens $ text x
 
 instance Disp Int where
   disp = integer . toInteger

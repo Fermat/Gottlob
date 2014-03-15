@@ -128,8 +128,8 @@ dePattern (Match v l) = do
   ps <- mapM helper l
   eqs <- mapM helper2 ps
   env <- ask
-  let r = match "_v" env 1 ["_v1"] eqs (Name "Error")
-  return $ Applica (Abs ["_v1"] r) a
+  let (Match b l) = match "`v" env 1 ["`v1"] eqs (Name "Error")
+  return $ Match a l
   where helper (x, xs, p) = do
           p' <- dePattern p
           return ((Name x):xs, p')
