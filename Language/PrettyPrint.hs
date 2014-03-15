@@ -75,6 +75,7 @@ instance Disp EType where
 
 instance Disp Prog where
   disp (Name x) = disp x
+  disp (Abs [] p) = disp p
   disp (Abs xs p) = text "\\" <+> (hsep $ map disp xs) <+> text "." <+> disp p
   disp (s@(Applica s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(AppPre s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2

@@ -3,7 +3,7 @@ module Language.Syntax
         PreTerm(..), ProofScripts, 
         Prog(..), Args(..), FType(..), Assumption(..),
         Datatype(..), Module(..), Decl(..),
-        fv,fVar, runSubst, naiveSub) where
+        fv,fVar, freeVar, runSubst, naiveSub) where
 
 import Control.Monad.State.Lazy
 import Control.Monad.Reader
@@ -168,6 +168,16 @@ data FType = FVar VName
            | Pi VName FType FType
            | FTPos SourcePos FType
            deriving (Show, Eq)
+
+freeVar :: FType -> [VName]
+freeVar (FVar x) = [x]
+freeVar (Arrow f1 f2) = (freeVar f1) ++ (freeVar f2)
+freeVar (FCons x args) = x : concat (helper args)
+  where helper as = map h1 as
+        h1 (ArgType f) = freeVar f
+        h1 (ArgProg p) = []
+
+
 
 farity :: FType -> Int
 farity (FVar _) = 0

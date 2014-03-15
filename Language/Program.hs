@@ -132,10 +132,10 @@ dePattern (Match v l) = do
   return $ Match a l
   where helper (x, xs, p) = do
           p' <- dePattern p
-          return ((Name x):xs, p')
+          return (foldl' (\ a b -> Applica a b) (Name x) xs, p')
         helper2 (ps, p) = do
-          pats <- mapM toPat ps
-          return (pats, p)
+          pat <- toPat ps
+          return ([pat], p)
 
 dePattern (Let l p) = do
   a <- dePattern p

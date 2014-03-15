@@ -13,7 +13,8 @@ data Nuts where
   n2 :: Nuts
   n3 :: Nuts
   deriving Ind  
-
+ones1 = cons (s z) ones1
+ones = let x = cons (s z) x in x
 append nil l = l
 append (cons u l') l = cons u (append l' l)
 
