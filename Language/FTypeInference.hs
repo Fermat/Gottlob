@@ -152,10 +152,11 @@ checkExpr (Abs xs t) = do
   lift $ modify (\ y -> new ++ y)
   return $ foldr arrow ty tys
 
--- checkExpr (Let xs p) = do
---   mapM helper xs
---   where helper (x, p) = do
---           (t, cs) <- checkExpr p
+checkExpr (Let xs p) = do
+  mapM helper xs
+  where helper (x, t) = do
+          ty <- checkExpr t
+          (toScheme ty)
 
 
 
