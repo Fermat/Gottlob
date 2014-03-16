@@ -9,7 +9,7 @@ import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Identity
 import qualified Data.Map as M
-
+import Data.List
 
 data TScheme = Scheme [VName] FType deriving (Show)
 
@@ -29,14 +29,13 @@ def v ((DataDecl pos (Data name params cons) b):l) =
 def v (x:l) = def v l
 def v [] = False
 
-toTScheme :: FType -> Reader [Decl] TScheme
-toTScheme ft = do
-  env <- ask
-  return $ Scheme [ x | x <- freeVar ft, not (def x env)] ft
+toTScheme :: [Decl] -> FType -> TScheme
+toTScheme env ft = 
+  Scheme [ x | x <- freeVar ft, not (def x env)] ft
 
-type TConstraints = [(FType, FType)]
+-- type TConstraints = [(FType, FType)]
 type Subst = [(VName, FType)]
-type TypeCxt a = StateT Int (StateT [(VName, TScheme)] (StateT [(VName, FType)] (ErrorT PCError IO))) a
+type TypeCxt a = StateT Int (StateT Subst (ReaderT [(VName, TScheme)] (ReaderT [Decl] (ErrorT PCError IO)))) a
 
 tcError :: Disp d => d -> [(Doc, Doc)] -> TypeCxt a
 tcError summary details = throwError (ErrMsg [ErrInfo (disp summary) details])
@@ -54,6 +53,7 @@ tcError summary details = throwError (ErrMsg [ErrInfo (disp summary) details])
 combine :: Subst -> Subst -> Subst
 combine s1 s2 = s1 ++ [(v, apply s1 t) | (v, t) <- s2]
 
+-- no other Side effect other than error
 unify :: FType -> FType -> TypeCxt Subst
 unify (Arrow t1 t2) (Arrow a1 a2) = do
   s1 <- unify t1 a1
@@ -82,11 +82,12 @@ varBind x t | t == FVar x = return []
                 [(disp "unify", disp x),(disp "with", disp t)]
             | otherwise = return [(x, t)]
 
+-- side effect: modifying current substitution.
 unification :: FType -> FType -> TypeCxt ()
 unification t1 t2 = do
-  subs <- lift $ lift get
+  subs <- lift get
   new <- unify (apply subs t1) (apply subs t2)
-  lift $ lift $ put $ combine new subs
+  lift $ put $ combine new subs
   
 arrow a b = Arrow a b
 
@@ -117,46 +118,83 @@ freshInst (Scheme xs t) =
    newVars <- mapM (\ x -> makeName "`T") xs
    let substs = zip xs (map (\ y -> FVar y) newVars) in
     return $ apply substs t
+
+-- modifying int
 makeName :: VName -> TypeCxt VName
 makeName name = do
   m <- get
   modify (+1)
   return $ name ++ show m
 
--- pattern included
-checkExpr :: Prog -> TypeCxt FType
+-- pattern included, modifying TypeCxt accordingly 
+checkExpr :: Prog -> TypeCxt (FType, [(VName, TScheme)])
 checkExpr (Name x) = do
-  tdefs <- lift get
+  tdefs <- ask 
   case lookup x tdefs of
     Just sc -> do
       ft <- freshInst sc
-      return ft
+      return (ft, [])
     Nothing -> do
       name <- makeName "`T"
-      lift $ put $ (x, Scheme [] (FVar name)):tdefs
-      return $ FVar name
+--      lift $ put $ (x, Scheme [] (FVar name)):tdefs
+      return (FVar name, [(x, Scheme [] (FVar name))])
 
 checkExpr (Applica t1 t2) = do
-  ty1 <- checkExpr t1
-  ty2 <- checkExpr t2
+  (ty1, as1) <- checkExpr t1
+  (ty2, as2) <- local (\y -> as1 ++ y) $ checkExpr t2
   m <- makeName "`T"
   unification ty1 $ Arrow ty2 (FVar m)
-  return $ FVar m
+  return (FVar m, as1 ++ as2)
   
 checkExpr (Abs xs t) = do
-  ty <- checkExpr t
   ls <- mapM (\ x -> makeName "`T") xs
   let scs = map (\ y -> Scheme [] (FVar y)) ls
       tys = map (\ y -> FVar y) ls
       new = zip xs scs
-  lift $ modify (\ y -> new ++ y)
-  return $ foldr arrow ty tys
+  (ty, as) <- local (\y -> new++y) $ checkExpr t
+--  lift $ modify (\ y -> new ++ y)
+  return (foldr arrow ty tys, as)
+
+checkExpr (Match p branches) = do
+  (tp, as) <- checkExpr p
+  let l = map toEq branches
+--  mapM_ (helper tp) l
+      (l1, l2) = head l
+  (c, as1) <- checkExpr l1
+  (init, as2) <- local (\y -> as1 ++ as ++ y) $ checkExpr l2
+  unification c tp
+  newAs <- foldM (helper c init as) (as2++as) (tail l)
+  return (init, newAs)
+  where toEq (v, xs, p) =
+          let a = foldl' (\ a b -> Applica a b) (Name v) xs
+              in (a, p)
+        helper c init as curr (a, b) = do
+          (t1, a1 ) <- checkExpr a
+          unification c t1
+          (t2, a2) <- local (\y -> a1 ++ curr ++ y) $ checkExpr b
+          unification init t2
+          return (a2++curr)
 
 checkExpr (Let xs p) = do
-  mapM helper xs
-  where helper (x, t) = do
-          ty <- checkExpr t
-          (toScheme ty)
+  newAs <- foldM helper [] xs
+--  lift $ modify (\ y -> assump ++ y)
+  sub <- lift get
+  env <- lift $ lift $ lift ask
+  local (\ y -> (smartSub env sub newAs) ++ y) $ checkExpr p
+  where helper curr (x, t) = do
+          n <- makeName "`T"
+--          lift $ modify (\y -> (x, Scheme [] (FVar n)):y)
+          (ty, as) <- local (\y -> (x, Scheme [] (FVar n)):(curr ++ y)) $ checkExpr t
+          unification (FVar n) ty
+          return $ as ++ [(x, Scheme [] (FVar n))]
+
+smartSub :: [Decl] -> Subst -> [(VName, TScheme)] -> [(VName, TScheme)]
+smartSub env sub as = map (helper env sub) as
+  where helper env sub (x, Scheme vs t) =
+          let t' = apply sub t
+              a = toTScheme env t' in
+          (x, a)
+
 
 
 
