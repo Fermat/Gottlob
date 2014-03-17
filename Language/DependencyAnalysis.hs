@@ -5,7 +5,7 @@ import Language.PrettyPrint
 import Data.List hiding(partition)
 import qualified Data.Set as S
 import Control.Monad.State
-import Debug.Trace
+
 consDef :: VName -> [Decl] -> Bool
 consDef v ((DataDecl pos (Data name params cons) b):l) =
   case lookup v cons of
@@ -38,6 +38,39 @@ getGraph env ds = [(getName defs, funVar env defs) | defs <- ds]
 
 type Path = [VName]
 type Source = VName
+
+collapse :: [[VName]] -> [[VName]]
+collapse [] = []
+collapse (a:as) =
+  let newRes = [ helper a b | b <- as] in
+  if newRes == as then
+    a:(collapse as)
+  else collapse newRes
+  where helper a b = if  null $ intersect a b then b else union a b
+
+initial :: [VName] -> [(VName, [VName])] -> State [[VName]] ()
+initial [] graph = return ()
+initial (a:as) graph = 
+  case lookup a graph of
+    Nothing -> error $ "can't find " ++ show a
+    Just [] -> do
+      modify (\ s -> [a]:s)
+      initial as graph
+    Just nbs -> do
+      let nodes = filter (\ b -> b /= a ) nbs
+          initPath = [ n:[a] | n <- nbs, n /= a] 
+          maybeCyc = map (\ b -> fst $ runState (analyze b g) (a, initPath)) nodes
+          res = [ path | Just path <- maybeCyc] in
+        if null res
+        then do
+          modify (\ s -> [a]:s)
+          initial as graph
+        else do
+          let cys = concat res
+          modify (\ s -> cys:s)
+          initial (as \\ cys) graph
+      
+          
 -- first put f1 into source, then get f1's nonself neighbours ns then analyze each ns
 
 analyze :: VName -> [(VName, [VName])] -> State (Source, [Path]) (Maybe [VName])
@@ -71,9 +104,10 @@ analyze cur graph =
               then (next:q) else q
 
               
-g = [("f1", ["f7, f2"]), ("f2", ["f3","f5", "f4"]), ("f3", ["f1"]), ("f4",["f1"]), ("f5",["f4"]), ("f7", [])]
-g1 = [("f1", ["f7, f2"]), ("f2", ["f3","f5"]), ("f3", []), ("f4",["f2"]), ("f5",["f4"]), ("f7", [])]
+g = [("f1", ["f7", "f2"]), ("f2", ["f3","f5", "f4"]), ("f3", ["f1"]), ("f4",["f1"]), ("f5",["f4"]), ("f7", [])]
+g1 = [("f1", ["f7", "f2"]), ("f2", ["f3","f5"]), ("f3", []), ("f4",["f2"]), ("f5",["f4"]), ("f7", [])]
+g2 = [("f1", []), ("f2", []), ("f3", []), ("f4",[]), ("f5",[]), ("f7", [])]
 h = runState (analyze "f2" g1) ("f1", [["f2","f1"]])
-
+h2 =  collapse $ snd $ runState (initial ["f7", "f5", "f4", "f3", "f2", "f1"] g) []
 
 
