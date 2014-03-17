@@ -6,6 +6,7 @@ import Language.Syntax
 import Language.ProofChecking
 import Language.Monad
 import Language.Preprocess
+import Language.DependencyAnalysis
 import Language.PrettyPrint
 import Control.Monad.Error hiding (join)
 import Text.PrettyPrint(render)
@@ -28,14 +29,16 @@ main = flip catches handlers $ do
       case parseModule filename cnts of
              Left e -> throw e
              Right a -> do putStrLn $ "Parsing success! \n"
-                           print $ disp a
-                           putStrLn $ "Preprocessing.. \n"
-                           b <- checkDefs a
-                           case b of
-                             Left e1 -> throw e1
-                             Right (env, e) ->  do
-                               putStrLn "ProofChecking success!"
-                               print $ disp env
+--                           print $ disp a
+                           let (Module v a') = a 
+                           mapM_ (\ defs -> mapM_ (print . disp) defs) (produceDefs a')
+                           -- putStrLn $ "Preprocessing.. \n"
+                           -- b <- checkDefs a
+                           -- case b of
+                           --   Left e1 -> throw e1
+                           --   Right (env, e) ->  do
+                           --     putStrLn "ProofChecking success!"
+                           --     print $ disp env
 -- look at local variable                              print $ disp e
 
 

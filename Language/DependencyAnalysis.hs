@@ -1,10 +1,17 @@
-module Language.DependencyAnalysis where
+module Language.DependencyAnalysis (produceDefs)where
 import Language.Syntax
 import Language.Pattern(partition)
 import Language.PrettyPrint
 import Data.List hiding(partition)
 import qualified Data.Set as S
 import Control.Monad.State
+import Debug.Trace
+produceDefs :: [Decl] -> [[Decl]]
+produceDefs env =
+  let progs = sep $ getProg env
+      inter = depAnalyze env progs       
+      res = reOrganize progs inter
+      in res
 
 consDef :: VName -> [Decl] -> Bool
 consDef v ((DataDecl pos (Data name params cons) b):l) =
@@ -36,6 +43,18 @@ getName ((PatternDecl f pats p):dls) = f
 getGraph :: [Decl] -> [[Decl]] -> [(VName, [VName])]
 getGraph env ds = [(getName defs, funVar env defs) | defs <- ds]
 
+depAnalyze :: [Decl] -> [[Decl]] -> [[VName]]
+depAnalyze env ds =
+  let g = getGraph env ds
+      ls = map fst g in
+  trace (show ls) $ collapse $ snd $ runState (initial ls g) []      
+
+-- Learn this from Google interview...
+reOrganize :: [[Decl]] -> [[VName]] -> [[Decl]]
+reOrganize defs st =
+  [ (concat [ find f defs | f <- l]) | l <- st ]
+  where find f defs = concat [ q | q@((PatternDecl g pats p):res) <- defs, f == g]
+
 type Path = [VName]
 type Source = VName
 
@@ -52,14 +71,14 @@ initial :: [VName] -> [(VName, [VName])] -> State [[VName]] ()
 initial [] graph = return ()
 initial (a:as) graph = 
   case lookup a graph of
-    Nothing -> error $ "can't find " ++ show a
+    Nothing -> error $ "can't find " ++ show a ++ show graph
     Just [] -> do
       modify (\ s -> [a]:s)
       initial as graph
     Just nbs -> do
       let nodes = filter (\ b -> b /= a ) nbs
           initPath = [ n:[a] | n <- nbs, n /= a] 
-          maybeCyc = map (\ b -> fst $ runState (analyze b g) (a, initPath)) nodes
+          maybeCyc = map (\ b -> fst $ runState (analyze b graph) (a, initPath)) nodes
           res = [ path | Just path <- maybeCyc] in
         if null res
         then do
@@ -76,7 +95,7 @@ initial (a:as) graph =
 analyze :: VName -> [(VName, [VName])] -> State (Source, [Path]) (Maybe [VName])
 analyze cur graph = 
   case lookup cur graph of
-    Nothing -> error $ "can't find " ++ show cur
+    Nothing -> error $ "can't find analyze" ++ show cur ++ show graph
     Just [] -> do
       (sc, paths) <- get
       let newPaths = filter (\ (h:ts) -> h /= cur ) paths 
@@ -104,10 +123,10 @@ analyze cur graph =
               then (next:q) else q
 
               
-g = [("f1", ["f7", "f2"]), ("f2", ["f3","f5", "f4"]), ("f3", ["f1"]), ("f4",["f1"]), ("f5",["f4"]), ("f7", [])]
-g1 = [("f1", ["f7", "f2"]), ("f2", ["f3","f5"]), ("f3", []), ("f4",["f2"]), ("f5",["f4"]), ("f7", [])]
-g2 = [("f1", []), ("f2", []), ("f3", []), ("f4",[]), ("f5",[]), ("f7", [])]
-h = runState (analyze "f2" g1) ("f1", [["f2","f1"]])
-h2 =  collapse $ snd $ runState (initial ["f7", "f5", "f4", "f3", "f2", "f1"] g) []
+-- g = [("f1", ["f7", "f2"]), ("f2", ["f3","f5", "f4"]), ("f3", ["f1"]), ("f4",["f1"]), ("f5",["f4"]), ("f7", [])]
+-- g1 = [("f1", ["f7", "f2"]), ("f2", ["f3","f5"]), ("f3", []), ("f4",["f2"]), ("f5",["f4"]), ("f7", [])]
+-- g2 = [("f1", []), ("f2", []), ("f3", []), ("f4",[]), ("f5",[]), ("f7", [])]
+-- h = runState (analyze "f2" g1) ("f1", [["f2","f1"]])
+-- h2 =  collapse $ snd $ runState (initial ["f7", "f5", "f4", "f3", "f2", "f1"] g) []
 
 
