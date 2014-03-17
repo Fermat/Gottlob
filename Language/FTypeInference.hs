@@ -1,6 +1,7 @@
 {-# LANGUAGE NamedFieldPuns  #-}
-module FTypeInference where
+module Language.FTypeInference where
 import Language.Syntax
+import Language.DependencyAnalysis
 import Language.PrettyPrint
 import Language.Monad
 import Text.PrettyPrint
@@ -23,11 +24,6 @@ data TScheme = Scheme [VName] FType deriving (Show)
 -- extendTypeDef :: VName -> TScheme -> TypeEnv -> TypeEnv
 -- extendTypeDef v t e@(TypeEnv {typeDef}) = e{typeDef = M.insert v t typeDef}
 
-def :: VName -> [Decl] -> Bool
-def v ((DataDecl pos (Data name params cons) b):l) =
-  if v == name then True else def v l
-def v (x:l) = def v l
-def v [] = False
 
 toTScheme :: [Decl] -> FType -> TScheme
 toTScheme env ft = 
@@ -39,6 +35,9 @@ type TypeCxt a = StateT Int (StateT Subst (ReaderT [(VName, TScheme)] (ReaderT [
 
 tcError :: Disp d => d -> [(Doc, Doc)] -> TypeCxt a
 tcError summary details = throwError (ErrMsg [ErrInfo (disp summary) details])
+
+withInfo :: (Disp d) => d -> [(Doc, Doc)] -> TypeCxt a -> TypeCxt a
+withInfo summary details m = m `catchError` (throwError . addErrorInfo summary details)
 
 --ReaderT [Decl]
 -- data UniError a = UError a a
@@ -139,11 +138,11 @@ checkExpr (Name x) = do
 --      lift $ put $ (x, Scheme [] (FVar name)):tdefs
       return (FVar name, [(x, Scheme [] (FVar name))])
 
-checkExpr (Applica t1 t2) = do
+checkExpr ap@(Applica t1 t2) = do
   (ty1, as1) <- checkExpr t1
   (ty2, as2) <- local (\y -> as1 ++ y) $ checkExpr t2
   m <- makeName "`T"
-  unification ty1 $ Arrow ty2 (FVar m)
+  withInfo "During unification" [(disp "in the expression ", disp ap )] (unification ty1 $ Arrow ty2 (FVar m)) 
   return (FVar m, as1 ++ as2)
   
 checkExpr (Abs xs t) = do
@@ -195,8 +194,20 @@ smartSub env sub as = map (helper env sub) as
               a = toTScheme env t' in
           (x, a)
 
+expp = Abs ["x", "y"] (Applica (Name "y") (Applica (Name "y") (Name "x")))
+expp2 = Abs ["x"]  (Applica (Name "x") (Name "x"))
 
+expp1 = Applica (Name "x") (Name "y")
+testcase ex = do
+           a <- runErrorT $ runReaderT (runReaderT (runStateT (runStateT (checkExpr ex) 0) []) []) []
+           case a of
+             Left e -> print $ disp e
+             Right a -> do
+                        print $ disp $ apply (snd a) ((fst . fst . fst) a)
+                        print $ show $ (snd . fst . fst) a
+                        print $ show $ snd a 
 
+--runReader (runReaderT (fst (runStateT (fst $ ) []) []) []) []
 
 
 --checkPat :: Prog -> TypeCxt (FType, TConstraints)

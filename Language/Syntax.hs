@@ -127,6 +127,18 @@ data Assumption = Assume VName deriving Show
 --                      a = p1 : F or [a] : F
 type ProofScripts = [(VName, Either Assumption Prog, Maybe Prog)]
 
+fPvar :: Prog -> S.Set VName
+fPvar (Name x) = S.insert x S.empty
+fPvar (Applica p1 p2) = fPvar p1 `S.union` fPvar p2
+fPvar (Abs xs p) = fPvar p S.\\ (S.fromList xs)
+fPvar (Match p ls) = fPvar p `S.union` (foldr (\ x y -> helper x `S.union` y) S.empty ls)
+  where helper (c, pat, p) =
+          fPvar p S.\\ (foldr (\ x y -> S.union (fPvar x) y ) (S.insert c S.empty) pat)
+fPvar (Let xs p) = ((fPvar p) `S.union` (helper xs)) S.\\ helper2 xs
+  where helper xs = foldr (\ (x, t) y -> fPvar t `S.union` y ) S.empty xs
+        helper2 xs = foldr (\ (x, t) y -> (S.insert x S.empty) `S.union` y ) S.empty xs
+fPvar (If p1 p2 p3) = fPvar p1 `S.union` fPvar p2 `S.union` fPvar p3
+fPvar (ProgPos p p1) = fPvar p1
 data Prog = Name VName
           | Applica Prog Prog
           | Abs [VName] Prog
