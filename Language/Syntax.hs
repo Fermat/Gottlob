@@ -3,7 +3,7 @@ module Language.Syntax
         PreTerm(..), ProofScripts, 
         Prog(..), Args(..), FType(..), Assumption(..),
         Datatype(..), Module(..), Decl(..),
-        fv,fVar, freeVar, runSubst, naiveSub) where
+        fv,fVar, freeVar, runSubst, naiveSub, fPvar) where
 
 import Control.Monad.State.Lazy
 import Control.Monad.Reader

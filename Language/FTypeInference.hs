@@ -24,6 +24,11 @@ data TScheme = Scheme [VName] FType deriving (Show)
 -- extendTypeDef :: VName -> TScheme -> TypeEnv -> TypeEnv
 -- extendTypeDef v t e@(TypeEnv {typeDef}) = e{typeDef = M.insert v t typeDef}
 
+def :: VName -> [Decl] -> Bool
+def v ((DataDecl pos (Data name params cons) b):l) =
+  if v == name then True else def v l
+def v (x:l) = def v l
+def v [] = False
 
 toTScheme :: [Decl] -> FType -> TScheme
 toTScheme env ft = 
