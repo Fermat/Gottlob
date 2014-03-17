@@ -5,6 +5,7 @@ import Language.PrettyPrint
 import Data.List hiding(partition)
 import qualified Data.Set as S
 import Control.Monad.State
+import Debug.Trace
 consDef :: VName -> [Decl] -> Bool
 consDef v ((DataDecl pos (Data name params cons) b):l) =
   case lookup v cons of
@@ -53,7 +54,7 @@ analyze cur graph =
       if sc `elem` nbs
         then return $ Just (nub $ concat [q | q@(h:xs) <- paths, h == cur])
         else do
-        let newPaths = [helper (next, cur, h, q) | q@(h:xs) <- paths, next <- nbs , not $ next `elem` q]
+        let newPaths = [helper (next, cur, h, q) | q@(h:xs) <- paths, next <- nbs]
             cy = [n | n <- nbs, q@(h:xs) <- paths, n /= cur, h == cur, n `elem` q]
         put (sc, newPaths)
         ls <- mapM (\ x -> analyze x graph) $ filter (\ a -> (a /= cur) && (not $ a `elem` cy)) nbs
@@ -64,12 +65,13 @@ analyze cur graph =
           let neps = filter (\ (h:ts) -> h /= cur ) path1 
           put (sc1, neps)
           return Nothing
-          else return $ Just (nub $ concat cycles)
-      where helper (next, cur, h, q) = if (next /= cur) && (h == cur) then (next:q) else q
-
+          else  return $ Just (nub $ concat cycles)
+      where helper (next, cur, h, q) =
+              if (next /= cur) && (h == cur) && (not $ next `elem` q)
+              then (next:q) else q
 
               
-g = [("f1", ["f7, f2"]), ("f2", ["f3","f4","f5"]), ("f3", ["f1"]), ("f4",["f1"]), ("f5",["f4"]), ("f7", [])]
+g = [("f1", ["f7, f2"]), ("f2", ["f3","f5", "f4"]), ("f3", ["f1"]), ("f4",["f1"]), ("f5",["f4"]), ("f7", [])]
 g1 = [("f1", ["f7, f2"]), ("f2", ["f3","f5"]), ("f3", []), ("f4",["f2"]), ("f5",["f4"]), ("f7", [])]
 h = runState (analyze "f2" g1) ("f1", [["f2","f1"]])
 
