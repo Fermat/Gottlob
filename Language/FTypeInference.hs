@@ -14,16 +14,46 @@ import Data.List
 
 data TScheme = Scheme [VName] FType deriving (Show)
 
--- type TCMonad a =ReaderT [Decl] (StateT TypeEnv (ErrorT PCError IO)) a
--- data TypeEnv = TypeEnv{typeDef:: M.Map VName TScheme}
---              deriving Show
+getFunNames :: [Decl] -> [VName]
+getFunNames dls = nub $ map (\(PatternDecl f pats p) -> f) dls
 
--- emptyTEnv :: TypeEnv
--- emptyTEnv = TypeEnv {typeDef = M.empty}
+checkPatDecl :: [Decl] -> TypeCxt [(VName, TScheme)]
+checkPatDecl dls@((PatternDecl x pats p):ls) = do
+  let ns = getFunNames dls
+  newFtypes <- mapM (\ _ -> helper) dls
+  let scs = map (Scheme []) newFtypes
+      newEnv = zip ns scs
+      (a, ls) = getAll [(PatternDecl x pats p)] x ls
+      a' = getAlts $ reverse a
+  assump <- ask
+  sequence $ zipWith (checkAlts (newEnv++assump)) a' newFtypes
+--  substs <- lift get
+  
+  where helper = do
+          n <- makeName "`T"
+          return (FVar n)
+        getAll s x r@((PatternDecl y pats' p'):ys)
+          | x == y = 
+            getAll ((PatternDecl y pats' p'):s) x ys
+          | otherwise = (s, r)
+        getAll s x r = (s, r)
+        getAlts ls = map (\(PatternDecl y pats' p') -> (pats', p')) ls
 
--- extendTypeDef :: VName -> TScheme -> TypeEnv -> TypeEnv
--- extendTypeDef v t e@(TypeEnv {typeDef}) = e{typeDef = M.insert v t typeDef}
-
+checkAlts :: [([Char], TScheme)] -> [([Prog], Prog)] -> FType -> TypeCxt ()
+checkAlts assump alts t = do
+  ts <- mapM (checkAlt assump) alts
+  mapM_ (unification t) ts
+  
+checkAlt :: [([Char], TScheme)] -> ([Prog], Prog) -> TypeCxt FType
+checkAlt assump (pats, e) = do
+  ls <- foldM (helper assump) [] pats
+  (t, as) <- local (\ y -> (concat $ map snd ls)++y) $ checkExpr e
+  let types = map fst ls
+  return $ foldr arrow t types
+  where helper assump cur p = do
+          res <- local (\y -> assump ++ y) $ checkExpr p
+          return $ cur ++ [res]
+  
 def :: VName -> [Decl] -> Bool
 def v ((DataDecl pos (Data name params cons) b):l) =
   if v == name then True else def v l
@@ -43,15 +73,6 @@ tcError summary details = throwError (ErrMsg [ErrInfo (disp summary) details])
 
 withInfo :: (Disp d) => d -> [(Doc, Doc)] -> TypeCxt a -> TypeCxt a
 withInfo summary details m = m `catchError` (throwError . addErrorInfo summary details)
-
---ReaderT [Decl]
--- data UniError a = UError a a
---                 | Others Doc
---                deriving (Show)
-
--- instance Disp a => Error (UniError a) where
---   strMsg x = Others $ text x
---   noMsg = strMsg "<unknown>"
 
 -- unification
 combine :: Subst -> Subst -> Subst
@@ -162,7 +183,6 @@ checkExpr (Abs xs t) = do
 checkExpr (Match p branches) = do
   (tp, as) <- checkExpr p
   let l = map toEq branches
---  mapM_ (helper tp) l
       (l1, l2) = head l
   (c, as1) <- checkExpr l1
   (init, as2) <- local (\y -> as1 ++ as ++ y) $ checkExpr l2
@@ -212,37 +232,6 @@ testcase ex = do
                         print $ show $ (snd . fst . fst) a
                         print $ show $ snd a 
 
---runReader (runReaderT (fst (runStateT (fst $ ) []) []) []) []
-
-
---checkPat :: Prog -> TypeCxt (FType, TConstraints)
-
--- checkEq :: ([Prog], Prog) -> TypeCxt (FType, TConstraints)
--- checkEq (args, e) = do
---   (ts, cs) <- checkExprs args
---   (t, cs') <- checkExpr e
---   return $ (foldr arrow t ts, cs ++ cs')
-
-
-
-
-      
-      
-
-
--- typeInference :: Prog -> TypeCxt (FType, TConstraints)
--- typeInference (ProgPos _ p) = typeInference p
--- typeInference (Name x) = do
---   m <- lift get
---   case lookup x m of
---     Just a -> do
---       b <- freshInst a
---       return (b, [])
---     Nothing -> do
---       n <- get
---       modify (+1)
---       lift $ modify (\ y -> (x, (FVar $ "T" ++ show n)): y)
---       return (FVar $ "T"++ show n, [])
 
 
   
