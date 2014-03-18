@@ -19,7 +19,7 @@ data Tree U where
   node :: Tree U -> U -> Tree U -> Tree U
 
 ones1 = cons (s z) ones1
-ones = let x = cons (s z) x in x
+ones = let x = neapp (s z) x in x
 
 append nil l = l
 append (cons u l') l = cons u (append l' l)
@@ -30,7 +30,7 @@ newapp l1 l2 = case l1 of
 
 neapp l l' = case l of
              nil -> l'
-             cons u l1 -> cons u (neapp l1 l')
+             cons u l1 -> cons u (ones l1 l')
              
 
 add z m = m
