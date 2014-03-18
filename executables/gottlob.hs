@@ -7,6 +7,7 @@ import Language.ProofChecking
 import Language.Monad
 import Language.Preprocess
 import Language.DependencyAnalysis
+import Language.FTypeInference
 import Language.PrettyPrint
 import Control.Monad.Error hiding (join)
 import Text.PrettyPrint(render)
@@ -30,8 +31,14 @@ main = flip catches handlers $ do
              Left e -> throw e
              Right a -> do putStrLn $ "Parsing success! \n"
 --                           print $ disp a
-                           let (Module v a') = a 
-                           mapM_ (\ defs -> mapM_ (print . disp) defs) (produceDefs a')
+                           let (Module v a') = a
+                           re <- runTypeCheck a'
+                           case re  of
+                             Left e -> throw e
+                             Right ((defs, _), substs) -> do
+                               putStrLn $ "Type Check success! \n"
+                               mapM_ (print . disp) defs
+                           --mapM_ (\ defs -> mapM_ (print . disp) defs) (produceDefs a')
                            -- putStrLn $ "Preprocessing.. \n"
                            -- b <- checkDefs a
                            -- case b of

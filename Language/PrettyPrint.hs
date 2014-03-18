@@ -116,6 +116,11 @@ instance Disp Prog where
   -- precedence (TPFApp _ _) = 7
   precedence _ = 0
 
+instance Disp TScheme where
+  disp (Scheme xs t) = text "forall" <+> (hsep $ map disp xs) <+>text "."<+>disp t
+
+instance Disp (VName, TScheme) where
+  disp (v, sc) = disp v <+> text "::" <+> disp sc
 instance Disp Args where
   disp (ArgProg p) = disp p
   disp (ArgType t) = disp t

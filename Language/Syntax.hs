@@ -2,15 +2,15 @@ module Language.Syntax
        (VName, EType(..), vars, sub, farity,
         PreTerm(..), ProofScripts, 
         Prog(..), Args(..), FType(..), Assumption(..),
-        Datatype(..), Module(..), Decl(..),
-        fv,fVar, freeVar, runSubst, naiveSub, fPvar) where
+        Datatype(..), Module(..), Decl(..), TScheme(..),
+        fv,fVar, freeVar, runSubst, naiveSub, fPvar, partition) where
 
 import Control.Monad.State.Lazy
 import Control.Monad.Reader
 
 import Data.Char
 import qualified Data.Set as S
-import Data.List
+import Data.List hiding (partition)
 
 import Text.Parsec.Pos
 
@@ -180,7 +180,7 @@ data FType = FVar VName
            | Pi VName FType FType
            | FTPos SourcePos FType
            deriving (Show, Eq)
-
+data TScheme = Scheme [VName] FType deriving (Show)
 freeVar :: FType -> [VName]
 freeVar (FVar x) = [x]
 freeVar (Arrow f1 f2) = (freeVar f1) ++ (freeVar f2)
@@ -461,5 +461,10 @@ subst p (PVar x) (Discharge y Nothing p1) =
          return $ Discharge (y++ show n) (Nothing) c2
 subst s (PVar x) (Pos _ f) = subst s (PVar x) f
 
+partition f [] = []
+partition f (x:[]) = [[x]]
+partition f (x:x1:xs) | f x == f x1 = tack x (partition f (x1:xs))
+                      | otherwise = [x]: partition f (x1:xs)
+  where tack x xss = (x : head xss) : tail xss
 
               

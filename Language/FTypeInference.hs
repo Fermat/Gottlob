@@ -1,43 +1,54 @@
 {-# LANGUAGE NamedFieldPuns  #-}
-module Language.FTypeInference where
+module Language.FTypeInference(runTypeCheck, Subst, TScheme(..)) where
 import Language.Syntax
 import Language.DependencyAnalysis
 import Language.PrettyPrint
 import Language.Monad
-import Text.PrettyPrint
+import Text.PrettyPrint hiding(sep)
 import Control.Monad.Reader
 import Control.Monad.Error
 import Control.Monad.State
 import Control.Monad.Identity
 import qualified Data.Map as M
-import Data.List
+import Data.List hiding(partition)
 
-data TScheme = Scheme [VName] FType deriving (Show)
+
+runTypeCheck :: [Decl] -> IO (Either PCError (([(VName, TScheme)], Int), Subst)) 
+runTypeCheck ast = 
+  let dls = produceDefs ast
+      assump = getAssump ast in
+  runErrorT $ runReaderT (runReaderT (runStateT (runStateT (typeCheck assump dls) 0) []) assump) ast
+  where getAssump ast =
+          [ (c, Scheme params ft) |  (DataDecl _ (Data n params cons) _) <- ast, (c, ft) <- cons]
+
+
+typeCheck :: [(VName, TScheme)] -> [[Decl]] -> TypeCxt [(VName, TScheme)]
+typeCheck assump progs = foldM helper assump progs
+  where helper assump decls = do
+          new <- local (\y -> assump++y) $ checkPatDecl decls
+          return $ new++assump
+
 
 getFunNames :: [Decl] -> [VName]
 getFunNames dls = nub $ map (\(PatternDecl f pats p) -> f) dls
 
 checkPatDecl :: [Decl] -> TypeCxt [(VName, TScheme)]
-checkPatDecl dls@((PatternDecl x pats p):ls) = do
+checkPatDecl dls = do
   let ns = getFunNames dls
+      dls' = sep dls
   newFtypes <- mapM (\ _ -> helper) dls
   let scs = map (Scheme []) newFtypes
       newEnv = zip ns scs
-      (a, ls) = getAll [(PatternDecl x pats p)] x ls
-      a' = getAlts $ reverse a
+      altss = map helper2 dls'
   assump <- ask
-  sequence $ zipWith (checkAlts (newEnv++assump)) a' newFtypes
---  substs <- lift get
-  
+  sequence $ zipWith (checkAlts (newEnv++assump)) altss newFtypes
+  substs <- lift get
+  env <- lift $ lift $ lift ask
+  return $ smartSub env substs newEnv
   where helper = do
           n <- makeName "`T"
           return (FVar n)
-        getAll s x r@((PatternDecl y pats' p'):ys)
-          | x == y = 
-            getAll ((PatternDecl y pats' p'):s) x ys
-          | otherwise = (s, r)
-        getAll s x r = (s, r)
-        getAlts ls = map (\(PatternDecl y pats' p') -> (pats', p')) ls
+        helper2 ls = map (\ (PatternDecl f pats p) -> (pats, p)) ls 
 
 checkAlts :: [([Char], TScheme)] -> [([Prog], Prog)] -> FType -> TypeCxt ()
 checkAlts assump alts t = do
@@ -62,7 +73,7 @@ def v [] = False
 
 toTScheme :: [Decl] -> FType -> TScheme
 toTScheme env ft = 
-  Scheme [ x | x <- freeVar ft, not (def x env)] ft
+  Scheme (nub [ x | x <- freeVar ft, not (def x env)]) ft
 
 -- type TConstraints = [(FType, FType)]
 type Subst = [(VName, FType)]
@@ -212,6 +223,7 @@ checkExpr (Let xs p) = do
           unification (FVar n) ty
           return $ as ++ [(x, Scheme [] (FVar n))]
 
+checkExpr (ProgPos _ p) = checkExpr p
 smartSub :: [Decl] -> Subst -> [(VName, TScheme)] -> [(VName, TScheme)]
 smartSub env sub as = map (helper env sub) as
   where helper env sub (x, Scheme vs t) =

@@ -1,6 +1,5 @@
-module Language.DependencyAnalysis (produceDefs)where
+module Language.DependencyAnalysis (produceDefs, sep)where
 import Language.Syntax
-import Language.Pattern(partition)
 import Language.PrettyPrint
 import Data.List hiding(partition)
 import qualified Data.Set as S
@@ -11,7 +10,7 @@ produceDefs env =
   let progs = sep $ getProg env
       inter = depAnalyze env progs       
       res = reOrganize progs inter
-      in res
+      in  res
 
 consDef :: VName -> [Decl] -> Bool
 consDef v ((DataDecl pos (Data name params cons) b):l) =
@@ -47,7 +46,7 @@ depAnalyze :: [Decl] -> [[Decl]] -> [[VName]]
 depAnalyze env ds =
   let g = getGraph env ds
       ls = map fst g in
-  trace (show ls) $ collapse $ snd $ runState (initial ls g) []      
+  collapse $ snd $ runState (initial ls g) []      
 
 -- Learn this from Google interview...
 reOrganize :: [[Decl]] -> [[VName]] -> [[Decl]]

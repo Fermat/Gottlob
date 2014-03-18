@@ -1,4 +1,4 @@
-module Language.Pattern(match, Equation, Pattern(..), partition) where
+module Language.Pattern(match, Equation, Pattern(..)) where
 import Language.Syntax
 import Language.PrettyPrint
 import Text.Parsec
@@ -49,11 +49,6 @@ arity v (x:l) = arity v l
 arity v [] = error $ "can't find arity for " ++ show v
 
 
-partition f [] = []
-partition f (x:[]) = [[x]]
-partition f (x:x1:xs) | f x == f x1 = tack x (partition f (x1:xs))
-                      | otherwise = [x]: partition f (x1:xs)
-  where tack x xss = (x : head xss) : tail xss
         
 match :: VName -> [Decl] -> Int -> [VName] -> [Equation] -> Prog -> Prog
 match name env k [] qs def =
