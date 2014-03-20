@@ -50,20 +50,21 @@ checkPatDecl dls = do
           return (FVar n)
         helper2 ls = map (\ (PatternDecl f pats p) -> (pats, p)) ls 
 
-checkAlts :: [([Char], TScheme)] -> [([Prog], Prog)] -> FType -> TypeCxt ()
+checkAlts :: [(VName, TScheme)] -> [([Prog], Prog)] -> FType -> TypeCxt ()
 checkAlts assump alts t = do
   ts <- mapM (checkAlt assump) alts
   mapM_ (unification t) ts
   
-checkAlt :: [([Char], TScheme)] -> ([Prog], Prog) -> TypeCxt FType
+checkAlt :: [(VName, TScheme)] -> ([Prog], Prog) -> TypeCxt FType
 checkAlt assump (pats, e) = do
-  ls <- foldM (helper assump) [] pats
-  (t, as) <- local (\ y -> (concat $ map snd ls)++y) $ checkExpr e
+  ls <- mapM (helper assump) pats
   let types = map fst ls
+      newEnv = concat $ map snd ls
+  (t, as) <- local (\ y -> newEnv ++ assump ++y) $ checkExpr e
   return $ foldr arrow t types
-  where helper assump cur p = do
+  where helper assump p = do
           res <- local (\y -> assump ++ y) $ checkExpr p
-          return $ cur ++ [res]
+          return res
   
 def :: VName -> [Decl] -> Bool
 def v ((DataDecl pos (Data name params cons) b):l) =
@@ -232,6 +233,7 @@ checkExpr (Let xs p) = do
           return $ as ++ [(x, Scheme [] (FVar n))]
 
 checkExpr (ProgPos _ p) = checkExpr p
+
 smartSub :: [Decl] -> Subst -> [(VName, TScheme)] -> [(VName, TScheme)]
 smartSub env sub as = map (helper env sub) as
   where helper env sub (x, Scheme vs t) =
