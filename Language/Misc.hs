@@ -179,3 +179,6 @@ fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
 data Tree a = Leaf
             | Node (Tree a) a (Tree a)
             deriving(Show, Eq)
+
+-- zipp [] [] = []
+-- zipp (a:t) (b:t') = zipp a b

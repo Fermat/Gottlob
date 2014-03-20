@@ -36,7 +36,7 @@ checkPatDecl :: [Decl] -> TypeCxt [(VName, TScheme)]
 checkPatDecl dls = do
   let ns = getFunNames dls
       dls' = sep dls
-  newFtypes <- mapM (\ _ -> helper) dls
+  newFtypes <- mapM (\ _ -> helper) dls'
   let scs = map (Scheme []) newFtypes
       newEnv = zip ns scs
       altss = map helper2 dls'
@@ -87,7 +87,7 @@ withInfo summary details m = m `catchError` (throwError . addErrorInfo summary d
 
 -- unification
 combine :: Subst -> Subst -> Subst
-combine s1 s2 = s1 ++ [(v, apply s1 t) | (v, t) <- s2]
+combine s2 s1 =  [(v, apply s2 t) | (v, t) <- s1] ++ s2
 
 -- no other Side effect other than error
 unify :: FType -> FType -> TypeCxt Subst
@@ -116,7 +116,15 @@ varBind x t | t == FVar x = return []
             | x `elem` freeVar t =
                 tcError "Can't unify the infinite formal types"
                 [(disp "unify", disp x),(disp "with", disp t)]
-            | otherwise = return [(x, t)]
+            | otherwise = do
+                  env <- lift $ lift $ lift ask
+                  if def x env
+                    then
+                    case t of
+                      FVar t' -> return [(t', FVar x)]
+                      a -> tcError "Fail in unification"
+                           [(disp "unify", disp x),(disp "with", disp a)]
+                    else return [(x, t)]
 
 -- side effect: modifying current substitution.
 unification :: FType -> FType -> TypeCxt ()

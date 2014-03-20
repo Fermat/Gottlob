@@ -30,7 +30,7 @@ main = flip catches handlers $ do
       case parseModule filename cnts of
              Left e -> throw e
              Right a -> do putStrLn $ "Parsing success! \n"
---                           print $ disp a
+                           print $ disp a
                            let (Module v a') = a
                            re <- runTypeCheck a'
                            case re  of
@@ -38,6 +38,7 @@ main = flip catches handlers $ do
                              Right ((defs, _), substs) -> do
                                putStrLn $ "Type Check success! \n"
                                mapM_ (print . disp) defs
+                               mapM_ (print . disp) substs
                            --mapM_ (\ defs -> mapM_ (print . disp) defs) (produceDefs a')
                            -- putStrLn $ "Preprocessing.. \n"
                            -- b <- checkDefs a

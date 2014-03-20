@@ -117,10 +117,15 @@ instance Disp Prog where
   precedence _ = 0
 
 instance Disp TScheme where
-  disp (Scheme xs t) = text "forall" <+> (hsep $ map disp xs) <+>text "."<+>disp t
+  disp (Scheme xs t) = if null xs then disp t
+                         else text "forall" <+> (hsep $ map disp xs) <+>text "."<+>disp t
 
 instance Disp (VName, TScheme) where
   disp (v, sc) = disp v <+> text "::" <+> disp sc
+
+instance Disp (VName, FType) where
+  disp (v, sc) = disp v <+> text "mapsto" <+> disp sc
+
 instance Disp Args where
   disp (ArgProg p) = disp p
   disp (ArgType t) = disp t
