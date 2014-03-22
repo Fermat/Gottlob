@@ -10,7 +10,7 @@ import Language.DependencyAnalysis
 import Language.FTypeInference
 import Language.PrettyPrint
 import Control.Monad.Error hiding (join)
-import Text.PrettyPrint(render)
+import Text.PrettyPrint
 import Text.Parsec(ParseError)
 import System.Console.CmdArgs
 import Data.Typeable
@@ -32,6 +32,7 @@ main = flip catches handlers $ do
              Right a -> do putStrLn $ "Parsing success! \n"
                            print $ disp a
                            let (Module v a') = a
+                          -- mapM_ (\ defs -> mapM_ (\ x -> print ((disp x) <+> text "***")) defs) (produceDefs a')
                            re <- runTypeCheck a'
                            case re  of
                              Left e -> throw e
@@ -39,7 +40,7 @@ main = flip catches handlers $ do
                                putStrLn $ "Type Check success! \n"
                                mapM_ (print . disp) defs
                                mapM_ (print . disp) substs
-                           --mapM_ (\ defs -> mapM_ (print . disp) defs) (produceDefs a')
+
                            -- putStrLn $ "Preprocessing.. \n"
                            -- b <- checkDefs a
                            -- case b of

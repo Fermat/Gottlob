@@ -38,15 +38,15 @@
      whn-reduction. And this path could reinventing the wheels. 
      And may not bringing something new to the table.
      
---done 7. Currently, proof language is annotated heavily. Should
+--  done 7. Currently, proof language is annotated heavily. Should
     consider optional annotation. 
 
- -- done by infix operator decl. 8. Try not be killed by parens in a formula
+-- done by infix operator decl. 8. Try not be killed by parens in a formula
 
 
 9. Good error info, aka, location.   
 
-10. Incorparate/Handling Typing. No dependent typing, 
+-- Done. 10. Incorparate/Handling Typing. No dependent typing, 
 only HM-polymorphic decidable type inference.
 
 11. a nice REPL
@@ -59,6 +59,6 @@ Big picture:
 2. Full flege Interpretor and Interactive Theorem proving environment.
 3. Think about how to make software as small, robust, correct and obvious as possible.
 4. Handling Exception and concurrency. 
-
+5. Implicit annotation like let, :: to help faster and decidable type checking.
 
        

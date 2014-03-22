@@ -182,3 +182,5 @@ data Tree a = Leaf
 
 -- zipp [] [] = []
 -- zipp (a:t) (b:t') = zipp a b
+idd = \ x -> x
+exp11 = let x = idd in x

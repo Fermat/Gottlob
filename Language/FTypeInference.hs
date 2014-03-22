@@ -205,14 +205,14 @@ checkExpr (Match p branches) = do
   let l = map toEq branches
       (l1, l2) = head l
   (c, as1) <- checkExpr l1
-  (init, as2) <- local (\y -> as1 ++ as ++ y) $ checkExpr l2
   unification c tp
-  newAs <- foldM (helper c init as) (as2++as) (tail l)
+  (init, as2) <- local (\y -> as1 ++ as ++ y) $ checkExpr l2
+  newAs <- foldM (helper c init) (as2++as) (tail l)
   return (init, newAs)
   where toEq (v, xs, p) =
           let a = foldl' (\ a b -> Applica a b) (Name v) xs
               in (a, p)
-        helper c init as curr (a, b) = do
+        helper c init curr (a, b) = do
           (t1, a1 ) <- checkExpr a
           unification c t1
           (t2, a2) <- local (\y -> a1 ++ curr ++ y) $ checkExpr b
@@ -228,9 +228,10 @@ checkExpr (Let xs p) = do
   where helper curr (x, t) = do
           n <- makeName "`T"
 --          lift $ modify (\y -> (x, Scheme [] (FVar n)):y)
-          (ty, as) <- local (\y -> (x, Scheme [] (FVar n)):(curr ++ y)) $ checkExpr t
+          let var = (x, Scheme [] (FVar n))
+          (ty, as) <- local (\y -> var:(curr ++ y)) $ checkExpr t
           unification (FVar n) ty
-          return $ as ++ [(x, Scheme [] (FVar n))]
+          return $ var:as
 
 checkExpr (ProgPos _ p) = checkExpr p
 
@@ -241,18 +242,18 @@ smartSub env sub as = map (helper env sub) as
               a = toTScheme env t' in
           (x, a)
 
-expp = Abs ["x", "y"] (Applica (Name "y") (Applica (Name "y") (Name "x")))
-expp2 = Abs ["x"]  (Applica (Name "x") (Name "x"))
+-- expp = Abs ["x", "y"] (Applica (Name "y") (Applica (Name "y") (Name "x")))
+-- expp2 = Abs ["x"]  (Applica (Name "x") (Name "x"))
 
-expp1 = Applica (Name "x") (Name "y")
-testcase ex = do
-           a <- runErrorT $ runReaderT (runReaderT (runStateT (runStateT (checkExpr ex) 0) []) []) []
-           case a of
-             Left e -> print $ disp e
-             Right a -> do
-                        print $ disp $ apply (snd a) ((fst . fst . fst) a)
-                        print $ show $ (snd . fst . fst) a
-                        print $ show $ snd a 
+-- expp1 = Applica (Name "x") (Name "y")
+-- testcase ex = do
+--            a <- runErrorT $ runReaderT (runReaderT (runStateT (runStateT (checkExpr ex) 0) []) []) []
+--            case a of
+--              Left e -> print $ disp e
+--              Right a -> do
+--                         print $ disp $ apply (snd a) ((fst . fst . fst) a)
+--                         print $ show $ (snd . fst . fst) a
+--                         print $ show $ snd a 
 
 
 

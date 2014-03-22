@@ -3,14 +3,55 @@ import Language.Syntax
 import Language.PrettyPrint
 import Data.List hiding(partition)
 import qualified Data.Set as S
+import qualified Data.Map as M
 import Control.Monad.State
 import Debug.Trace
 produceDefs :: [Decl] -> [[Decl]]
 produceDefs env =
   let progs = sep $ getProg env
-      inter = depAnalyze env progs       
-      res = reOrganize progs inter
-      in  res
+      g = getGraph env progs
+      inter = depAnalyze g
+      n = reOrder g inter
+      res = reOrganize progs n
+      in res
+
+-- findPaths :: VName -> VName -> [(VName, [VName])] -> []
+
+type Mark = Maybe Bool
+
+topSort :: [(VName, [VName])] -> StateT [(VName, Mark)] (StateT [VName] (Maybe ())) 
+topSort graph = do
+  st <- get
+  let unmarks = filter (\ (x, y) -> y == Nothing) st
+  if null unmarks
+    then return ()
+    else do
+    visit graph (fst $ head unmarks)
+    topSort graph
+
+visit :: [(VName, [VName])] -> VName -> StateT [(VName, Mark)] (StateT [VName] (Maybe ())) 
+visit graph n = do
+  st <- get
+  case lookup n st of
+    Nothing -> let res = delete (n, Nothing) st 
+                   new = (n, Just False):res in do
+                 put new
+                 sequence [visit graph m  | m <- getNeib n graph]
+                 st' <- get
+                 let res' = delete (n, Just False) st'
+                     new' = (n, Just True):res'
+                 put new'
+                 lift $ modify (\ y -> n:y) 
+                 return ()
+    Just False -> return Nothing
+    Just True -> return ()
+
+
+
+
+-- reordering the result paths based on dependency
+-- reOrder :: [(VName, [VName])] -> [[VName]] -> [[VName]]
+-- reOrder g paths = 
 
 consDef :: VName -> [Decl] -> Bool
 consDef v ((DataDecl pos (Data name params cons) b):l) =
@@ -42,16 +83,16 @@ getName ((PatternDecl f pats p):dls) = f
 getGraph :: [Decl] -> [[Decl]] -> [(VName, [VName])]
 getGraph env ds = [(getName defs, funVar env defs) | defs <- ds]
 
-depAnalyze :: [Decl] -> [[Decl]] -> [[VName]]
-depAnalyze env ds =
-  let g = getGraph env ds
-      ls = map fst g in
-  collapse $ snd $ runState (initial ls g) []      
+-- take in an initial graph return list of paths.
+depAnalyze :: [(VName, [VName])] -> [[VName]]
+depAnalyze graph =
+  let ls = map fst graph in
+  collapse $ snd $ runState (initial ls graph) []      
 
 -- Learn this from Google interview...
 reOrganize :: [[Decl]] -> [[VName]] -> [[Decl]]
 reOrganize defs st =
-  [ (concat [ find f defs | f <- l]) | l <- st ]
+  [(concat [ find f defs | f <- l]) | l <- st ]
   where find f defs = concat [ q | q@((PatternDecl g pats p):res) <- defs, f == g]
 
 type Path = [VName]
