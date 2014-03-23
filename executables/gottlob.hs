@@ -6,9 +6,11 @@ import Language.Syntax
 import Language.ProofChecking
 import Language.Monad
 import Language.Preprocess
+import Language.DependencyAnalysis
+import Language.FTypeInference
 import Language.PrettyPrint
 import Control.Monad.Error hiding (join)
-import Text.PrettyPrint(render)
+import Text.PrettyPrint
 import Text.Parsec(ParseError)
 import System.Console.CmdArgs
 import Data.Typeable
@@ -29,6 +31,8 @@ main = flip catches handlers $ do
              Left e -> throw e
              Right a -> do putStrLn $ "Parsing success! \n"
                            print $ disp a
+                           let (Module v a') = a
+                           ensureTypeCheck a'
                            putStrLn $ "Preprocessing.. \n"
                            b <- checkDefs a
                            case b of
@@ -36,7 +40,7 @@ main = flip catches handlers $ do
                              Right (env, e) ->  do
                                putStrLn "ProofChecking success!"
                                print $ disp env
--- look at local variable                              print $ disp e
+--look at local variable                              print $ disp e
 
 
     _ -> putStrLn "usage: gottlob <filename>"
@@ -44,3 +48,11 @@ main = flip catches handlers $ do
         typeHandler e@(ErrMsg _) = print (disp e) >> exitFailure
         parseHandler (e :: ParseError)= print (disp e) >> exitFailure
 
+ensureTypeCheck a' = do
+  re <- runTypeCheck a'
+  case re of
+    Left e -> throw e
+    Right ((defs, _), substs) -> do
+      putStrLn $ "Type Check success! \n"
+      mapM_ (print . disp) defs
+--                               mapM_ (print . disp) substs

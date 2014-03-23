@@ -1,8 +1,9 @@
 module Language.ProofChecking
-       (proofCheck, wellDefined, wellFormed, repeatComp,
-        ensureForm, erased, checkFormula) where
+       ( wellDefined, wellFormed, repeatComp,
+        ensureForm, erased, checkFormula, proofCheck) where
 import Language.Syntax
 import Language.Monad
+import Language.Program
 import Language.TypeInference
 import Language.Eval
 import Language.PrettyPrint
@@ -18,41 +19,62 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Char
 
-proofCheck :: ProofScripts -> Global ()
+proofCheck :: [Decl] -> ProofScripts -> Global ()
 -- proofCheck ((n, (PPos pos p ), f):l) f1 = 
 --   proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
   
-proofCheck ((n, Left (Assume x), Just f):l) = do
+proofCheck decls ((n, Left (Assume x), Just f):l) = 
 --  wellDefined f
-  wellFormed f
-  insertAssumption x f
+  case runDepattern f 0 decls of
+    Right f' ->
+      let f1 = progTerm f' in do
+        wellFormed f1
+        insertAssumption x f1
 --  emit $ "checked assumption"
-  proofCheck l
-
-proofCheck ((n, Right p, Just f):l) = do
+        proofCheck decls l
+    Left (ConstrError a) -> die $ "Can't find constructor" <++> disp a
+    Left (OtherError doc) -> die $ disp doc
+    
+proofCheck decls ((n, Right p, Just f):l) = do
   emit $ "begin to check proof " <++> disp p
-  wellFormed f
-  p1 <- simp p --  normalize a proof
+  case runDepattern f 0 decls of
+    Right f' ->
+      case runDepattern p 0 decls of
+        Right p' -> do
+          let f'' = progTerm f'
+              p'' = progTerm p'
+          wellFormed f''
+          p1 <- simp p''  --  normalize a proof
 --  emit $ "begin to check simp proof " <++> disp p1
-  f0 <- checkFormula p1
-
+          f0 <- checkFormula p1
 --  emit $ disp f0 <+> text "?=" <+> disp f
-  sameFormula f0 f -- this can be handle by passing to checkformula
+          sameFormula f0 f'' -- this can be handle by passing to checkformula
 --  emit $ "pass same"
-  insertPrVar n p1 (erased f)
+          insertPrVar n p'' (erased f0)
 --  emit $ "checked non-assump"
-  proofCheck l
+          proofCheck decls l
+        Left (ConstrError a) -> die $ "Can't find constructor" <++> disp a
+        Left (OtherError doc) -> die $ disp doc
+    Left (ConstrError a) -> die $ "Can't find constructor" <++> disp a
+    Left (OtherError doc) -> die $ disp doc
+ 
 
-proofCheck ((n, Right p, Nothing):l) = do
+proofCheck decls ((n, Right p, Nothing):l) = do
   emit $ "begin to check proof " <++> disp p
 --  emit $ "a list of fv " ++ show (fv p)
-  p1 <- simp p  --  normalize a proof
-  f0 <- checkFormula p1
-  emit $ text "Infered formula:" <+> disp f0 <+> text "for proof" <+> disp n
-  insertPrVar n p1 (erased f0)
-  proofCheck l
+  case runDepattern p 0 decls of
+        Right p' -> do
+          let p'' = progTerm p'
+          p1 <- simp p''  --  normalize a proof
+          f0 <- checkFormula p1
+          emit $ text "Infered formula:" <+> disp f0 <+> text "for proof" <+> disp n
+          insertPrVar n p1 (erased f0)
+          proofCheck decls l
+        Left (ConstrError a) -> die $ "Can't find constructor" <++> disp a
+        Left (OtherError doc) -> die $ disp doc
 
-proofCheck [] = return ()
+proofCheck decls [] = return ()
+
 
 insertAssumption :: VName -> PreTerm -> Global ()
 insertAssumption x f = do

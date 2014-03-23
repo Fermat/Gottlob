@@ -1,6 +1,6 @@
 1. Shrinking files
--- 2. Support *Let*/, or Monadic code (done)
--- 2. suport logical 'and', 'exist'. (supported through Girard's encoding )
+-- 2. Support *Let*/,  (done)
+-- 2. suport logical 'and', 'exist'. (supported through Girard's encoding)
 
 ---------------- supported user defined infix for prog, proof and formula now.
 -- 1. Haskell style $ 
@@ -38,15 +38,18 @@
      whn-reduction. And this path could reinventing the wheels. 
      And may not bringing something new to the table.
      
---done 7. Currently, proof language is annotated heavily. Should
+--  done 7. Currently, proof language is annotated heavily. Should
     consider optional annotation. 
 
- -- done by infix operator decl. 8. Try not be killed by parens in a formula
+-- done by infix operator decl. 8. Try not be killed by parens in a formula
 
 
 9. Good error info, aka, location.   
 
-10. Incorparate/Handling Typing. No dependent typing, only HM-polymorphic type inference.
+-- Done. 10. Incorparate/Handling Typing. No dependent typing, 
+only HM-polymorphic decidable type inference.
+
+11. a nice REPL
 
 -- Done. 11. Automatic deriving induction principle for data type.
 
@@ -56,6 +59,6 @@ Big picture:
 2. Full flege Interpretor and Interactive Theorem proving environment.
 3. Think about how to make software as small, robust, correct and obvious as possible.
 4. Handling Exception and concurrency. 
-
+5. Implicit annotation like let, :: to help faster and decidable type checking.
 
        

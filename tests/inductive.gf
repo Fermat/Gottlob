@@ -5,6 +5,9 @@ prog infixl 9 ,
 --prog pre ?
 
 ($) a b = a b
+
+f a b = a b
+
 Eq a b = forall C . a :: C -> b :: C
 data Pair U V where
   (,) :: U -> V -> Pair U V
@@ -21,6 +24,12 @@ tactic byEval t1 t2 =
    c3 = ug Q . discharge c . c1
    c5 = invcmp c3 : Eq t1 t2
 
+-- data Li where
+--   lnil :: Li
+--   lcons :: forall U . U -> Li -> Li
+--   deriving Ind
+
+
 theorem tri . forall a b . Eq (fst (a, b)) a
 proof
    c = ug a . ug b . byEval (fst (a , b)) a
@@ -33,7 +42,8 @@ data List U where
   nil :: List U
   cons :: U -> List U -> List U
   deriving Ind
-  
+
+
 data Nat where
   z :: Nat
   s :: Nat -> Nat 

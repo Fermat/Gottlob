@@ -2,15 +2,15 @@ module Language.Syntax
        (VName, EType(..), vars, sub, farity,
         PreTerm(..), ProofScripts, 
         Prog(..), Args(..), FType(..), Assumption(..),
-        Datatype(..), Module(..), Decl(..),
-        fv,fVar, runSubst, naiveSub) where
+        Datatype(..), Module(..), Decl(..), TScheme(..),
+        fv,fVar, freeVar, runSubst, naiveSub, fPvar, partition) where
 
 import Control.Monad.State.Lazy
 import Control.Monad.Reader
 
 import Data.Char
 import qualified Data.Set as S
-import Data.List
+import Data.List hiding (partition)
 
 import Text.Parsec.Pos
 
@@ -54,6 +54,7 @@ data PreTerm = PVar VName
           | Beta PreTerm            -- beta p
           | InvBeta PreTerm PreTerm  -- invbeta p from F
           | Discharge VName (Maybe PreTerm) PreTerm -- discharge a : F . p
+
           | Pos SourcePos PreTerm
           deriving (Show)
 
@@ -67,82 +68,106 @@ data PNameless = PV Int
              | TAP PNameless PNameless
              | AP PNameless PNameless
              | LM PNameless
-             -- | MODP PNameless PNameless -- mp p1 by p2
-             -- | INST PNameless PNameless -- inst p1 by p2
-             -- | UNGN PNameless     -- ug x . p
-             -- | CMP PNameless          -- cmp p
-             -- | INVCMP PNameless PNameless  -- invcmp p from F
-             -- | BETA PNameless            -- beta p
-             -- | INVB PNameless PNameless  -- invbeta p from F
-             -- | DIS (Maybe PNameless) PNameless -- discharge a : F . p
              deriving (Show, Eq)
 
 -- naive sub for proof 
-naiveSub :: PreTerm -> PreTerm -> PreTerm -> PreTerm
-naiveSub p (PVar x) (PVar y) =
-  if x == y then p else PVar y
+naiveSub :: Prog -> Prog -> Prog -> Prog
+naiveSub p (Name x) (Name y) =
+  if x == y then p else Name y
                                
-naiveSub p (PVar x) (MP p1 p2) = 
-  let a1 = naiveSub p (PVar x) p1
-      a2 = naiveSub p (PVar x) p2 in
-  MP a1 a2
+naiveSub p (Name x) (TMP p1 p2) = 
+  let a1 = naiveSub p (Name x) p1
+      a2 = naiveSub p (Name x) p2 in
+  TMP a1 a2
   
-naiveSub p (PVar x) (Inst p1 t) =
-  let a = naiveSub p (PVar x) p1 in
-  Inst a t
+naiveSub p (Name x) (TInst p1 t) =
+  let a = naiveSub p (Name x) p1 in
+  TInst a t
   
-naiveSub p (PVar x) (UG y p1) = UG y (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (TUG y p1) = TUG y (naiveSub p (Name x) p1)
                                      
-naiveSub p (PVar x) (Cmp p1) = Cmp (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (TCmp p1) = TCmp (naiveSub p (Name x) p1)
                                      
-naiveSub p (PVar x) (InvCmp p1 t) =
-  InvCmp (naiveSub p (PVar x) p1) t
+naiveSub p (Name x) (TInvCmp p1 t) =
+  TInvCmp (naiveSub p (Name x) p1) t
 
-naiveSub p (PVar x) (Beta p1) =
-  Beta (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (TSimpCmp p1) = TSimpCmp (naiveSub p (Name x) p1)
+                                     
+naiveSub p (Name x) (TInvSimp p1 t) =
+  TInvSimp (naiveSub p (Name x) p1) t
+
+naiveSub p (Name x) (TBeta p1) =
+  TBeta (naiveSub p (Name x) p1)
                                     
-naiveSub p (PVar x) (InvBeta p1 t) =
-  InvBeta ( naiveSub p (PVar x) p1) t
+naiveSub p (Name x) (TInvBeta p1 t) =
+  TInvBeta ( naiveSub p (Name x) p1) t
 
-naiveSub p (PVar x) (Discharge y t p1) = Discharge y t (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (TDischarge y t p1) = TDischarge y t (naiveSub p (Name x) p1)
   
-naiveSub p (PVar x) (Lambda y p1) =  Lambda y (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (Abs y p1) =  Abs y (naiveSub p (Name x) p1)
   
-naiveSub p (PVar x) (App p1 p2) = 
-  let a1 = naiveSub p (PVar x) p1
-      a2 = naiveSub p (PVar x) p2 in
-  App a1 a2
-  
-  
-naiveSub p (PVar x) (Pos a p1) =
-  Pos a (naiveSub p (PVar x) p1)
+naiveSub p (Name x) (AppPre p1 p2) = 
+  let a1 = naiveSub p (Name x) p1 in
+      -- a2 = naiveSub p (Name x) p2 in
+  AppPre a1 p2
+
+naiveSub p (Name x) (Applica p1 p2) = 
+  let a1 = naiveSub p (Name x) p1
+      a2 = naiveSub p (Name x) p2 in
+  Applica a1 a2
+
+--naiveSub p (Name x) (TIota y p1) =  TI y (naiveSub p (Name x) p1)
+
+naiveSub p (Name x) (ProgPos a p1) =
+  ProgPos a (naiveSub p (Name x) p1)
+
+naiveSub p (Name x) er = error $ show er
 
 data Assumption = Assume VName deriving Show
+--                      a = p1 : F or [a] : F
+type ProofScripts = [(VName, Either Assumption Prog, Maybe Prog)]
 
-type ProofScripts = [(VName, Either Assumption PreTerm, Maybe PreTerm)]
+fPvar :: Prog -> S.Set VName
+fPvar (Name x) = S.insert x S.empty
+fPvar (Applica p1 p2) = fPvar p1 `S.union` fPvar p2
+fPvar (Abs xs p) = fPvar p S.\\ (S.fromList xs)
+fPvar (Match p ls) = fPvar p `S.union` (foldr (\ x y -> helper x `S.union` y) S.empty ls)
+  where helper (c, pat, p) =
+          fPvar p S.\\ (foldr (\ x y -> S.union (fPvar x) y ) (S.insert c S.empty) pat)
 
+fPvar (Let ((x,t):[]) p) = S.union (fPvar t) $ S.delete x (fPvar p)
+fPvar (Let ((x,t):xs) p) = S.union (fPvar t) $ S.delete x (fPvar (Let xs p))
+  -- ((fPvar p) `S.union` (helper xs)) S.\\ helper2 xs
+  -- where helper xs = foldr (\ (x, t) y -> fPvar t `S.union` y ) S.empty xs
+  --       helper2 xs = foldr (\ (x, t) y -> (S.insert x S.empty) `S.union` y ) S.empty xs
+fPvar (If p1 p2 p3) = fPvar p1 `S.union` fPvar p2 `S.union` fPvar p3
+fPvar (ProgPos p p1) = fPvar p1
 data Prog = Name VName
           | Applica Prog Prog
           | Abs [VName] Prog
-          | Match Prog [(VName, [VName], Prog)]
+          | Match Prog [(VName, [Prog], Prog)]
           | Let [(VName, Prog)] Prog
           | If Prog Prog Prog
-            -- tactic is meta program is not subjected for local reasoning
+            -- Formula at Surface
+          | TForall VName Prog
+          | TImply Prog Prog
+          | TIota VName Prog
+          | TIn Prog Prog
+          | TSApp Prog Prog
+          | TSTApp Prog Prog
+            -- tactic at Surface
           | TMP Prog Prog -- mp p1 by p2
-          | TInst Prog PreTerm -- inst p1 by p2
+          | TInst Prog Prog -- inst p1 by p2
           | TUG VName Prog     -- ug x . p
           | TCmp Prog          -- cmp p
-          | TInvCmp Prog PreTerm  -- invcmp p from F
+          | TInvCmp Prog Prog  -- invcmp p from F
           | TSimpCmp Prog          -- cmp p
-          | TInvSimp Prog PreTerm  -- invcmp p from F
+          | TInvSimp Prog Prog  -- invcmp p from F
           | TBeta Prog            -- beta p
-          | TInvBeta Prog PreTerm  -- invbeta p from F
-          | TDischarge VName (Maybe PreTerm) Prog -- discharge a : F . p
-          | AppPre Prog PreTerm -- p F
-          -- | AppProof Prog Prog -- t p
-          -- | TPFApp Prog PreTerm -- p F
-          -- | TPApp Prog Prog -- p p
-          -- | TPLam VName Prog -- \ x. p
+          | TInvBeta Prog Prog  -- invbeta p from F
+          | TDischarge VName (Maybe Prog) Prog -- discharge a : F . p
+          | AppPre Prog Prog -- p F
+            
           | ProgPos SourcePos Prog
             
           deriving (Show, Eq)
@@ -158,6 +183,16 @@ data FType = FVar VName
            | Pi VName FType FType
            | FTPos SourcePos FType
            deriving (Show, Eq)
+data TScheme = Scheme [VName] FType deriving (Show)
+freeVar :: FType -> [VName]
+freeVar (FVar x) = [x]
+freeVar (Arrow f1 f2) = (freeVar f1) ++ (freeVar f2)
+freeVar (FCons x args) = x : concat (helper args)
+  where helper as = map h1 as
+        h1 (ArgType f) = freeVar f
+        h1 (ArgProg p) = []
+
+
 
 farity :: FType -> Int
 farity (FVar _) = 0
@@ -165,6 +200,7 @@ farity (FCons _ _) = 0
 farity (Arrow f1 f2) = 1 + farity f2
 farity (Pi x f1 f2) = 1 + farity f2
 farity (FTPos pos f) = farity f
+
 data Datatype =
   Data VName [VName] [(VName,FType)]    
   deriving (Show)
@@ -175,10 +211,10 @@ data Module = Module VName [Decl] deriving (Show)
 
 data Decl = ProgDecl VName Prog
           | PatternDecl VName [Prog] Prog
-          | ProofDecl VName (Maybe VName) ProofScripts PreTerm
+          | ProofDecl VName (Maybe VName) ProofScripts Prog
           | DataDecl SourcePos Datatype Bool
             -- no forall n :: Nat . P (F n), where F is a "function" take in n return a formula
-          | SetDecl VName PreTerm    
+          | SetDecl VName Prog
           | TacDecl VName [VName] (Either Prog ProofScripts)
           | FormOperatorDecl String Int String
           | ProgOperatorDecl String Int String
@@ -199,10 +235,8 @@ fv (TApp f1 f2) = fv f1 `S.union` fv f2
 fv (MP p1 p2) = fv p1 `S.union` fv p2
 fv (Inst p1 t) = fv p1 `S.union` fv t
 fv (UG a p) = S.delete a (fv p)
-fv (Discharge a t p) =
-  case t of
-    Nothing -> S.delete a (fv p)
-    Just b -> S.delete a (fv p) `S.union` fv b
+fv (Discharge a Nothing p) = S.delete a (fv p)
+fv (Discharge a (Just b) p) = S.delete a (fv p) `S.union` fv b
 fv (Cmp p) = fv p
 fv (Beta p) = fv p
 fv (InvCmp p1 t) = fv p1 `S.union` fv t
@@ -272,7 +306,7 @@ debruijn (Lambda x f) = do
 
 debruijn (Pos _ f) = debruijn f
 
-plus1 = Data.List.map (\x ->(fst x,snd x + 1))
+plus1 = map $ \(x, y) ->(x, y + 1)
 
 -- debruijn only deals with closed preterm. To
 -- compare open preterms, we simply closed these
@@ -430,5 +464,10 @@ subst p (PVar x) (Discharge y Nothing p1) =
          return $ Discharge (y++ show n) (Nothing) c2
 subst s (PVar x) (Pos _ f) = subst s (PVar x) f
 
+partition f [] = []
+partition f (x:[]) = [[x]]
+partition f (x:x1:xs) | f x == f x1 = tack x (partition f (x1:xs))
+                      | otherwise = [x]: partition f (x1:xs)
+  where tack x xss = (x : head xss) : tail xss
 
               

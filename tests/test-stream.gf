@@ -62,22 +62,32 @@ tactic smartCong f a b p n m =
    c6 = invcmp (cmp c5) from Eq n m
    -- Eq n m
 
-head s = s (getHead ident)
+-- head s = s (getHead ident)
 
-tail s = \ o . s (getTail o)
+-- tail s = \ o . s (getTail o)
+
+head st = st (getHead ident)
+
+tail st = \ o . st (getTail o)
 
 -- A -> Observer A R -> R
 repeat a o = case o of  
                getHead f -> f a
                getTail o' -> repeat a o'
 
+fib o = case o of  
+           getHead f -> f z
+           getTail (getHead f) -> f (s z)
+           getTail (getTail o') -> zipPlus (fib (getTail o')) (fib o')
+           
+
 natStream a o = case o of  
                   getHead f -> f a
                   getTail o' -> natStream (plus1 a) o'
 
-map f s o = case o of
-             getHead g -> g (f (head s))
-             getTail o' -> map f s o'
+map f st o = case o of
+             getHead g -> g (f (head st))
+             getTail o' -> map f st o'
 
 theorem trans . forall a b c . Eq a b -> Eq b c -> Eq a c
 proof
@@ -98,7 +108,7 @@ tactic useTrans a b c p1 p2 = mp mp (inst inst (inst trans by a) by b by c) by p
              
 tactic byEval t1 t2 =   
    [c] : t1 :: Q
-   c1 = invbeta beta c : t2::Q
+   c1 = invbeta beta c : t2 :: Q
    c3 = ug Q . discharge c . c1
    c5 = invcmp c3 : Eq t1 t2
 --  Observer : (i -> o) -> (i -> o) -> i -> o = 
@@ -127,7 +137,7 @@ theorem tes0 . Eq (add z (s z)) (s z)
 proof
  c = byEval  (add z (s z)) (s z)
 qed
-
+{-
 theorem tes1 . Eq (plus1 (head (repeat (s z))))  (s (s z))
 proof
  b0 = byEval (plus1 (head (repeat (s z)))) (s (s z))
@@ -137,7 +147,7 @@ proof
  -- b03 = (useTrans $ (plus1 (head (repeat (s z)))) $ (\ z0 . \ s1 . s1 (add z (s z))) $ (\ z0 . \ s1 . s1 (s z))) b b01 
  -- b04 = (useTrans $ (plus1 (head (repeat (s z)))) $ (\ z0 . \ s1 . s1 (s z)) $ (s (s z))) b03 b02
 qed
-
+-}
 tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
 {-
 theorem ext . forall o A R . o :: Observer A R -> Eq (map plus1 (repeat (s z)) o) (repeat (s (s z)) o) 

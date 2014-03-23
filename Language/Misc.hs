@@ -1,9 +1,9 @@
-{-# LANGUAGE BangPatterns, NoMonomorphismRestriction #-}
+{-# LANGUAGE BangPatterns, NoMonomorphismRestriction, GADTs, RankNTypes #-}
 module Language.Misc where
-import Language.ProofChecking
-import Language.Program
-import Language.Syntax
-import Language.Monad
+-- import Language.ProofChecking
+-- import Language.Program
+-- import Language.Syntax
+-- import Language.Monad
 import Control.Monad.State
 import Control.Monad.Error
 import Control.Monad.Reader
@@ -14,6 +14,27 @@ import Text.Parsec.Indent
 import Text.Parsec.Token
 import Data.List
 import Data.Function(on)
+
+
+-- data Observer a b where
+--   OHead :: (a -> b) -> Observer a b
+--   OTail :: Observer a b -> Observer a b
+
+-- hd s = s (OHead (\ x -> x))
+
+-- tl s = \ o -> s (OTail o)
+
+-- sPlus :: (Observer a b -> c) -> (Observer a b -> c) -> Observer a b -> (Observer a b -> c)
+-- sPlus s1 s2 (OHead f) = f (hd s1 + tl s2)
+-- sPlus s1 s2 (OTail o) = sPlus (tl s1) (tl s2) o
+
+
+-- fi o = case o of  
+--            OHead f -> f 0
+--            OTail (OHead f) -> f 1
+--            OTail (OTail o') -> sPlus (fi (OTail o')) (fi o') 
+
+
 
 data N = Z | S N deriving (Show, Eq)
 add n m = case n of
@@ -158,3 +179,8 @@ fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
 data Tree a = Leaf
             | Node (Tree a) a (Tree a)
             deriving(Show, Eq)
+
+-- zipp [] [] = []
+-- zipp (a:t) (b:t') = zipp a b
+idd = \ x -> x
+exp11 = let x = idd in x

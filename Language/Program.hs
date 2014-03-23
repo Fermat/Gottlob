@@ -1,48 +1,273 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Language.Program
-       (progTerm, toSet, toScott, runToProof) where
+       (progTerm, toSet, toScott, runDepattern, PatError(..), runToProof, toPat) where
 import Language.Syntax
+import Language.Pattern
+import Language.PrettyPrint
+import Text.PrettyPrint
 import Control.Monad.Reader
+import Control.Monad.State
+import Control.Monad.Error
 import Data.List
 import Data.Char
 
--- Translating Program to meta term
+-- Translating Flat Program to meta term
+
 progTerm :: Prog -> PreTerm
 progTerm (Name n) = PVar n
-progTerm (Applica p1 p2) = App (progTerm p1) (progTerm p2)
-progTerm (Abs l p) = constrAbs l (progTerm p)
-progTerm (Match v l) = appBranch l (progTerm v)
-progTerm (ProgPos pos p) = Pos pos (progTerm p)
-progTerm (Let l p) = substList (helper l) (progTerm p)
+progTerm (Applica p1 p2) = 
+  let a1 = progTerm p1
+      a2 = progTerm p2 in App a1 a2
+
+progTerm (Abs l p) =
+  let a = progTerm p in constrAbs l a
+                        
+progTerm (Match v l) =
+  let a = progTerm v in appBranch l a
+                        
+progTerm (ProgPos pos p) =
+  let a = progTerm p in Pos pos a
+
+progTerm (Let l p) = 
+  let a = progTerm p in
+  substList (helper l) a
   where helper l = map (\ (x, t) -> (PVar x, progTerm t)) l
         substList [] t = t
         substList ((x, t1):xs) t = substList xs (runSubst t1 x t)
-progTerm (TMP p1 p2) = MP (progTerm p1) (progTerm p2)
-progTerm (TInst p1 p2) = Inst (progTerm p1) p2
-progTerm (TUG x p2) = UG x (progTerm p2)
-progTerm (TCmp p1) = Cmp (progTerm p1)
-progTerm (TBeta p1) = Beta (progTerm p1)
-progTerm (TInvCmp p1 p2) = InvCmp (progTerm p1) p2
-progTerm (TInvBeta p1 p2) = InvBeta (progTerm p1) p2
-progTerm (TDischarge x p1 p2) = Discharge x p1 (progTerm p2)
--- progTerm (TPLam x p2) = Lambda x (progTerm p2)
--- progTerm (TPApp p1 p2) = App (progTerm p1) (progTerm p2)
--- progTerm (TPFApp p1 p2) = App (progTerm p1) p2
-progTerm (AppPre p1 p2) = App (progTerm p1) p2
 
-progTerm (If c p1 p2) = App (App (App iff (progTerm c)) (progTerm p1)) (progTerm p2)
+progTerm (TForall x p) =
+  let a = progTerm p in Forall x a
+
+progTerm (TImply f1 f2) =
+  let a1 = progTerm f1
+      a2 = progTerm f2 in Imply a1 a2
+
+progTerm (TIota x p) =
+  let a = progTerm p in Iota x a
+
+progTerm (TIn f1 f2) =
+  let a1 = progTerm f1
+      a2 = progTerm f2 in In a1 a2
+
+progTerm (TSApp f1 f2) =
+  let a1 = progTerm f1
+      a2 = progTerm f2 in SApp a1 a2
+
+progTerm (TSTApp f1 f2) =
+  let a1 = progTerm f1
+      a2 = progTerm f2 in TApp a1 a2
+  
+progTerm (TMP p1 p2) = 
+  let a1 = progTerm p1
+      a2 = progTerm p2 in MP a1 a2
+  
+progTerm (TInst p1 p2) =
+  let a = progTerm p1
+      a2 = progTerm p2
+  in Inst a a2
+                         
+progTerm (TUG x p2) =
+  let a = progTerm p2 in UG x a
+progTerm (TCmp p1) =
+  let a = progTerm p1 in Cmp a
+
+progTerm (TBeta p1) =
+  let a = progTerm p1 in Beta a
+
+progTerm (TInvCmp p1 p2) =
+  let a = progTerm p1
+      a2 = progTerm p2
+  in InvCmp a a2
+progTerm (TInvBeta p1 p2) =
+  let a = progTerm p1
+      a2 = progTerm p2
+  in InvBeta a a2
+progTerm (TDischarge x p1 p2) =
+  case p1 of
+    Nothing -> 
+      let a = progTerm p2 in Discharge x Nothing a
+    Just t ->
+      let a0 = progTerm t
+          a = progTerm p2
+      in Discharge x (Just a0) a
+
+progTerm (AppPre p1 p2) =
+  let a = progTerm p1
+      a2 = progTerm p2 in App a a2
+
+progTerm (If c p1 p2) = 
+  let c1 = progTerm c
+      a1 = progTerm p1
+      a2 = progTerm p2
+  in App (App (App iff c1) a1 ) a2
+
+data PatError a = ConstrError a
+                | OtherError Doc
+               deriving (Show)
+
+instance Disp a => Error (PatError a) where
+  strMsg x = OtherError $ text x
+  noMsg = strMsg "<unknown>"
+
+runDepattern p n env = do
+  a <- runReaderT (runStateT (dePattern p) n) env
+  return $ fst a
+dePattern :: Prog -> StateT Int (ReaderT [Decl] (Either (PatError Prog))) Prog
+dePattern (Name n) = return $ Name n
+dePattern (Applica p1 p2) = do
+  a1 <- dePattern p1
+  a2 <- dePattern p2
+  return $ Applica a1 a2
+
+dePattern (Abs l p) = do
+  a <- dePattern p
+  return $ Abs l a
+
+dePattern (ProgPos pos p) = do
+  a <- dePattern p
+  return $ ProgPos pos a
+
+dePattern (Match v l) = do
+  a <- dePattern v
+  ps <- mapM helper l
+  eqs <- mapM helper2 ps
+  env <- ask
+  i <- get
+  modify (+1)
+  let n = "`v"++ show i
+      (Match b l) = match n env 1 [n] eqs (Name "Error")
+  return $ Match a l
+  where helper (x, xs, p) = do
+          p' <- dePattern p
+          return (foldl' (\ a b -> Applica a b) (Name x) xs, p')
+        helper2 (ps, p) = do
+          pat <- toPat ps
+          return ([pat], p)
+
+dePattern (Let l p) = do
+  a <- dePattern p
+  l1 <- mapM helper l
+  return $ Let l1 a
+    where helper (x , t) = do
+            t' <- dePattern t
+            return (x, t')
+            
+dePattern (TMP p1 p2) = do
+  a1 <- dePattern p1
+  a2 <- dePattern p2
+  return $ TMP a1 a2
+  
+dePattern (TInst p1 p2) = do
+  a <- dePattern p1
+  return $ TInst a p2
+  
+dePattern (TUG x p2) = do
+  a <- dePattern p2
+  return $ TUG x a
+
+dePattern (TCmp p1) = do
+  a <- dePattern p1
+  return $ TCmp a
+
+dePattern (TBeta p1) = do
+  a <- dePattern p1
+  return $ TBeta a
+
+dePattern (TInvCmp p1 p2) = do
+  a <- dePattern p1
+  return $ TInvCmp a p2
+
+dePattern (TInvBeta p1 p2) = do
+  a <- dePattern p1
+  return $ TInvBeta a p2
+  
+dePattern (TDischarge x p1 p2) = do
+  a <- dePattern p2
+  return $ TDischarge x p1 a
+  
+dePattern (AppPre p1 p2) = do
+  a <- dePattern p1
+  return $ AppPre a p2
+
+dePattern (If c p1 p2) = do
+  c1 <- dePattern c
+  a1 <- dePattern p1
+  a2 <- dePattern p2
+  return $ If c1 a1 a2
+dePattern (TForall x p) = do
+  c1 <- dePattern p
+  return $ TForall x c1
+dePattern (TImply f1 f2) = do
+  c1 <- dePattern f1
+  c2 <- dePattern f2
+  return $ TImply c1 c2
+
+dePattern (TIota x p) = do
+  c1 <- dePattern p
+  return $ TIota x c1
+
+dePattern (TIn f1 f2) = do
+  c1 <- dePattern f1
+  c2 <- dePattern f2
+  return $ TIn c1 c2
+
+dePattern (TSApp f1 f2) = do
+  c1 <- dePattern f1
+  c2 <- dePattern f2
+  return $ TSApp c1 c2
+
+dePattern (TSTApp f1 f2) = do
+  c1 <- dePattern f1
+  c2 <- dePattern f2
+  return $ TSTApp c1 c2
+
+
 -- it is a little ad hoc
 iff = Lambda "a" (Lambda "then" (Lambda "else"
                                  (App (App (PVar "a") (PVar "then")) (PVar "else"))))
 --progTerm (AppProof p1 p2) = App (progTerm p1) (progTerm p2)
 
-
-
 constrAbs :: [VName] -> PreTerm -> PreTerm
 constrAbs l t = foldr (\ x z -> Lambda x z) t l
 
-appBranch :: [(VName, [VName], Prog)] -> PreTerm -> PreTerm
-appBranch l m = foldl' (\ z x -> App z (helper x)) m l
-  where helper (v,l,p) = constrAbs l (progTerm p)
+appBranch :: [(VName, [Prog], Prog)] -> PreTerm -> PreTerm
+appBranch l m = 
+  foldl' (\ z x ->  App z (helper x)) m l
+  where
+    helper (v,l,p) = 
+      let l1 = map (\ (Name x) -> x) l
+          a = progTerm p in
+      constrAbs l1 a 
+
+--toPat :: Prog -> StateT Int (ReaderT [Decl] (Either (PatError Prog))) Pattern 
+toPat (Name c) = do
+  state <- ask
+  if isConstr c state
+    then return $ (Cons c [])
+    else return $ (Var c)
+toPat (Applica (Name c) b) = do
+  state <- ask
+  if isConstr c state
+    then
+    return $ Cons c (toVar b)
+    else throwError $ ConstrError (Name c)
+toPat (Applica a b) = do
+  (Cons v ls) <- toPat a
+  return $ Cons v (ls ++ (toVar b))
+toPat (ProgPos pos p) = toPat p
+
+toPat p = throwError $ ConstrError p
+
+toVar (Name a) = [Var a]
+toVar (Applica a b) = (toVar a) ++ (toVar b)
+
+isConstr v ((DataDecl pos (Data name params cons) b):l) =
+  case lookup v cons of
+    Just _ -> True
+    Nothing -> isConstr v l
+
+isConstr v (x:l) = isConstr v l
+isConstr v [] = False
 
 -- Translating Formal-Type to Set
 interp :: FType -> PreTerm
@@ -50,7 +275,9 @@ interp (FVar x) = PVar x
 interp (FCons x l) =
   foldl' helper (PVar x) l 
   where helper z (ArgType tf) = SApp z $ interp tf
-        helper z (ArgProg t) = TApp z $ progTerm t
+        helper z (ArgProg t) =
+          let t1 = progTerm t in 
+          TApp z t1
 
 interp (Arrow t1 t2) = template "x" (interp t1) (interp t2)
 interp (Pi x t1 t2) = template x (interp t1) (interp t2)
@@ -109,72 +336,86 @@ toScott (Data d l cons) =
 -- nat = Data "Nat" [] [("z", FVar "Nat"), ("s", Arrow (FVar "Nat") (FVar "Nat"))]      
 
 -- translating proof scripts to proof.
-runToProof ::ProofScripts -> PreTerm
+
+runToProof ::ProofScripts -> Prog
 runToProof ps = runReader (toProof ps) []
 
-toProof :: ProofScripts -> Reader [(VName, PreTerm)] PreTerm
+toProof :: ProofScripts -> Reader [(VName, Prog)] Prog
 toProof ((n,Right p,f):[]) = annotate p
 toProof ((n,Left (Assume x), Just f):xs) = local (\ y -> (x, f):y) (toProof xs)
 toProof ((n,Right p, f):xs) = toProof $ substPL p n xs
   where substPL p n xs = map helper xs
-        helper (n1, Right p1, f1) = (n1 , Right $ naiveSub p (PVar n) p1 , f1)
+        helper (n1, Right p1, f1) = (n1 , Right $ naiveSub p (Name n) p1 , f1)
         helper (n1, Left a, f1) = (n1 , Left a , f1)
 
-annotate :: PreTerm -> Reader [(VName, PreTerm)] PreTerm
-annotate (Discharge x Nothing p) = do
+annotate :: Prog -> Reader [(VName, Prog)] Prog
+annotate (TDischarge x Nothing p) = do
   l <- ask
   case lookup x l of
     Nothing -> do
       p1 <- annotate p
-      return $ Discharge x Nothing p1
+      return $ TDischarge x Nothing p1
     Just f -> do
       p1 <- annotate p
-      return $ Discharge x (Just f) p1
+      return $ TDischarge x (Just f) p1
 
-annotate (Discharge x (Just f) p) = do
+annotate (TDischarge x (Just f) p) = do
   p1 <- annotate p
-  return $ Discharge x (Just f) p1
+  return $ TDischarge x (Just f) p1
   
-annotate (PVar p) = return $ PVar p
-annotate (MP p1 p2) = do
+annotate (Name p) = return $ Name p
+annotate (TMP p1 p2) = do
   p3 <- annotate p1
   p4 <- annotate p2
-  return $ MP p3 p4
-annotate (Inst p1 t) = do
+  return $ TMP p3 p4
+annotate (TInst p1 t) = do
   p3 <- annotate p1
-  return $ Inst p3 t
+  return $ TInst p3 t
 
-annotate (UG x p1) = do
+annotate (TUG x p1) = do
   p3 <- annotate p1
-  return $ UG x p3
+  return $ TUG x p3
 
-annotate (Cmp p1) = do
+annotate (TCmp p1) = do
   p3 <- annotate p1
-  return $ Cmp p3
+  return $ TCmp p3
 
-annotate (Beta p1) = do
+annotate (TSimpCmp p1) = do
   p3 <- annotate p1
-  return $ Beta p3
+  return $ TSimpCmp p3
 
-annotate (InvCmp p1 t) = do
+annotate (TBeta p1) = do
   p3 <- annotate p1
-  return $ InvCmp p3 t
+  return $ TBeta p3
 
-annotate (InvBeta p1 t) = do
+annotate (TInvCmp p1 t) = do
   p3 <- annotate p1
-  return $ InvBeta p3 t
+  return $ TInvCmp p3 t
 
-annotate (Lambda x t) = do
+annotate (TInvSimp p1 t) = do
+  p3 <- annotate p1
+  return $ TInvSimp p3 t
+
+annotate (TInvBeta p1 t) = do
+  p3 <- annotate p1
+  return $ TInvBeta p3 t
+
+annotate (Abs x t) = do
   p <- annotate t
-  return $ Lambda x p 
+  return $ Abs x p 
 
-annotate (App p1 p2) = do
+annotate (AppPre p1 p2) = do
+  p3 <- annotate p1
+--  p4 <- annotate p2
+  return $ AppPre p3 p2
+
+annotate (Applica p1 p2) = do
   p3 <- annotate p1
   p4 <- annotate p2
-  return $ App p3 p4
+  return $ Applica p3 p4
 
-annotate (Pos pos p1) = annotate p1
-
+annotate (ProgPos pos p1) = annotate p1
+annotate p = error $ show p
 
 
 

@@ -18,7 +18,9 @@ instance Disp Doc where
 instance Disp String where
   disp x = if (isUpper $ head x) || (isLower $ head x)
            then text x
-           else parens $ text x
+           else if head x == '`'
+                then text x
+                else parens $ text x
 
 instance Disp Int where
   disp = integer . toInteger
@@ -73,6 +75,7 @@ instance Disp EType where
 
 instance Disp Prog where
   disp (Name x) = disp x
+  disp (Abs [] p) = disp p
   disp (Abs xs p) = text "\\" <+> (hsep $ map disp xs) <+> text "." <+> disp p
   disp (s@(Applica s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (s@(AppPre s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
@@ -82,6 +85,13 @@ instance Disp Prog where
             fsep [disp c <+> hsep (map disp args) <+> text "->", nest 2 $ disp p]
   disp (Let ls p) = text "let" $$ nest 2 (vcat ( map dDefs ls)) <+> text "in" $$  disp p
     where dDefs (v, t) = fsep [text v <+> text "=", nest 2 $ disp t]
+  disp (TForall x p) = text "forall" <+> text x <+> text "." <+> disp p
+  disp (a@(TImply p1 p2)) = dParen (precedence a) p1 <+> text "->"
+                           <+> dParen (precedence a -1) p2
+  disp (TIota x p) = text "iota" <+> text x <+> text "." <+> disp p
+  disp (a@(TIn t s)) = disp t <+> text "::" <+> dParen (precedence a - 1) s
+  disp (s@(TSApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
+  disp (s@(TSTApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   disp (ProgPos p pr) = disp pr
   disp (a@(TMP p1 p2)) = text "mp" <+> dParen (precedence a) p1 <+> text "by" <+> dParen (precedence a) p2
   disp (a@(TInst p1 t)) = text "inst" <+> dParen (precedence a) p1 <+> text "by" <+> disp t
@@ -105,6 +115,16 @@ instance Disp Prog where
   -- precedence (TPApp _ _) = 8
   -- precedence (TPFApp _ _) = 7
   precedence _ = 0
+
+instance Disp TScheme where
+  disp (Scheme xs t) = if null xs then disp t
+                         else text "forall" <+> (hsep $ map disp xs) <+>text "."<+>disp t
+
+instance Disp (VName, TScheme) where
+  disp (v, sc) = disp v <+> text "::" <+> disp sc
+
+instance Disp (VName, FType) where
+  disp (v, sc) = disp v <+> text "mapsto" <+> disp sc
 
 instance Disp Args where
   disp (ArgProg p) = disp p
@@ -162,7 +182,9 @@ instance Disp Decl where
                                     disp i <+> disp s2
   disp (ProofOperatorDecl s1 i s2) = text "proof" <+> text s1 <+>
                                     disp i <+> disp s2
-  disp (PatternDecl x pats prog) = disp x <+> hsep (map (parens.disp) pats) <+> text "=" <+> disp prog
+  disp (PatternDecl x pats prog) = disp x <+> hsep (map helper pats) <+> text "=" <+> disp prog
+    where helper (Name x) = disp x
+          helper a = parens $ disp a
   -- disp (SpecialOperatorDecl s1 i s2) = text "special" <+> text s1 <+>
   --                                   disp i <+> disp s2
 

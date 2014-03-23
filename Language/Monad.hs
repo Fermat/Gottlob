@@ -19,7 +19,7 @@ type Global a =StateT Env (StateT PrfEnv (ReaderT [(VName, PreTerm)] (ErrorT PCE
 
 data Env = Env{ progDef::M.Map VName PreTerm,
                 setDef::M.Map VName (PreTerm, EType),
-                proofCxt::M.Map VName (ProofScripts, PreTerm),
+                proofCxt::M.Map VName (PreTerm, PreTerm),
                 tacticDef :: M.Map VName PreTerm}
          deriving Show
 
@@ -44,7 +44,7 @@ extendProgDef v t e@(Env {progDef}) = e{progDef = M.insert v t progDef}
 extendTacticDef :: VName -> PreTerm -> Env -> Env
 extendTacticDef v t e@(Env {tacticDef}) = e{tacticDef = M.insert v t tacticDef}
 
-extendProofCxt :: VName -> ProofScripts -> PreTerm -> Env -> Env
+extendProofCxt :: VName -> PreTerm -> PreTerm -> Env -> Env
 extendProofCxt v ps f e@(Env {proofCxt}) = e{proofCxt = M.insert v (ps,f) proofCxt}
 
 extendSetDef :: VName -> PreTerm -> EType -> Env -> Env
@@ -70,7 +70,7 @@ instance Disp Env where
              hang (text "Set/Formula Definitions") 2 (vcat
                                                       [disp n <+> text":"<+> disp t <+> text "=" <+> disp f | (n,(f,t)) <- M.toList $ setDef env]) $$
              hang (text "Proofs Context") 2 (vcat
-                [ disp n <+> text ":" <+> disp f | (n,(ps,f)) <- M.toList $ proofCxt env]) $$
+                [ disp n <+> text "=" <+> disp ps $$ text ":" <+> disp f | (n,(ps,f)) <- M.toList $ proofCxt env]) $$
              hang (text "Tactic Definitions") 2 (vcat
                 [disp n <+> text "=" <+> disp t | (n, t) <- M.toList $ tacticDef env]) 
 
