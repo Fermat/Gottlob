@@ -63,7 +63,7 @@ checkAlt assump (pats, e) = do
   (t, as) <- local (\ y -> newEnv ++ assump ++y) $ checkExpr e
   return $ foldr arrow t types
   where helper assump p = do
-          res <- local (\y -> assump ++ y) $ checkExpr p
+          res <- local (\y -> assump ++ y) $ checkPat p
           return res
   
 def :: VName -> [Decl] -> Bool
@@ -171,7 +171,27 @@ makeName name = do
   modify (+1)
   return $ name ++ show m
 
--- pattern included, modifying TypeCxt accordingly 
+checkPat :: Prog -> TypeCxt (FType, [(VName, TScheme)])
+checkPat (Name x) = do
+      env <- lift $ lift $ lift ask
+      case consDef x env of
+        Nothing -> do
+          name <- makeName "`T"
+          return (FVar name, [(x, Scheme [] (FVar name))])
+        Just f -> do
+          let sc = toTScheme env f
+          ins <- freshInst sc
+          return (ins, [])
+
+checkPat ap@(Applica t1 t2) = do
+  (ty1, as1) <- checkPat t1
+  (ty2, as2) <- local (\y -> as1 ++ y) $ checkPat t2
+  m <- makeName "`T"
+  withInfo "During unification" [(disp "in the expression ", disp ap )] (unification ty1 $ Arrow ty2 (FVar m)) 
+  return (FVar m, as1 ++ as2)
+
+checkPat (ProgPos _ p) = checkPat p
+
 checkExpr :: Prog -> TypeCxt (FType, [(VName, TScheme)])
 checkExpr (Name x) = do
   tdefs <- ask 
@@ -204,7 +224,7 @@ checkExpr (Match p branches) = do
   (tp, as) <- checkExpr p
   let l = map toEq branches
       (l1, l2) = head l
-  (c, as1) <- checkExpr l1
+  (c, as1) <- checkPat l1
   unification c tp
   (init, as2) <- local (\y -> as1 ++ as ++ y) $ checkExpr l2
   newAs <- foldM (helper c init) (as2++as) (tail l)
@@ -213,7 +233,7 @@ checkExpr (Match p branches) = do
           let a = foldl' (\ a b -> Applica a b) (Name v) xs
               in (a, p)
         helper c init curr (a, b) = do
-          (t1, a1 ) <- checkExpr a
+          (t1, a1 ) <- checkPat a
           unification c t1
           (t2, a2) <- local (\y -> a1 ++ curr ++ y) $ checkExpr b
           unification init t2

@@ -1,4 +1,4 @@
-module Language.DependencyAnalysis (sep, produceDefs)where
+module Language.DependencyAnalysis (sep, produceDefs, consDef)where
 import Language.Syntax
 import Language.PrettyPrint
 import Data.List hiding(partition)
@@ -87,13 +87,13 @@ label paths =
 -- reOrder :: [(VName, [VName])] -> [[VName]] -> [[VName]]
 -- reOrder g paths = 
 
-consDef :: VName -> [Decl] -> Bool
+consDef :: VName -> [Decl] -> Maybe FType
 consDef v ((DataDecl pos (Data name params cons) b):l) =
   case lookup v cons of
-    Just _ -> True
+    Just t -> Just t
     Nothing -> consDef v l
 consDef v (x:l) = consDef v l
-consDef v [] = False
+consDef v [] = Nothing
 
 getProg :: [Decl] -> [Decl]
 getProg dls = filter pred dls
@@ -107,7 +107,7 @@ funVar :: [Decl] -> [Decl] -> [VName]
 funVar env ((PatternDecl f pats p):dls) =
   let args = foldr (\ x y -> fPvar x `S.union` y ) S.empty pats
       body = fPvar p
-  in [ x | x <- S.toList (body S.\\ args), not (consDef x env)] `union` (funVar env dls)
+  in [ x | x <- S.toList (body S.\\ args), Nothing == (consDef x env)] `union` (funVar env dls)
 funVar env [] = []
 
 getName ((PatternDecl f pats p):dls) = f

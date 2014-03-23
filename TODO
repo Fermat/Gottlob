@@ -1,6 +1,6 @@
 1. Shrinking files
--- 2. Support *Let*/, or Monadic code (done)
--- 2. suport logical 'and', 'exist'. (supported through Girard's encoding )
+-- 2. Support *Let*/,  (done)
+-- 2. suport logical 'and', 'exist'. (supported through Girard's encoding)
 
 ---------------- supported user defined infix for prog, proof and formula now.
 -- 1. Haskell style $ 

@@ -32,23 +32,15 @@ main = flip catches handlers $ do
              Right a -> do putStrLn $ "Parsing success! \n"
                            print $ disp a
                            let (Module v a') = a
-                          -- mapM_ (\ defs -> mapM_ (\ x -> print ((disp x) <+> text "***")) defs) (produceDefs a')
-                           re <- runTypeCheck a'
-                           case re  of
-                             Left e -> throw e
-                             Right ((defs, _), substs) -> do
-                               putStrLn $ "Type Check success! \n"
-                               mapM_ (print . disp) defs
-                               mapM_ (print . disp) substs
-
-                           -- putStrLn $ "Preprocessing.. \n"
-                           -- b <- checkDefs a
-                           -- case b of
-                           --   Left e1 -> throw e1
-                           --   Right (env, e) ->  do
-                           --     putStrLn "ProofChecking success!"
-                           --     print $ disp env
--- look at local variable                              print $ disp e
+                           ensureTypeCheck a'
+                           putStrLn $ "Preprocessing.. \n"
+                           b <- checkDefs a
+                           case b of
+                             Left e1 -> throw e1
+                             Right (env, e) ->  do
+                               putStrLn "ProofChecking success!"
+                               print $ disp env
+--look at local variable                              print $ disp e
 
 
     _ -> putStrLn "usage: gottlob <filename>"
@@ -56,3 +48,11 @@ main = flip catches handlers $ do
         typeHandler e@(ErrMsg _) = print (disp e) >> exitFailure
         parseHandler (e :: ParseError)= print (disp e) >> exitFailure
 
+ensureTypeCheck a' = do
+  re <- runTypeCheck a'
+  case re of
+    Left e -> throw e
+    Right ((defs, _), substs) -> do
+      putStrLn $ "Type Check success! \n"
+      mapM_ (print . disp) defs
+--                               mapM_ (print . disp) substs
