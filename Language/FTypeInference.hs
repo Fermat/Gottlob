@@ -231,7 +231,7 @@ checkExpr (Let xs p) = do
           let var = (x, Scheme [] (FVar n))
           (ty, as) <- local (\y -> var:(curr ++ y)) $ checkExpr t
           unification (FVar n) ty
-          return $ var:as
+          return $ var:(as++curr)
 
 checkExpr (ProgPos _ p) = checkExpr p
 
