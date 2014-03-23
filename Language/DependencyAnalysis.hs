@@ -1,4 +1,4 @@
-module Language.DependencyAnalysis (produceDefs, sep)where
+module Language.DependencyAnalysis (sep, produceDefs)where
 import Language.Syntax
 import Language.PrettyPrint
 import Data.List hiding(partition)
@@ -6,22 +6,40 @@ import qualified Data.Set as S
 import qualified Data.Map as M
 import Control.Monad.State
 import Debug.Trace
+
 produceDefs :: [Decl] -> [[Decl]]
 produceDefs env =
   let progs = sep $ getProg env
-      g = getGraph env progs
-      inter = depAnalyze g
-      n = reOrder g inter
+      g = getGraph env progs -- generate original code graph
+      inter = depAnalyze g -- dep analysis
+      la = label inter     -- labeling
+      ga = groupGraph la g -- create label graph
+      s = runTopSort ga    -- topsort
+      n = toPath s la      -- convert back to paths
       res = reOrganize progs n
       in res
 
+toPath :: [VName] -> [(VName, [VName])] -> [[VName]]
+toPath s la = [ path | g' <- s, (g, path) <- la, g' == g ]
 -- findPaths :: VName -> VName -> [(VName, [VName])] -> []
+graph1 = [("f1", ["f2","f4", "f3"]), ("f2", ["f4"]), ("f3", ["f4", "f5"]), ("f4", ["f6"]),
+          ("f11", ["f5"]), ("f5", ["f7"]), ("f12", ["f6"]), ("f6", ["f8", "f7"]), ("f8", []),
+          ("f7", [])]
+initials = [("f1", Nothing),("f2", Nothing),("f3", Nothing), ("f4", Nothing), ("f5", Nothing),
+            ("f6", Nothing), ("f7", Nothing), ("f8", Nothing), ("f11", Nothing),("f12", Nothing)]
+           
+testSort = runState (topSort graph1) (initials, []) 
+
+runTopSort :: [(VName, [VName])] -> [VName]
+runTopSort g =
+  let i = map (\ (x, _) -> (x, Nothing)) g in
+  reverse $ (snd . snd) $runState (topSort g) (i, []) 
 
 type Mark = Maybe Bool
-
-topSort :: [(VName, [VName])] -> StateT [(VName, Mark)] (StateT [VName] (Maybe ())) 
+-- an implementation of topological sort
+topSort :: [(VName, [VName])] -> State ([(VName, Mark)], [VName]) ()
 topSort graph = do
-  st <- get
+  (st, _) <- get
   let unmarks = filter (\ (x, y) -> y == Nothing) st
   if null unmarks
     then return ()
@@ -29,24 +47,40 @@ topSort graph = do
     visit graph (fst $ head unmarks)
     topSort graph
 
-visit :: [(VName, [VName])] -> VName -> StateT [(VName, Mark)] (StateT [VName] (Maybe ())) 
+visit :: [(VName, [VName])] -> VName -> State ([(VName, Mark)], [VName]) ()
 visit graph n = do
-  st <- get
+  (st, l1) <- get
   case lookup n st of
-    Nothing -> let res = delete (n, Nothing) st 
-                   new = (n, Just False):res in do
-                 put new
-                 sequence [visit graph m  | m <- getNeib n graph]
-                 st' <- get
-                 let res' = delete (n, Just False) st'
-                     new' = (n, Just True):res'
-                 put new'
-                 lift $ modify (\ y -> n:y) 
-                 return ()
-    Just False -> return Nothing
-    Just True -> return ()
+    Nothing -> error $ "can't find" ++ show n
+    Just (Nothing) -> do
+      let res = delete (n, Nothing) st 
+          new = (n, Just False):res
+          (Just ns) = lookup n graph
+      put (new, l1)
+      sequence [visit graph m  | m <- ns]
+      (st', l) <- get
+      let res' = delete (n, Just False) st'
+          new' = (n, Just True):res'
+      put (new', n:l)
+      return ()
+    Just (Just b) -> if b then return ()
+                     else error "loop"
+
+groupGraph :: [(VName, [VName])] -> [(VName, [VName])] -> [(VName, [VName])]
+groupGraph la igraph =
+    [ (g, helper ns la) | (g, gs) <- la, let ns = getNs igraph gs]
+  where helper ns la = [ g | (g, gs) <- la, not $ null $ intersect ns gs]
+
+getNs :: [(VName, [VName])] -> [VName] -> [VName]
+getNs graph names =
+ let l = nub $ concat [ ns | n <- names, let (Just ns) = lookup n graph ]
+ in l \\ names
 
 
+label ::[[VName]] -> [(VName, [VName])]
+label paths =
+  let ls = zipWith (\ a b -> a ++ show b) (repeat "G") [1..] in
+  zip ls paths
 
 
 -- reordering the result paths based on dependency
