@@ -134,7 +134,7 @@ fPvar (Abs xs p) = fPvar p S.\\ (S.fromList xs)
 fPvar (Match p ls) = fPvar p `S.union` (foldr (\ x y -> helper x `S.union` y) S.empty ls)
   where helper (c, pat, p) =
           fPvar p S.\\ (foldr (\ x y -> S.union (fPvar x) y ) (S.insert c S.empty) pat)
--- Has its problem 
+
 fPvar (Let ((x,t):[]) p) = S.union (fPvar t) $ S.delete x (fPvar p)
 fPvar (Let ((x,t):xs) p) = S.union (fPvar t) $ S.delete x (fPvar (Let xs p))
   -- ((fPvar p) `S.union` (helper xs)) S.\\ helper2 xs

@@ -25,7 +25,7 @@ proofCheck :: [Decl] -> ProofScripts -> Global ()
   
 proofCheck decls ((n, Left (Assume x), Just f):l) = 
 --  wellDefined f
-  case runReaderT (dePattern f) decls of
+  case runDepattern f 0 decls of
     Right f' ->
       let f1 = progTerm f' in do
         wellFormed f1
@@ -37,9 +37,9 @@ proofCheck decls ((n, Left (Assume x), Just f):l) =
     
 proofCheck decls ((n, Right p, Just f):l) = do
   emit $ "begin to check proof " <++> disp p
-  case runReaderT (dePattern f) decls of
+  case runDepattern f 0 decls of
     Right f' ->
-      case runReaderT (dePattern p) decls of
+      case runDepattern p 0 decls of
         Right p' -> do
           let f'' = progTerm f'
               p'' = progTerm p'
@@ -62,7 +62,7 @@ proofCheck decls ((n, Right p, Just f):l) = do
 proofCheck decls ((n, Right p, Nothing):l) = do
   emit $ "begin to check proof " <++> disp p
 --  emit $ "a list of fv " ++ show (fv p)
-  case runReaderT (dePattern p) decls of
+  case runDepattern p 0 decls of
         Right p' -> do
           let p'' = progTerm p'
           p1 <- simp p''  --  normalize a proof

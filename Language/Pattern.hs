@@ -5,6 +5,7 @@ import Text.Parsec
 import Text.Parsec.Pos
 import Data.List hiding(partition)
 import Debug.Trace
+import qualified Data.Set as S
 -- This file implement(almost the same) Wadler's pattern matching
 -- compiler found at section 5.3 in SPJ's
 -- the implementation of functional programming language
@@ -48,8 +49,6 @@ arity v ((DataDecl pos (Data name params cons) b):l) =
 arity v (x:l) = arity v l
 arity v [] = error $ "can't find arity for " ++ show v
 
-
-        
 match :: VName -> [Decl] -> Int -> [VName] -> [Equation] -> Prog -> Prog
 match name env k [] qs def =
   let p = [e | ([], e) <- qs] in -- trace ("spit p "++ show p ++ show qs ++ show def) (head p)
@@ -88,8 +87,8 @@ replace y x (Applica p1 p2) =
   Applica a1 a2
 
 replace y x (Abs xs p2) =
-  let a1 = replace y x p2 in
-  Abs xs a1 
+  if x `elem` xs then Abs xs p2
+    else let a1 = replace y x p2 in Abs xs a1 
 
 replace y x (Match p ls) =
   let a = replace y x p
@@ -97,7 +96,10 @@ replace y x (Match p ls) =
   Match a ls'
   where subb y x [] = []
         subb y x ((c,ps,p):ls) =
-          (c, ps, replace y x p): subb y x ls
+          let sets = S.insert c S.empty : (map fPvar ps)
+              vars = concat $ map S.toList sets in
+          if x `elem` vars then (c, ps,p): subb y x ls
+            else (c, ps, replace y x p): subb y x ls
 --        subb' y x ps = map (\ z -> if z == x then y else z) ps
 
 replace y x (If p0 p1 p2) =

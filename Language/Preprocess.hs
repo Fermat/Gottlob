@@ -259,7 +259,7 @@ toEquation state (PatternDecl y pats p) = do
 -- getProofPos (_) = error "Fail to get First Position"
 
 flat :: [Decl] -> Prog -> Global Prog
-flat st p = case runReaderT (dePattern p) st of
+flat st p = case runDepattern p 0 st of
               Left (ConstrError a) -> die $ "Not a constructor " <++> disp a
               Left (OtherError a) -> die $ disp a
               Right p -> return p

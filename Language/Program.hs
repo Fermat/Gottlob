@@ -1,11 +1,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Language.Program
-       (progTerm, toSet, toScott, dePattern, PatError(..), runToProof, toPat) where
+       (progTerm, toSet, toScott, runDepattern, PatError(..), runToProof, toPat) where
 import Language.Syntax
 import Language.Pattern
 import Language.PrettyPrint
 import Text.PrettyPrint
 import Control.Monad.Reader
+import Control.Monad.State
 import Control.Monad.Error
 import Data.List
 import Data.Char
@@ -108,7 +109,10 @@ instance Disp a => Error (PatError a) where
   strMsg x = OtherError $ text x
   noMsg = strMsg "<unknown>"
 
-dePattern :: Prog -> ReaderT [Decl] (Either (PatError Prog)) Prog
+runDepattern p n env = do
+  a <- runReaderT (runStateT (dePattern p) n) env
+  return $ fst a
+dePattern :: Prog -> StateT Int (ReaderT [Decl] (Either (PatError Prog))) Prog
 dePattern (Name n) = return $ Name n
 dePattern (Applica p1 p2) = do
   a1 <- dePattern p1
@@ -128,7 +132,10 @@ dePattern (Match v l) = do
   ps <- mapM helper l
   eqs <- mapM helper2 ps
   env <- ask
-  let (Match b l) = match "`v" env 1 ["`v1"] eqs (Name "Error")
+  i <- get
+  modify (+1)
+  let n = "`v"++ show i
+      (Match b l) = match n env 1 [n] eqs (Name "Error")
   return $ Match a l
   where helper (x, xs, p) = do
           p' <- dePattern p
@@ -232,7 +239,7 @@ appBranch l m =
           a = progTerm p in
       constrAbs l1 a 
 
-toPat :: Prog -> ReaderT [Decl] (Either (PatError Prog)) Pattern 
+--toPat :: Prog -> StateT Int (ReaderT [Decl] (Either (PatError Prog))) Pattern 
 toPat (Name c) = do
   state <- ask
   if isConstr c state
