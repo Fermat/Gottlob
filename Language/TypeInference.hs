@@ -96,11 +96,14 @@ infer (App t1 t2) = return (Ind, [])
 -- single step solving, the order of each case matters!
 step :: Constraints -> Constraints
 step ((EVar x,a):l) =
-  if x `S.member` (vars a) then (EVar x,a):l
-  else if x `S.member` (lVars l)
-       then (EVar x,a): map helper l
-       else (EVar x,a):l
-    where helper (z1,z2) = (sub a x z1, sub a x z2)
+  if EVar x == a
+  then l
+  else
+    if x `S.member` (vars a) then (EVar x,a):l
+    else if x `S.member` (lVars l)
+         then (EVar x,a): map helper l
+         else (EVar x,a):l
+  where helper (z1,z2) = (sub a x z1, sub a x z2)
 
 step ((a1, EVar x):l) = case a1 of
                           EVar y -> (a1, EVar x):l

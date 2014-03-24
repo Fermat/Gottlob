@@ -48,6 +48,7 @@ instance Disp PreTerm where
   disp (a@(UG x p1)) = text "ug" <+> text x <+> text "." <+> dParen (precedence a) p1 
   disp (a@(Cmp p1)) = text "cmp" <+> dParen (precedence a) p1
   disp (a@(SimpCmp p1)) = text "simpCmp" <+> dParen (precedence a) p1
+  disp (a@(InvSimp p1 f)) = text "invsimp" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
   disp (a@(Beta p1)) = text "beta" <+> dParen (precedence a) p1
   disp (a@(Discharge x Nothing p1)) = text "discharge" <+> text x <+> text "." <+> dParen (precedence a) p1
   disp (a@(Discharge x (Just t) p1)) = text "discharge" <+> text x <+> text ":" <+> disp t <+> text "." <+> dParen (precedence a) p1 
@@ -103,6 +104,8 @@ instance Disp Prog where
   disp (a@(TInvCmp p1 f)) = text "invcmp" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
   disp (a@(TInvBeta p1 f)) = text "invbeta" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
   disp (a@(If c p1 p2)) = text "if" <+> disp c <+> text "then" <+> disp p1 <+> text "else" <+> disp p2
+  disp (a@(TSimpCmp p1)) = text "simpCmp" <+> dParen (precedence a) p1
+  disp (a@(TInvSimp p1 f)) = text "invsimp" <+> dParen (precedence a) p1 <+> text "from" <+> disp f
   -- disp (s@(TPApp s1 s2)) = dParen (precedence s - 1) s1 <+> dParen (precedence s) s2
   -- disp (s@(TPFApp s1 s2)) = dParen (precedence s - 1) s1 <+> text "$" <+> dParen (precedence s) s2
   -- disp (TPLam x p) = text "\\" <+> disp x <+> text "." <+> disp p

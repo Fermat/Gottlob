@@ -12,7 +12,6 @@ data Pair U V where
   times :: U -> V -> Pair U V
   deriving Ind
 
-
 -- zip :: List U -> List V -> List (Pair U V)
 
 -- zip nil nil = nil

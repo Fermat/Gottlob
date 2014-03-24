@@ -80,11 +80,17 @@ simp (Inst p1 t) =
 simp (InvCmp p1 t) = 
   simp p1 >>= \ a1 -> return $ InvCmp a1 t
 
+simp (InvSimp p1 t) = 
+  simp p1 >>= \ a1 -> return $ InvSimp a1 t
+
 simp (InvBeta p1 t) = 
   simp p1 >>= \ a1 -> return $ InvBeta a1 t
 
 simp (Cmp p1) = 
   simp p1 >>= \ a1 -> return $ Cmp a1 
+
+simp (SimpCmp p1) = 
+  simp p1 >>= \ a1 -> return $ SimpCmp a1 
 
 simp (Beta p1) = 
   simp p1 >>= \ a1 -> return $ Beta a1 

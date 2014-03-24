@@ -122,7 +122,7 @@ wellFormed f = do
         lift $ put (updateLocalEType solvedDef st)
         return (etype, res, solvedDef) 
       else pcError "Ill-formed formula or set definition."
-           [(disp "Unsolvable constraints", disp res)]
+           [(disp "Unsolvable constraints", disp res), (disp "formula", disp f)]
 
 subDef :: Constraints -> [(VName, EType)] -> [(VName, EType)]
 subDef res l = map (\ (x, t) -> (x, multiSub res t)) l

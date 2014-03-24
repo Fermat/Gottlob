@@ -169,7 +169,7 @@ process state ((ProofDecl n (Just m) ps f1):l) = do
       updateProofCxt n ps2 f
       emptyLocalProof
       process state l
-    Nothing -> die "Impossible situation. Ask Frank to keep hacking."
+    Nothing -> die $ "Can't find proof" <++> disp x
 
 process state ((ProofDecl n Nothing ps f1):l) = do
   emit $ "processing proof decl" <++> n
