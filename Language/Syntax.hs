@@ -121,7 +121,16 @@ naiveSub p (Name x) (Applica p1 p2) =
 naiveSub p (Name x) (ProgPos a p1) =
   ProgPos a (naiveSub p (Name x) p1)
 
-naiveSub p (Name x) er = error $ show er
+naiveSub a (Name x) (Let l p) =
+  substList (helper l) p
+  where helper l = map (\ (x, t) -> (Name x, t)) l
+        sub t x [] = []
+        sub t x ((y, t1):ys) = (y, naiveSub t x t1):(sub t x ys)
+        substList [] t = t
+        substList ((x, t1):xs) t = substList (sub t1 x xs) (naiveSub t1 x t)
+
+
+naiveSub p (Name x) er = error $ "from naiveSub" ++ show er ++ "this is p " ++ show p
 
 data Assumption = Assume VName deriving Show
 --                      a = p1 : F or [a] : F
@@ -421,11 +430,19 @@ subst p (PVar x) (UG y p1) =
                                      
 subst p (PVar x) (Cmp p1) =
   subst p (PVar x) p1 >>= \ a -> return $ Cmp a
-                                     
+
+subst p (PVar x) (SimpCmp p1) =
+  subst p (PVar x) p1 >>= \ a -> return $ SimpCmp a
+
 subst p (PVar x) (InvCmp p1 t) = do
   a <- subst p (PVar x) p1
   a1 <- subst p (PVar x) t
   return $ InvCmp a a1
+
+subst p (PVar x) (InvSimp p1 t) = do
+  a <- subst p (PVar x) p1
+  a1 <- subst p (PVar x) t
+  return $ InvSimp a a1
 
 subst p (PVar x) (Beta p1) =
   subst p (PVar x) p1 >>= \a -> return $ Beta a

@@ -1,6 +1,7 @@
 module list where
 
 prog infixl 9 ++
+proof infixl 9 ++
 
 Eq a b = forall C . a :: C -> b :: C
 
@@ -41,8 +42,6 @@ tactic smartCong f a b p n m =
    c5 = beta c4 : m :: iota y22. ((iota x11 . Eq x11 y22) n)
    c6 = invcmp (cmp c5) from Eq n m
 
-
-
 theorem trans . forall a b c . Eq a b -> Eq b c -> Eq a c
 proof
         [m1] : Eq a b
@@ -60,30 +59,34 @@ qed
 
 tactic useTrans a b c p1 p2 = mp mp (inst inst (inst trans by a) by b by c) by p1 by p2
 
-theorem assoc[Assoc]. forall l1 l2 l3 U . l1 :: List U -> l2 :: List U -> l3 :: List U ->
-                                             Eq (l1 ++ l2 ++ l3) (l1 ++ (l2 ++ l3))
+tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
+
+theorem assoc. forall l1 l2 l3 U . l1 :: List U -> Eq (l1 ++ l2 ++ l3) (l1 ++ (l2 ++ l3))
 proof
-        ind = simpCmp inst (inst indList by U) by (iota U z . Eq (z ++ l2 ++ l3) (z ++ (l2 ++ l3)))
+        ind = let p = iota U z . Eq (z ++ l2 ++ l3) (z ++ (l2 ++ l3))
+              in simpCmp inst (inst indList by U) by p
         b = byEval (nil ++ l2 ++ l3) (nil ++ (l2 ++ l3)) 
         [a4] : x :: U
         [ih] : Eq (x0 ++ l2 ++ l3) ( x0 ++ (l2 ++ l3))
-
-        c1 = smartCong (\ z ni con . con x z ) (x0 ++ l2 ++ l3) (x0 ++ (l2 ++ l3)) ih 
-                          (\ ni con . con x (x0 ++ l2 ++ l3)) 
-                           (\ ni con . con x (x0 ++ (l2 ++ l3))) 
-        p1 = byEval (cons x x0 ++ l2 ++ l3) (\ ni con . con x (x0 ++ l2 ++ l3))
-        c = useTrans (cons x x0 ++ l2 ++ l3)  (\ ni con . con x (x0 ++ l2 ++ l3)) (\ ni con . con x (x0 ++ (l2 ++ l3))) p1 c1  
-        c2 = byEval (\ ni con . con x (x0 ++ (l2 ++ l3))) (cons x x0 ++ (l2 ++ l3))
-        c3 = useTrans (cons x x0 ++ l2 ++ l3) (\ ni con . con x (x0 ++ (l2 ++ l3))) (cons x x0 ++ (l2 ++ l3)) c c2 
-        d = ug x . discharge a4. ug x0. discharge ih . c3 
+        c1 = let f = cons x 
+                 g1 = x0 ++ l2 ++ l3
+                 g2 = x0 ++ (l2 ++ l3) in
+                 useCong f g1 g2 ih : Eq (cons x (x0 ++ l2 ++ l3)) (cons x (x0 ++ (l2 ++ l3)))
+        p1 = byEval (cons x x0 ++ l2 ++ l3) (cons x (x0 ++ l2 ++ l3))
+        c2 = byEval (cons x (x0 ++ (l2 ++ l3))) (cons x x0 ++ (l2 ++ l3))
+        c3 = useTrans (cons x x0 ++ l2 ++ l3) (cons x (x0 ++ l2 ++ l3)) (cons x (x0 ++ (l2 ++ l3))) p1 c1 
+        c4 = useTrans (cons x x0 ++ l2 ++ l3) (cons x (x0 ++ (l2 ++ l3))) (cons x x0 ++ (l2 ++ l3)) c3 c2
+        d = ug x . discharge a4. ug x0. discharge ih . c4 
         d1 = mp mp ind by b by d 
         d2 = inst d1 by l1
         [a1] : l1 :: List U
-        [a2] : l2 :: List U
-        [a3] : l3 :: List U
         d3 = mp d2 by a1 
-        d4 = ug l1 . ug l2. ug l3 . ug U. discharge a1 . discharge a2. discharge a3. d3 
+        d4 = ug l1 . ug l2. ug l3 . ug U. discharge a1 . d3 
 qed
+--        e = byEval (cons x x0 ++ l2 ++ l3) (cons x x0 ++ (l2 ++ l3))         
+        -- c1 = smartCong (\ z ni con . con x z ) (x0 ++ l2 ++ l3) (x0 ++ (l2 ++ l3)) ih 
+        --                   (\ ni con . con x (x0 ++ l2 ++ l3)) 
+        --                    (\ ni con . con x (x0 ++ (l2 ++ l3))) 
 
 
 

@@ -32,8 +32,10 @@ progTerm (Let l p) =
   let a = progTerm p in
   substList (helper l) a
   where helper l = map (\ (x, t) -> (PVar x, progTerm t)) l
+        sub t x [] = []
+        sub t x ((y, t1):ys) = (y, runSubst t x t1):(sub t x ys)
         substList [] t = t
-        substList ((x, t1):xs) t = substList xs (runSubst t1 x t)
+        substList ((x, t1):xs) t = substList (sub t1 x xs) (runSubst t1 x t)
 
 progTerm (TForall x p) =
   let a = progTerm p in Forall x a
@@ -433,7 +435,7 @@ annotate (Applica p1 p2) = do
   return $ Applica p3 p4
 
 annotate (ProgPos pos p1) = annotate p1
-annotate p = error $ show p
+annotate p = error $ "from annotate" ++ show p
 
 
 
