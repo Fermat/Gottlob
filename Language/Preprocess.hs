@@ -7,6 +7,7 @@ import Language.Syntax
 import Language.Program
 import Language.Monad
 import Language.Pattern
+import Language.Eval
 
 import Text.Parsec.Pos
 import Text.PrettyPrint
@@ -157,7 +158,8 @@ process state ((ProofDecl n (Just m) ps f1):l) = do
       let ps' = runToProof ps
       ps1 <- flat state ps'
       let ps2 = progTerm ps1
-      updateProofCxt n ps2 f
+      ps2' <- simp ps2
+      updateProofCxt n ps2' f
       emptyLocalProof
       process state l
     Just (_, f0) -> do
@@ -166,7 +168,8 @@ process state ((ProofDecl n (Just m) ps f1):l) = do
       let ps' = runToProof ps
       ps1 <- flat state ps'
       let ps2 = progTerm ps1
-      updateProofCxt n ps2 f
+      ps2' <- simp ps2
+      updateProofCxt n ps2' f
       emptyLocalProof
       process state l
     Nothing -> die $ "Can't find proof" <++> disp x
@@ -187,7 +190,8 @@ process state ((ProofDecl n Nothing ps f1):l) = do
       let ps' = runToProof ps
       ps1 <- flat state ps'
       let ps2 = progTerm ps1
-      updateProofCxt n ps2 f
+      ps2' <- simp ps2
+      updateProofCxt n ps2' f
       emptyLocalProof
       process state l
     Nothing -> die "Impossible situation."

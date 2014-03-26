@@ -13,8 +13,50 @@ data List U where
 (++) nil l = l
 (++) (cons u l') l = cons u (l' ++ l)
 
+map f nil = nil
+map f (cons x xs) = cons (f x) (map f xs)
+
+foldr f a nil = a
+foldr f a (cons x xs) = f x (foldr f a xs)
+
+
 tactic cmpinst p s = cmp inst p by s 
-tactic id F =  discharge a : F . a     
+tactic id F =  discharge a : F . a
+
+tactic useSym a b p = mp (inst inst sym by a by b) by p
+
+theorem sym . forall a b . Eq a b -> Eq b a
+proof
+        [c] : Eq a b
+        c1 = cmp c : forall C . a :: C -> b :: C
+        c2 = cmpinst c1 (iota x . x :: Q -> a :: Q )
+        d = id (a :: Q)
+        d1 = invcmp ug Q . mp c2 by d : Eq b a
+        r = ug a . ug b. discharge c . d1
+qed
+
+-- t1 -beta-> t1' then red t1 : forall Q. t1::Q -> t1'::Q
+tactic red t1 = 
+   [c] : t1 :: Q
+   c1 = beta c 
+   c3 = ug Q . discharge c . c1
+
+-- t1 -beta-> t1' and p: Eq t1' t2
+-- syl t1 p : forall Q. t1 :: Q -> t2 :: Q (or Eq t1 t2)
+tactic syl t1 p =    
+   [c] : t1 :: Q
+   c3 = inst (red t1) by Q
+   c4 = inst p by Q
+   c5 = mp c4 by (mp c3 by c) 
+   c6 = ug Q. discharge c . c5
+
+-- This is beyond awesome!!!
+-- take in a list of equality proofs and chains them together.
+tactic chain t ls = 
+       ug Q. discharge a : t :: Q . 
+          let insts = map (\ x . inst (cmp x) by Q) ls
+              in foldr (\ x y . mp x by y) a insts
+           
 tactic byEval t1 t2 =   
    [c] : t1 :: Q
    c1 = invbeta beta c : t2 :: Q
@@ -61,6 +103,38 @@ tactic useTrans a b c p1 p2 = mp mp (inst inst (inst trans by a) by b by c) by p
 
 tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
 
+-- theorem test. Eq a b
+-- proof
+--    [a1] : forall C . a :: C -> b :: C
+--    [a2] : forall D . b :: D -> c :: D
+--    e = invcmp (chain a (cons a2 (cons a1 nil))) : Eq a c
+-- qed
+
+theorem assoc. forall l1 l2 l3 U . l1 :: List U -> Eq (l1 ++ l2 ++ l3) (l1 ++ (l2 ++ l3))
+proof
+        ind = let p = iota U z . Eq (z ++ l2 ++ l3) (z ++ (l2 ++ l3))
+              in simpCmp inst (inst indList by U) by p
+        b = byEval (nil ++ l2 ++ l3) (nil ++ (l2 ++ l3)) 
+        [a4] : x :: U
+        [ih] : Eq (x0 ++ l2 ++ l3) ( x0 ++ (l2 ++ l3))
+        c1 = let f = cons x 
+                 g1 = x0 ++ l2 ++ l3
+                 g2 = x0 ++ (l2 ++ l3) in
+                 useCong f g1 g2 ih : Eq (cons x (x0 ++ l2 ++ l3)) (cons x (x0 ++ (l2 ++ l3)))
+        p1 = byEval (cons x x0 ++ l2 ++ l3) (cons x (x0 ++ l2 ++ l3))
+        c2 = byEval (cons x (x0 ++ (l2 ++ l3))) (cons x x0 ++ (l2 ++ l3))
+        c4 = chain (cons x x0 ++ l2 ++ l3) (cons c2 (cons c1 (cons p1 nil)))
+        c5 = invcmp c4 : Eq (cons x x0 ++ l2 ++ l3) (cons x x0 ++ (l2 ++ l3))
+        d = ug x . discharge a4. ug x0. discharge ih . c5 
+        d1 = mp mp ind by b by d 
+        d2 = inst d1 by l1
+        [a1] : l1 :: List U
+        d3 = mp d2 by a1 
+        d4 = ug l1 . ug l2. ug l3 . ug U. discharge a1 . d3 
+qed
+
+
+{-
 theorem assoc. forall l1 l2 l3 U . l1 :: List U -> Eq (l1 ++ l2 ++ l3) (l1 ++ (l2 ++ l3))
 proof
         ind = let p = iota U z . Eq (z ++ l2 ++ l3) (z ++ (l2 ++ l3))
@@ -83,6 +157,17 @@ proof
         d3 = mp d2 by a1 
         d4 = ug l1 . ug l2. ug l3 . ug U. discharge a1 . d3 
 qed
+
+-}
+
+
+
+
+
+
+
+
+
 --        e = byEval (cons x x0 ++ l2 ++ l3) (cons x x0 ++ (l2 ++ l3))         
         -- c1 = smartCong (\ z ni con . con x z ) (x0 ++ l2 ++ l3) (x0 ++ (l2 ++ l3)) ih 
         --                   (\ ni con . con x (x0 ++ l2 ++ l3)) 

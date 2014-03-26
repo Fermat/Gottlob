@@ -50,7 +50,7 @@ proofCheck decls ((n, Right p, Just f):l) = do
 --  emit $ disp f0 <+> text "?=" <+> disp f
           sameFormula f0 f'' -- this can be handle by passing to checkformula
 --  emit $ "pass same"
-          insertPrVar n p'' (erased f0)
+          insertPrVar n p1 (erased f0)
 --  emit $ "checked non-assump"
           proofCheck decls l
         Left (ConstrError a) -> die $ "Can't find constructor" <++> disp a

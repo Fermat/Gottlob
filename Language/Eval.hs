@@ -37,7 +37,7 @@ simp ::  PreTerm -> Global PreTerm
 simp (App (Lambda x p1) p2 ) = simp $ runSubst p2 (PVar x) p1 
 
 simp (App (PVar x) t) = do
-    emit $ "continuing reduction with " <++> disp x  
+--    emit $ "continuing reduction with " <++> disp x  
     e <- get
     case M.lookup x (progDef e) of
       Just a -> do
