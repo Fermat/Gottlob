@@ -103,12 +103,12 @@ tactic useTrans a b c p1 p2 = mp mp (inst inst (inst trans by a) by b by c) by p
 
 tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
 
--- theorem test. Eq a b
--- proof
---    [a1] : forall C . a :: C -> b :: C
---    [a2] : forall D . b :: D -> c :: D
---    e = invcmp (chain a (cons a2 (cons a1 nil))) : Eq a c
--- qed
+theorem test. Eq a b
+proof
+   [a1] : forall C . a :: C -> b :: C
+   [a2] : forall D . b :: D -> c :: D
+   e = invcmp (chain a (cons a2 (cons a1 nil))) : Eq a c
+qed
 
 theorem assoc. forall l1 l2 l3 U . l1 :: List U -> Eq (l1 ++ l2 ++ l3) (l1 ++ (l2 ++ l3))
 proof
