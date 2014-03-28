@@ -196,3 +196,6 @@ returnState a = State $ \s -> (a, s)
 
 bindState m k = State $ \s -> let (a, s') = runState m s
                               in runState (k a) s'
+
+-- data Monad m = Mon { return :: forall a . a -> m a,
+--                      bind :: forall a . m a -> (a -> m b) -> m b }
