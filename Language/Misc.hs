@@ -4,14 +4,14 @@ module Language.Misc where
 -- import Language.Program
 -- import Language.Syntax
 -- import Language.Monad
-import Control.Monad.State
+--import Control.Monad.State
 import Control.Monad.Error
 import Control.Monad.Reader
-import Text.Parsec
-import Text.Parsec.Language
-import Text.Parsec.Pos
-import Text.Parsec.Indent
-import Text.Parsec.Token
+-- import Text.Parsec
+-- import Text.Parsec.Language
+-- import Text.Parsec.Pos
+-- import Text.Parsec.Indent
+-- import Text.Parsec.Token
 import Data.List
 import Data.Function(on)
 
@@ -184,3 +184,15 @@ data Tree a = Leaf
 -- zipp (a:t) (b:t') = zipp a b
 idd = \ x -> x
 exp11 = let x = idd in x
+
+bindSt m k = \s -> let (a, s') = m s
+                   in (k a) s'
+
+newtype State s a = State {
+      runState :: s -> (a, s)
+    }
+
+returnState a = State $ \s -> (a, s)
+
+bindState m k = State $ \s -> let (a, s') = runState m s
+                              in runState (k a) s'

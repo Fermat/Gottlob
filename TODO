@@ -53,7 +53,7 @@ only HM-polymorphic decidable type inference.
     reason about this kind of program? It looks like it will be tricky
     to reason about IO program, then, take a step back, reasoning
     about state monad then. How do you support monadic syntax????
-Q4MXF58JETXS
+
 
 11. a nice REPL
 

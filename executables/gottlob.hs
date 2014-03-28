@@ -40,6 +40,7 @@ main = flip catches handlers $ do
                              Right (env, e) ->  do
                                putStrLn "ProofChecking success!"
                                print $ disp env
+                               
 --look at local variable                              print $ disp e
 
 
@@ -55,4 +56,4 @@ ensureTypeCheck a' = do
     Right ((defs, _), substs) -> do
       putStrLn $ "Type Check success! \n"
       mapM_ (print . disp) defs
---                               mapM_ (print . disp) substs
+--      mapM_ (print . disp) substs

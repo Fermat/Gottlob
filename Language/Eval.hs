@@ -30,7 +30,7 @@ reduce (PVar x) =
       Nothing -> return $ PVar x
       Just t -> reduce t
 
-
+reduce (Pos _ t) = reduce t
 reduce t = die $ "unhandle reduction for term" <++> disp t
 
 simp ::  PreTerm -> Global PreTerm

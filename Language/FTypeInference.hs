@@ -11,7 +11,7 @@ import Control.Monad.State
 import Control.Monad.Identity
 import qualified Data.Map as M
 import Data.List hiding(partition)
-
+--import Debug.Trace
 
 runTypeCheck :: [Decl] -> IO (Either PCError (([(VName, TScheme)], Int), Subst)) 
 runTypeCheck ast = 
@@ -62,6 +62,7 @@ checkAlt assump (pats, e) = do
       newEnv = concat $ map snd ls
   (t, as) <- local (\ y -> newEnv ++ assump ++y) $ checkExpr e
   return $ foldr arrow t types
+--  trace (show "types" ++ show types ++ show "env" ++ show newEnv) $ 
   where helper assump p = do
           res <- local (\y -> assump ++ y) $ checkPat p
           return res
@@ -97,13 +98,17 @@ unify (Arrow t1 t2) (Arrow a1 a2) = do
   s2 <- unify (apply s1 t2) (apply s1 a2)
   return $ combine s2 s1
 unify (FCons x args1) (FCons y args2)
-  | x == y = 
-    unifyl (zip args1 args2)
+  | x == y = do
+    let args = zip args1 args2
+    s <- unifyl args
+    return s
+--    trace (show "call fcons" ++ show x ++ show s ++ show args ) $ 
   | otherwise = tcError "Unification failure:"
            [(disp "unify", disp x),(disp "with", disp y)]
   where unifyl eqs = foldM helper [] eqs
-        helper sub (ArgType p1, ArgType p2) = 
-          unify (apply sub p1) (apply sub p2)
+        helper sub (ArgType p1, ArgType p2) = do
+          newSub <- unify (apply sub p1) (apply sub p2)
+          return $ newSub++sub
         helper sub (a, b) = 
           tcError "Can't unify the following formal types"
            [(disp "unify", disp a),(disp "with", disp b)]
@@ -199,17 +204,21 @@ checkExpr (Name x) = do
     Just sc -> do
       ft <- freshInst sc
       return (ft, [])
+--      trace (show "instvar" ++  show x ++ show ft) $ 
     Nothing -> do
       name <- makeName "`T"
 --      lift $ put $ (x, Scheme [] (FVar name)):tdefs
       return (FVar name, [(x, Scheme [] (FVar name))])
+--      trace (show "newvar" ++ show x ++ show name) $ 
 
 checkExpr ap@(Applica t1 t2) = do
   (ty1, as1) <- checkExpr t1
   (ty2, as2) <- local (\y -> as1 ++ y) $ checkExpr t2
   m <- makeName "`T"
-  withInfo "During unification" [(disp "in the expression ", disp ap )] (unification ty1 $ Arrow ty2 (FVar m)) 
+  withInfo "During unification" [(disp "in the expression ", disp ap )] (unification ty1 $ Arrow ty2 (FVar m))
+  subs <- lift get
   return (FVar m, as1 ++ as2)
+--  trace (show ap ++ show "::" ++ show m ++ show "substs:" ++ show subs ) $ 
   
 checkExpr (Abs xs t) = do
   ls <- mapM (\ x -> makeName "`T") xs
@@ -218,7 +227,9 @@ checkExpr (Abs xs t) = do
       new = zip xs scs
   (ty, as) <- local (\y -> new++y) $ checkExpr t
 --  lift $ modify (\ y -> new ++ y)
-  return (foldr arrow ty tys, as)
+  let ty' = foldr arrow ty tys
+  return (ty', as)
+  --trace (show (Abs xs t) ++ show ty' ) $ 
 
 checkExpr (Match p branches) = do
   (tp, as) <- checkExpr p
