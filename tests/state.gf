@@ -36,6 +36,8 @@ h (succ n) m = h n (succ m)
 
 ob n = h n zero
 
+
+
 data State S A where
   mkState :: (S -> Pair A S) -> State S A
 
@@ -49,6 +51,10 @@ returnState a = mkState (\ s . times a s)
                               
 -- observer for State                              
 runState (mkState f) = f  
+
+-- newOb :: Nat -> State Nat Unit
+newOb zero = returnState unit
+newOb (succ n) = get >>- \ s . put (succ s) >>- \ a . newOb n
 
 tick' =  get >>- \ x . put (plus1 x) >>- \ y . returnState x
 
@@ -141,6 +147,7 @@ tactic byEval t1 t2 =
    c3 = ug Q . discharge c . c1
    c5 = invcmp c3 : Eq t1 t2
 
+
 tactic red t1 = 
    [c] : t1 :: Q
    c1 = beta c 
@@ -158,6 +165,10 @@ five = succ (succ (succ (succ (succ zero))))
 plus zero m = m
 plus (succ n) m = succ (plus n m)
 
+
+
+
+
 tactic cmpinst p s = cmp inst p by s 
 tactic id F =  discharge a : F . a
 theorem cong . forall f a b. Eq a b -> Eq (f a) (f b)
@@ -171,7 +182,7 @@ proof
  f = invcmp e : Eq (f a) (f b)
  q = ug f . ug a . ug b . discharge a . f : forall f . forall a . forall b . Eq a b -> Eq (f a) (f b)
 qed
-
+tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
 
 tactic smartCong f a b p n m = 
   -- has to rename x to x11 and y to y22 to avoid nasty variable capture problem... 
@@ -181,6 +192,8 @@ tactic smartCong f a b p n m =
    c4 = invcmp (cmp c3) : f b :: iota y22. ((iota x11 . Eq x11 y22) n)
    c5 = beta c4 : m :: iota y22. ((iota x11 . Eq x11 y22) n)
    c6 = invcmp (cmp c5) from Eq n m
+
+   
 
 map f nil = nil
 map f (cons x xs) = cons (f x) (map f xs)
@@ -193,7 +206,7 @@ tactic chain t ls =
           let insts = map (\ x . inst (cmp x) by Q) ls
               in foldr (\ x y . mp x by y) a insts
 
-tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
+
 
 tactic useSym a b p = mp (inst inst sym by a by b) by p
 
@@ -266,7 +279,38 @@ proof
   a = byEval (snd (runSt tick (succ (succ zero))))  (succ (succ (succ zero))) 
 --  b = byEval (runSt tick zero)  (succ (succ zero))
 qed
-                        
+
+theorem comm. forall n m . n :: Nat -> Eq (plus n m) (plus m n)
+{-                        
+theorem helper . forall x m . x :: Nat -> Eq (plus x (succ m)) (plus (succ x) m)
+proof
+    a = simpCmp inst indNat by iota z . forall m . Eq (plus z (succ m)) (plus (succ z) m)
+--    base = byEval (plus zero (succ m)) (plus (succ zero) m)
+    base' = useCong succ m (plus zero m) (byEval m (plus zero m))
+    b1 = byEval (plus zero (succ m)) (succ m)
+    b2 = byEval (succ (plus zero m)) (plus (succ zero) m)
+    base1 = chain (plus zero (succ m)) (cons b2 (cons base' (cons b1 nil)))
+    base = invcmp base1 : Eq (plus zero (succ m)) (plus (succ zero) m)
+    [ih] : forall m . Eq (plus x (succ m)) (plus (succ x) m)
+    
+    -- show Eq (plus (succ x) (succ m)) (plus (succ (succ x)) m)
+qed
+-}
+theorem obb. forall n m . n :: Nat -> Eq (snd (runState (newOb n) m)) (plus n m)
+proof
+ b = simpCmp inst indNat by iota z . forall m . Eq (snd (runState (newOb z) m)) (plus z m)
+ base = ug m . byEval (snd (runState (newOb zero) m)) (plus zero m)
+ [ih] : forall m . Eq (snd (runState (newOb x) m)) (plus x m)
+ c1 = byEval (snd (runState (newOb (succ x)) m)) (snd (runState (newOb x) (succ m)))
+ c2 = inst ih by (succ m) : Eq (snd (runState (newOb x) (succ m))) (plus x (succ m))
+-- c3 = byEval (plus (succ x) m) (succ (plus x m))
+ [a] : Eq (plus x (succ m)) (plus (succ x) m)
+ d = chain (snd (runState (newOb (succ x)) m)) (cons a (cons c2 (cons c1 nil)))
+ d1 = invcmp d : Eq (snd (runState (newOb (succ x)) m)) (plus (succ x) m)
+    --  1: [Expected Formula] x (returnState unit) (\ `u2 . (>>-) get (\ s . (>>-) (put (succ s)) (\ a . newOb `u2))) (\ `u2 . `u2) (succ zero) (\ `u2 . \ `u3 . `u3) :: Q
+    -- 2: [Actual Formula] \ zero . \ succ . succ x :: Q
+
+qed
 
 
 
