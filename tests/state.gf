@@ -83,7 +83,7 @@ tick =  getSt >>= \ x . putSt (plus1 x) >>= \ y . returnSt x
 -- It is all about syntactic sugar...
 tactic first U V p = mp cmp (inst (cmp p) by U) by cmp (discharge x : U . discharge y : V . x)
 
-tactic second U V p = mp (inst (cmp p) by V) by (discharge x : U . discharge y : V . y)
+tactic second U V p = mp cmp (inst (cmp p) by V) by cmp (discharge x : U . discharge y : V . y)
 
 
 --tick =  bindSt getSt (\ x . bindSt (putSt (plus1 x)) (\ y . (returnSt x)))
@@ -121,6 +121,16 @@ proof
    b1 = inst surSuc by x
    c = first (x :: Nat) (x :: C) ih
    c2 = invcmp c : x :: Nat
+   c3 = mp b1 by c2
+   d = invcmp cmp and (succ x :: Nat) (succ x :: C) c3 b : succ x :: Nat * succ x :: C
+   d1 = ug x . discharge ih . d
+   e1 = mp mp c1 by base by d1 
+   f = inst e1 by m
+   [f1] : m :: Nat
+   f2 = mp f by f1
+   f3 = second (m :: Nat) (m :: C) f2
+   f4 = ug m . discharge f1 . f3
+   f5 = ug C . discharge a1 . discharge a2 . f4
    -- show succ x :: Nat * succ x :: C
 qed
                        
@@ -221,28 +231,23 @@ qed
 
 theorem testO . forall n . n :: Nat -> Eq (ob n) n
 proof 
-  a = simpCmp inst indNat by (iota z . z :: Nat -> Eq (ob z) z)
+  a = simpCmp inst weakInd by (iota z . Eq (ob z) z)
   base = byEval (ob zero) zero
-  
-  [ih] : Eq (ob x) x
---  c = byEval (ob (succ x)) (succ x)
--- 1: [Expected Formula] x (succ zero) (\ `u3 . h `u3 (succ (succ zero))) :: Q
--- 2: [Actual Formula] \ zero . \ succ . succ x :: Q
+  [e1] : x :: Nat * Eq (ob x) x
+  e = invcmp second (x :: Nat) (Eq (ob x) x) e1 : Eq (ob x) x
+  e2 = invcmp first (x :: Nat) (Eq (ob x) x) e1 : x :: Nat
   c = byEval (h x zero) (ob x) 
-  c1 = invcmp chain (h x zero) (cons ih (cons c nil)) : Eq (h x zero) x
+  c1 = invcmp chain (h x zero) (cons e (cons c nil)) : Eq (h x zero) x
   c2 = byEval (ob (succ x)) (h (succ x) zero)
   c3 = byEval (h (succ x) zero) (h x (succ zero))
-  [e] : x :: Nat
-  c4 = mp (inst (inst testH by x) by zero) by e
+  c4 = mp (inst (inst testH by x) by zero) by e2
   c5 = useSym (succ (h x zero)) (h x (succ zero)) c4
   c6 = useCong succ (h x zero) x c1
   c7 = chain (ob (succ x)) (cons c6 (cons c5 (cons c3 (cons c2 nil))))
   c8 = invcmp c7 from Eq (ob (succ x)) (succ x)
---  c9 = ug x . discharge ih . c8 
---  c10 = mp (mp a by base) by c9
-  
+  c9 = ug x . discharge e1 . c8 
+  c10 = mp (mp a by base) by c9
 qed
-
 
 theorem testN . forall n . Eq (ob (plus three two)) five
 proof 

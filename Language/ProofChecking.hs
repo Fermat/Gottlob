@@ -327,8 +327,10 @@ comp b (TApp (PVar x) m1) s =
       Just (s1, t) -> return $ TApp s1 m1
   else return $ TApp (PVar x) m1
 -- t :: (a :: C ) 
-comp b (SApp (SApp m3 m2) m1) s = 
-  comp b (SApp m3 m2) s >>= \ a-> return $ SApp a m1
+comp b (SApp (SApp m3 m2) m1) s = do
+  a <- comp b (SApp m3 m2) s
+  a1 <- comp b m1 s
+  return $ SApp a a1
 
 comp b (TApp (SApp m3 m2) m1) s = 
    comp b (SApp m3 m2) s >>= \ a -> return $ TApp a m1
