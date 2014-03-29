@@ -47,12 +47,12 @@ simp (App (PVar x) t) = do
           Just a -> do
             simp $ App a t
           Nothing -> do
-            t1 <- simp t
-            return $ App (PVar x) t1
+--            t1 <- simp t
+            return $ App (PVar x) t
 
 simp (App t1 t2) = do
   a1 <- simp t1 
-  a2 <- simp t2 
+--  a2 <- simp t2 
   if isLambda a1
     then simp $ App a1 t2
     else return $ App a1 t2
