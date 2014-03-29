@@ -139,7 +139,6 @@ proof
    f5 = ug C . discharge a1 . discharge a2 . f4
    -- show succ x :: Nat * succ x :: C
 qed
-                       
 
 tactic byEval t1 t2 =   
    [c] : t1 :: Q
