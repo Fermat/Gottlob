@@ -279,9 +279,18 @@ proof
   a = byEval (snd (runSt tick (succ (succ zero))))  (succ (succ (succ zero))) 
 --  b = byEval (runSt tick zero)  (succ (succ zero))
 qed
+{-
+theorem plus0 . forall n . n :: Nat -> Eq (plus n zero) n
+proof
+ base = byEval (plus zero zero) zero
+ [ih] : Eq (plus n zero) n
+ step = byEval (plus (succ n) zero) (succ (plus n zero))
+ c = useCong succ (plus n zero) n ih
+ d = chain (plus (succ n) zero) (cons c (cons step nil))
+ d1 = invcmp d : Eq 
+qed
+-- theorem comm. forall n m . n :: Nat -> Eq (plus n m) (plus m n)
 
-theorem comm. forall n m . n :: Nat -> Eq (plus n m) (plus m n)
-{-                        
 theorem helper . forall x m . x :: Nat -> Eq (plus x (succ m)) (plus (succ x) m)
 proof
     a = simpCmp inst indNat by iota z . forall m . Eq (plus z (succ m)) (plus (succ z) m)
@@ -296,17 +305,31 @@ proof
     -- show Eq (plus (succ x) (succ m)) (plus (succ (succ x)) m)
 qed
 -}
-theorem obb. forall n m . n :: Nat -> Eq (snd (runState (newOb n) m)) (plus n m)
+
+plus' zero n = n
+plus' (succ m) n = plus' m (succ n)
+
+-- theorem huh. Eq (plus' three two ) five
+-- proof
+--   e = byEval (plus' three two ) five
+-- qed
+
+theorem obb. forall n m . n :: Nat -> Eq (snd (runState (newOb n) m)) (plus' n m)
 proof
- b = simpCmp inst indNat by iota z . forall m . Eq (snd (runState (newOb z) m)) (plus z m)
- base = ug m . byEval (snd (runState (newOb zero) m)) (plus zero m)
- [ih] : forall m . Eq (snd (runState (newOb x) m)) (plus x m)
+ b = simpCmp inst indNat by iota z . forall m . Eq (snd (runState (newOb z) m)) (plus' z m)
+ base = ug m . byEval (snd (runState (newOb zero) m)) (plus' zero m)
+ [ih] : forall m . Eq (snd (runState (newOb x) m)) (plus' x m)
  c1 = byEval (snd (runState (newOb (succ x)) m)) (snd (runState (newOb x) (succ m)))
- c2 = inst ih by (succ m) : Eq (snd (runState (newOb x) (succ m))) (plus x (succ m))
+ c2 = inst ih by (succ m) : Eq (snd (runState (newOb x) (succ m))) (plus' x (succ m))
 -- c3 = byEval (plus (succ x) m) (succ (plus x m))
- [a] : Eq (plus x (succ m)) (plus (succ x) m)
+ a = byEval (plus' x (succ m)) (plus' (succ x) m)
  d = chain (snd (runState (newOb (succ x)) m)) (cons a (cons c2 (cons c1 nil)))
- d1 = invcmp d : Eq (snd (runState (newOb (succ x)) m)) (plus (succ x) m)
+ d1 = invcmp d : Eq (snd (runState (newOb (succ x)) m)) (plus' (succ x) m)
+ d2 = ug x . discharge ih . (ug m . d1)
+ e = mp (mp b by base) by d2
+ [e1] : x :: Nat
+ e2 = inst mp (inst e by x) by e1 by m
+ e3 = ug x . ug m . discharge e1 . e2
     --  1: [Expected Formula] x (returnState unit) (\ `u2 . (>>-) get (\ s . (>>-) (put (succ s)) (\ a . newOb `u2))) (\ `u2 . `u2) (succ zero) (\ `u2 . \ `u3 . `u3) :: Q
     -- 2: [Actual Formula] \ zero . \ succ . succ x :: Q
 
