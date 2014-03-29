@@ -1,9 +1,24 @@
 module state where
 prog infixr 10 >>=
 prog infixr 10 >>-
+formula infixl 3 *
 
+(*) U V = forall Y . (U -> V -> Y) -> Y
 Eq a b = forall C . a :: C -> b :: C
 
+tactic and U V p1 p2 = ug Y . discharge x : U -> V -> Y . mp (mp x by p1) by p2
+theorem product[Prod] . forall A B . A -> B -> A * B
+proof
+  [a1] : A
+  [a2] : B
+  c0 = and A B a1 a2 
+  c = ug A . ug B . discharge a1 . discharge a2 . c0
+  d = invcmp c from Prod
+qed
+
+data List U where
+  nil :: List U
+  cons :: U -> List U -> List U
 
 data Pair A B where
  times :: A -> B -> Pair A B
@@ -66,9 +81,48 @@ tick =  getSt >>= \ x . putSt (plus1 x) >>= \ y . returnSt x
 
         
 -- It is all about syntactic sugar...
+tactic first U V p = mp (inst (cmp p) by U) by cmp (discharge x : U . discharge y : V . x)
+
+tactic second U V p = mp (inst (cmp p) by V) by (discharge x : U . discharge y : V . y)
 
 
 --tick =  bindSt getSt (\ x . bindSt (putSt (plus1 x)) (\ y . (returnSt x)))
+theorem surZ . zero :: Nat
+proof
+     [a0] : zero :: C
+     [a1] : forall y . y :: C -> succ y :: C
+     c = ug C . (discharge a0 . discharge a1 . a0)
+     d = invcmp c : zero :: Nat
+qed
+
+theorem surSuc . forall n . n :: Nat -> succ n :: Nat
+proof
+  [a] : n :: Nat
+  b = inst (cmp a) by C
+  [a1] : zero :: C
+  [a2] : forall x . x :: C -> succ x :: C
+  c1 = mp (mp b by a1) by a2
+  c2 = inst a2 by n
+  c3 = mp c2 by c1
+  c4 = ug C . discharge a1 . (discharge a2 . c3)
+  c5 = invcmp c4 from succ n :: Nat
+  c6 = ug n . discharge a . c5
+qed
+
+theorem weakInd . forall C . zero :: C -> (forall y. y :: Nat * y :: C -> succ y :: C) -> 
+                       forall m . m :: Nat -> m :: C
+proof
+   [a1] : zero :: C
+   [a2] : forall y. y :: Nat * y :: C -> succ y :: C
+   c1 = simpCmp inst indNat by (iota z . z :: Nat * z :: C)
+   base = invcmp cmp (and (zero :: Nat) (zero :: C) surZ a1) : zero :: Nat * zero :: C
+   [ih] : x :: Nat * x :: C
+   b = mp (inst a2 by x) by ih
+   b1 = inst surSuc by x
+   c = first (x :: Nat) (x :: C) ih
+   -- show succ x :: Nat * succ x :: C
+qed
+                       
 
 tactic byEval t1 t2 =   
    [c] : t1 :: Q
@@ -117,30 +171,77 @@ tactic smartCong f a b p n m =
    c5 = beta c4 : m :: iota y22. ((iota x11 . Eq x11 y22) n)
    c6 = invcmp (cmp c5) from Eq n m
 
+map f nil = nil
+map f (cons x xs) = cons (f x) (map f xs)
+
+foldr f a nil = a
+foldr f a (cons x xs) = f x (foldr f a xs)
+
+tactic chain t ls = 
+       ug Q. discharge a : t :: Q . 
+          let insts = map (\ x . inst (cmp x) by Q) ls
+              in foldr (\ x y . mp x by y) a insts
+
 tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
-theorem testH . forall n m . Eq (succ (h n m)) (h n (succ m))
+
+tactic useSym a b p = mp (inst inst sym by a by b) by p
+
+theorem sym . forall a b . Eq a b -> Eq b a
+proof
+        [c] : Eq a b
+        c1 = cmp c : forall C . a :: C -> b :: C
+        c2 = cmpinst c1 (iota x . x :: Q -> a :: Q )
+        d = id (a :: Q)
+        d1 = invcmp ug Q . mp c2 by d : Eq b a
+        r = ug a . ug b. discharge c . d1
+qed
+
+theorem testH . forall n m . n :: Nat -> Eq (succ (h n m)) (h n (succ m))
 proof
   a = simpCmp inst indNat by (iota z . forall m . Eq (succ (h z m)) (h z (succ m)))
   b =  byEval (h zero m) m
   b1 = useCong succ (h zero m) m b
-  -- [ih] : Eq (h (succ x) m) (h x (succ m)) 
-  -- c = byEval (h (succ (succ x)) m) (h (succ x) (succ m))
-
+  b2 = byEval (succ m) (h zero (succ m))
+  b3 = chain (succ (h zero m)) (cons b2 (cons b1 nil))  
+  b4 = ug m . invcmp b3 from Eq (succ (h zero m)) (h zero (succ m))
+  [ih] : forall m . Eq (succ (h x m)) (h x (succ m))
+  c0 = inst ih by (succ m) : Eq (succ (h x (succ m))) (h x (succ (succ m)))
+  c2 = byEval (h (succ x) m) (h x (succ m))
+  c = useCong succ (h (succ x) m) (h x (succ m)) c2
+  c1 = byEval (h x (succ (succ m))) (h (succ x) (succ m)) 
+  c3 = chain (succ (h (succ x) m)) (cons c1 (cons c0 (cons c nil)))
+  c4 = ug m . invcmp c3 from Eq (succ (h (succ x) m)) (h (succ x) (succ m))
+  c5 = ug x . discharge ih . c4
+  c6 = mp (mp a by b4) by c5
+  c7 = inst c6 by n
+  [e] : n :: Nat
+  c8 = ug n . ug m . discharge e . (inst (mp c7 by e) by m)
 qed
 
-{-
 theorem testO . forall n . n :: Nat -> Eq (ob n) n
 proof 
-  a = simpCmp inst indNat by (iota z . Eq (ob z) z)
+  a = simpCmp inst indNat by (iota z . z :: Nat -> Eq (ob z) z)
   base = byEval (ob zero) zero
+  
   [ih] : Eq (ob x) x
 --  c = byEval (ob (succ x)) (succ x)
-    -- 1: [Expected Formula] x (succ zero) (\ `u3 . h `u3 (succ (succ zero))) :: Q
-    -- 2: [Actual Formula] \ zero . \ succ . succ x :: Q
-
-  c = byEval (ob x) x
+-- 1: [Expected Formula] x (succ zero) (\ `u3 . h `u3 (succ (succ zero))) :: Q
+-- 2: [Actual Formula] \ zero . \ succ . succ x :: Q
+  c = byEval (h x zero) (ob x) 
+  c1 = invcmp chain (h x zero) (cons ih (cons c nil)) : Eq (h x zero) x
+  c2 = byEval (ob (succ x)) (h (succ x) zero)
+  c3 = byEval (h (succ x) zero) (h x (succ zero))
+  [e] : x :: Nat
+  c4 = mp (inst (inst testH by x) by zero) by e
+  c5 = useSym (succ (h x zero)) (h x (succ zero)) c4
+  c6 = useCong succ (h x zero) x c1
+  c7 = chain (ob (succ x)) (cons c6 (cons c5 (cons c3 (cons c2 nil))))
+  c8 = invcmp c7 from Eq (ob (succ x)) (succ x)
+--  c9 = ug x . discharge ih . c8 
+--  c10 = mp (mp a by base) by c9
+  
 qed
--}
+
 
 theorem testN . forall n . Eq (ob (plus three two)) five
 proof 
