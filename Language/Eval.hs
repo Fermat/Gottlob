@@ -30,14 +30,14 @@ reduce (PVar x) =
       Nothing -> return $ PVar x
       Just t -> reduce t
 
-
+reduce (Pos _ t) = reduce t
 reduce t = die $ "unhandle reduction for term" <++> disp t
 
 simp ::  PreTerm -> Global PreTerm
 simp (App (Lambda x p1) p2 ) = simp $ runSubst p2 (PVar x) p1 
 
 simp (App (PVar x) t) = do
-    emit $ "continuing reduction with " <++> disp x  
+--    emit $ "continuing reduction with " <++> disp x  
     e <- get
     case M.lookup x (progDef e) of
       Just a -> do
@@ -80,11 +80,17 @@ simp (Inst p1 t) =
 simp (InvCmp p1 t) = 
   simp p1 >>= \ a1 -> return $ InvCmp a1 t
 
+simp (InvSimp p1 t) = 
+  simp p1 >>= \ a1 -> return $ InvSimp a1 t
+
 simp (InvBeta p1 t) = 
   simp p1 >>= \ a1 -> return $ InvBeta a1 t
 
 simp (Cmp p1) = 
   simp p1 >>= \ a1 -> return $ Cmp a1 
+
+simp (SimpCmp p1) = 
+  simp p1 >>= \ a1 -> return $ SimpCmp a1 
 
 simp (Beta p1) = 
   simp p1 >>= \ a1 -> return $ Beta a1 

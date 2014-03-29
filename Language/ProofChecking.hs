@@ -50,7 +50,7 @@ proofCheck decls ((n, Right p, Just f):l) = do
 --  emit $ disp f0 <+> text "?=" <+> disp f
           sameFormula f0 f'' -- this can be handle by passing to checkformula
 --  emit $ "pass same"
-          insertPrVar n p'' (erased f0)
+          insertPrVar n p1 (erased f0)
 --  emit $ "checked non-assump"
           proofCheck decls l
         Left (ConstrError a) -> die $ "Can't find constructor" <++> disp a
@@ -122,7 +122,7 @@ wellFormed f = do
         lift $ put (updateLocalEType solvedDef st)
         return (etype, res, solvedDef) 
       else pcError "Ill-formed formula or set definition."
-           [(disp "Unsolvable constraints", disp res)]
+           [(disp "Unsolvable constraints", disp res), (disp "formula", disp f)]
 
 subDef :: Constraints -> [(VName, EType)] -> [(VName, EType)]
 subDef res l = map (\ (x, t) -> (x, multiSub res t)) l
@@ -283,7 +283,7 @@ isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
 
 comp :: Bool -> PreTerm -> S.Set VName  -> Global PreTerm
 comp b (Pos pos p) s = comp b p s
-comp b (Forall x f) s = comp b f s >>= \ f1 -> return $ Forall x f1
+comp b (Forall x f) s = comp b f (S.delete x s) >>= \ f1 -> return $ Forall x f1
 comp b (Imply f1 f) s = do
   a <- comp b f1 s
   b <- comp b f s
@@ -327,8 +327,10 @@ comp b (TApp (PVar x) m1) s =
       Just (s1, t) -> return $ TApp s1 m1
   else return $ TApp (PVar x) m1
 -- t :: (a :: C ) 
-comp b (SApp (SApp m3 m2) m1) s = 
-  comp b (SApp m3 m2) s >>= \ a-> return $ SApp a m1
+comp b (SApp (SApp m3 m2) m1) s = do
+  a <- comp b (SApp m3 m2) s
+  a1 <- comp b m1 s
+  return $ SApp a a1
 
 comp b (TApp (SApp m3 m2) m1) s = 
    comp b (SApp m3 m2) s >>= \ a -> return $ TApp a m1
@@ -339,7 +341,7 @@ comp b (SApp (TApp m3 m2) m1) s =
 comp b (TApp (TApp m3 m2) m1) s = 
   comp b (TApp m3 m2) s >>= \ a -> return $ TApp a m1
 
-comp b (Iota x m) s = comp b m s >>= \ a -> return $ Iota x a
+comp b (Iota x m) s = comp b m (S.delete x s) >>= \ a -> return $ Iota x a
 
 comp b (PVar x) s = 
   if (x `S.member` s) && b then do

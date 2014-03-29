@@ -438,7 +438,7 @@ pletbind = do
   where branch = do 
           v <- termVar
           reservedOp "="
-          p <- proof
+          p <- try proof <|> try prog <|> try formula <|> set
           return $ (v, p)
 
 match = do

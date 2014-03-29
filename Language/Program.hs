@@ -32,8 +32,10 @@ progTerm (Let l p) =
   let a = progTerm p in
   substList (helper l) a
   where helper l = map (\ (x, t) -> (PVar x, progTerm t)) l
+        sub t x [] = []
+        sub t x ((y, t1):ys) = (y, runSubst t x t1):(sub t x ys)
         substList [] t = t
-        substList ((x, t1):xs) t = substList xs (runSubst t1 x t)
+        substList ((x, t1):xs) t = substList (sub t1 x xs) (runSubst t1 x t)
 
 progTerm (TForall x p) =
   let a = progTerm p in Forall x a
@@ -68,8 +70,12 @@ progTerm (TInst p1 p2) =
                          
 progTerm (TUG x p2) =
   let a = progTerm p2 in UG x a
+
 progTerm (TCmp p1) =
   let a = progTerm p1 in Cmp a
+
+progTerm (TSimpCmp p1) =
+  let a = progTerm p1 in SimpCmp a
 
 progTerm (TBeta p1) =
   let a = progTerm p1 in Beta a
@@ -78,6 +84,12 @@ progTerm (TInvCmp p1 p2) =
   let a = progTerm p1
       a2 = progTerm p2
   in InvCmp a a2
+
+progTerm (TInvSimp p1 p2) =
+  let a = progTerm p1
+      a2 = progTerm p2
+  in InvSimp a a2
+
 progTerm (TInvBeta p1 p2) =
   let a = progTerm p1
       a2 = progTerm p2
@@ -169,6 +181,10 @@ dePattern (TCmp p1) = do
   a <- dePattern p1
   return $ TCmp a
 
+dePattern (TSimpCmp p1) = do
+  a <- dePattern p1
+  return $ TSimpCmp a
+
 dePattern (TBeta p1) = do
   a <- dePattern p1
   return $ TBeta a
@@ -176,6 +192,10 @@ dePattern (TBeta p1) = do
 dePattern (TInvCmp p1 p2) = do
   a <- dePattern p1
   return $ TInvCmp a p2
+
+dePattern (TInvSimp p1 p2) = do
+  a <- dePattern p1
+  return $ TInvSimp a p2
 
 dePattern (TInvBeta p1 p2) = do
   a <- dePattern p1
@@ -415,7 +435,7 @@ annotate (Applica p1 p2) = do
   return $ Applica p3 p4
 
 annotate (ProgPos pos p1) = annotate p1
-annotate p = error $ show p
+annotate p = error $ "from annotate" ++ show p
 
 
 

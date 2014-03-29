@@ -7,6 +7,7 @@ import Language.Syntax
 import Language.Program
 import Language.Monad
 import Language.Pattern
+import Language.Eval
 
 import Text.Parsec.Pos
 import Text.PrettyPrint
@@ -65,8 +66,7 @@ process state ((PatternDecl x pats p):l) =
         put $ extendProgDef x (progTerm prog) st
         process state ls
       Just a ->
-        die "The program has been defined."
-      `catchError` addProgErrorPos (getProgPos p) (Name x)
+        die "The program has been defined." --`catchError` addProgErrorPos (getProgPos p) (Name x) 
       where makeVar n i = n ++ show i
             getAll s x r@((PatternDecl y pats' p'):ys)
               | x == y = 
@@ -76,7 +76,7 @@ process state ((PatternDecl x pats p):l) =
             checkArity [] lth = return ()
             checkArity ((PatternDecl y pats' p'):ys) lth =
               if length pats' == lth then checkArity ys lth
-              else die $ "Different arity for the same function." <++> disp lth <++> disp y 
+              else die $ "Different arity for the same constructor." <++> disp lth <++> disp y 
 
 process state ((DataDecl pos d False):l) =
   let progs = toScott d    
@@ -157,7 +157,8 @@ process state ((ProofDecl n (Just m) ps f1):l) = do
       let ps' = runToProof ps
       ps1 <- flat state ps'
       let ps2 = progTerm ps1
-      updateProofCxt n ps2 f
+      ps2' <- simp ps2
+      updateProofCxt n ps2' f
       emptyLocalProof
       process state l
     Just (_, f0) -> do
@@ -166,10 +167,11 @@ process state ((ProofDecl n (Just m) ps f1):l) = do
       let ps' = runToProof ps
       ps1 <- flat state ps'
       let ps2 = progTerm ps1
-      updateProofCxt n ps2 f
+      ps2' <- simp ps2
+      updateProofCxt n ps2' f
       emptyLocalProof
       process state l
-    Nothing -> die "Impossible situation. Ask Frank to keep hacking."
+    Nothing -> die $ "Can't find proof" <++> disp x
 
 process state ((ProofDecl n Nothing ps f1):l) = do
   emit $ "processing proof decl" <++> n
@@ -187,10 +189,11 @@ process state ((ProofDecl n Nothing ps f1):l) = do
       let ps' = runToProof ps
       ps1 <- flat state ps'
       let ps2 = progTerm ps1
-      updateProofCxt n ps2 f
+      ps2' <- simp ps2
+      updateProofCxt n ps2' f
       emptyLocalProof
       process state l
-    Nothing -> die "Impossible situation."
+    Nothing -> die "This is wrong at so many levels."
 
 process state ((TacDecl x args (Left p)):l) = do 
   emit $ "processing tactic decl" <++> x

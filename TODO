@@ -13,7 +13,7 @@
 -- 4. prettyprint for infix notaton(get handled by a less impressive way.)
 
 
-5. How to exploit Mogensen's self interpretation? 
+-- [Not goint to the Lisp route..]5. How to exploit Mogensen's self interpretation? 
     1. represent term as data 
        now we can manipulate these data and interpret them
     2. define an interpreter. 
@@ -31,7 +31,7 @@
    it doesn't matter, since what we are doing is reasoning, not *actually* runing
    program.
 
-  6. Do plan to let the ghc do the work for us, since
+-- too vague.  6. Do plan to let the ghc do the work for us, since
      it is based on primitive data type and explicit typed 
      core. So we would need our own interpretor, then we 
      may need to investigate the techniques needed to optimize
@@ -49,6 +49,12 @@
 -- Done. 10. Incorparate/Handling Typing. No dependent typing, 
 only HM-polymorphic decidable type inference.
 
+10. How to do IO and awkward squad? More importantly, how do you 
+    reason about this kind of program? It looks like it will be tricky
+    to reason about IO program, then, take a step back, reasoning
+    about state monad then. How do you support monadic syntax????
+
+
 11. a nice REPL
 
 -- Done. 11. Automatic deriving induction principle for data type.
@@ -60,5 +66,7 @@ Big picture:
 3. Think about how to make software as small, robust, correct and obvious as possible.
 4. Handling Exception and concurrency. 
 5. Implicit annotation like let, :: to help faster and decidable type checking.
+6. Show that Gottlob has the ability to verify large scale pure algorithm. 
+e.g. AVL tree, associativity of append ... and SK combinator (stealing from Garrin's unittest) and the algorithm found in MIT's introduction to algorithm.
 
        
