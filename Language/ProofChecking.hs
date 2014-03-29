@@ -283,7 +283,7 @@ isFree x m = not (null (filter (\ y ->  x `S.member` (fv (snd y))) m))
 
 comp :: Bool -> PreTerm -> S.Set VName  -> Global PreTerm
 comp b (Pos pos p) s = comp b p s
-comp b (Forall x f) s = comp b f s >>= \ f1 -> return $ Forall x f1
+comp b (Forall x f) s = comp b f (S.delete x s) >>= \ f1 -> return $ Forall x f1
 comp b (Imply f1 f) s = do
   a <- comp b f1 s
   b <- comp b f s
@@ -339,7 +339,7 @@ comp b (SApp (TApp m3 m2) m1) s =
 comp b (TApp (TApp m3 m2) m1) s = 
   comp b (TApp m3 m2) s >>= \ a -> return $ TApp a m1
 
-comp b (Iota x m) s = comp b m s >>= \ a -> return $ Iota x a
+comp b (Iota x m) s = comp b m (S.delete x s) >>= \ a -> return $ Iota x a
 
 comp b (PVar x) s = 
   if (x `S.member` s) && b then do

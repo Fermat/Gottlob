@@ -81,7 +81,7 @@ tick =  getSt >>= \ x . putSt (plus1 x) >>= \ y . returnSt x
 
         
 -- It is all about syntactic sugar...
-tactic first U V p = mp (inst (cmp p) by U) by cmp (discharge x : U . discharge y : V . x)
+tactic first U V p = mp cmp (inst (cmp p) by U) by cmp (discharge x : U . discharge y : V . x)
 
 tactic second U V p = mp (inst (cmp p) by V) by (discharge x : U . discharge y : V . y)
 
@@ -120,6 +120,7 @@ proof
    b = mp (inst a2 by x) by ih
    b1 = inst surSuc by x
    c = first (x :: Nat) (x :: C) ih
+   c2 = invcmp c : x :: Nat
    -- show succ x :: Nat * succ x :: C
 qed
                        
