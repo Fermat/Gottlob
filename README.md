@@ -33,6 +33,11 @@ name, proofName, assumption ::= lowerVar
 proof ::= p  
 formula ::= F
 
+Formula/Set Abbrievation
+-------
+Name params = [formula | set]  
+Name ::= upperVar  
+set ::= S  
 Tactic Declaration
 ----
 *tactic* name params = [oneLine | multipleLine]  
