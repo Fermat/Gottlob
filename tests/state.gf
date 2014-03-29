@@ -321,7 +321,6 @@ proof
  [ih] : forall m . Eq (snd (runState (newOb x) m)) (plus' x m)
  c1 = byEval (snd (runState (newOb (succ x)) m)) (snd (runState (newOb x) (succ m)))
  c2 = inst ih by (succ m) : Eq (snd (runState (newOb x) (succ m))) (plus' x (succ m))
--- c3 = byEval (plus (succ x) m) (succ (plus x m))
  a = byEval (plus' x (succ m)) (plus' (succ x) m)
  d = chain (snd (runState (newOb (succ x)) m)) (cons a (cons c2 (cons c1 nil)))
  d1 = invcmp d : Eq (snd (runState (newOb (succ x)) m)) (plus' (succ x) m)
@@ -330,9 +329,6 @@ proof
  [e1] : x :: Nat
  e2 = inst mp (inst e by x) by e1 by m
  e3 = ug x . ug m . discharge e1 . e2
-    --  1: [Expected Formula] x (returnState unit) (\ `u2 . (>>-) get (\ s . (>>-) (put (succ s)) (\ a . newOb `u2))) (\ `u2 . `u2) (succ zero) (\ `u2 . \ `u3 . `u3) :: Q
-    -- 2: [Actual Formula] \ zero . \ succ . succ x :: Q
-
 qed
 
 
