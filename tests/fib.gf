@@ -70,5 +70,5 @@ ob n = h n zero
 
 theorem fibb . forall n . n :: Nat -> Eq (plus (fibs !! n ) (fibs !! succ n)) (fibs !! succ (succ n))
 proof
-  b = byEval (fib' (tail (tail (tail (tail head))))) (zero)
+  b = byEval (ob (fib' (tail (tail (tail (tail head)))))) (zero)
 qed
