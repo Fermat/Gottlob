@@ -56,4 +56,4 @@ ensureTypeCheck a' = do
     Right ((defs, _), substs) -> do
       putStrLn $ "Type Check success! \n"
       mapM_ (print . disp) defs
-      mapM_ (print . disp) substs
+--      mapM_ (print . disp) substs

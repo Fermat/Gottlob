@@ -280,7 +280,7 @@ toPat p = throwError $ ConstrError p
 
 toVar (Name a) = [Var a]
 toVar (Applica a b) = (toVar a) ++ (toVar b)
-
+toVar (ProgPos _ p) = toVar p
 isConstr v ((DataDecl pos (Data name params cons) b):l) =
   case lookup v cons of
     Just _ -> True
