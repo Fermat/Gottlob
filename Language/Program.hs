@@ -113,18 +113,18 @@ progTerm (If c p1 p2) =
       a2 = progTerm p2
   in App (App (App iff c1) a1 ) a2
 
-data PatError a = ConstrError a
-                | OtherError Doc
-               deriving (Show)
+data PatError = ConstrError Doc
+              | OtherError Doc
+              deriving (Show)
 
-instance Disp a => Error (PatError a) where
+instance Error PatError where
   strMsg x = OtherError $ text x
   noMsg = strMsg "<unknown>"
 
 runDepattern p n env = do
   a <- runReaderT (runStateT (dePattern p) n) env
   return $ fst a
-dePattern :: Prog -> StateT Int (ReaderT [Decl] (Either (PatError Prog))) Prog
+dePattern :: Prog -> StateT Int (ReaderT [Decl] (Either (PatError))) Prog
 dePattern (Name n) = return $ Name n
 dePattern (Applica p1 p2) = do
   a1 <- dePattern p1
@@ -260,27 +260,53 @@ appBranch l m =
       constrAbs l1 a 
 
 --toPat :: Prog -> StateT Int (ReaderT [Decl] (Either (PatError Prog))) Pattern 
-toPat (Name c) = do
-  state <- ask
-  if isConstr c state
-    then return $ (Cons c [])
-    else return $ (Var c)
-toPat (Applica (Name c) b) = do
-  state <- ask
-  if isConstr c state
-    then
-    return $ Cons c (toVar b)
-    else throwError $ ConstrError (Name c)
-toPat (Applica a b) = do
-  (Cons v ls) <- toPat a
-  return $ Cons v (ls ++ (toVar b))
-toPat (ProgPos pos p) = toPat p
+-- toPat (Name c) = do
+--   state <- ask
+--   if isConstr c state
+--     then return $ (Cons c [])
+--     else return $ (Var c)
+-- toPat (Applica (Name c) b) = do
+--   state <- ask
+--   if isConstr c state
+--     then
+--     return $ Cons c (toVar b)
+--     else throwError $ ConstrError (Name c)
+-- toPat (Applica a b) = do
+--   (Cons v ls) <- toPat a
+--   return $ Cons v (ls ++ (toVar b))
+-- toPat (ProgPos pos p) = toPat p
 
-toPat p = throwError $ ConstrError p
+-- toPat p = throwError $ ConstrError p
+--toPat :: Prog -> StateT Int (ReaderT [Decl] (Either (PatError Prog))) Pattern 
+toPat p = do
+  let ps = toSpine p
+  f <- mapM helper ps
+  case f of
+    ((Cons c []):t) -> do
+      st <- ask
+      if arity c st == length t
+        then return $ Cons c t
+        else throwError $ OtherError (text "Arity mismatch for constructor" <+> text c)
+    ((Var m):[]) -> return $ Var m
+    e -> throwError $ OtherError (text "this is new" <+> (text $ show e))
+    where helper (Name a) = do
+            state <- ask
+            if isConstr a state
+              then return $ (Cons a [])
+              else return $ (Var a)
+          helper c@(Applica a b) = toPat c
+          helper (ProgPos _ p) = helper p
+            
+          
+toSpine :: Prog -> [Prog]
+toSpine (Name a) = [Name a]
+toSpine (Applica a b) = toSpine a ++ [b]
+toSpine (ProgPos _ p) = toSpine p
+  
+-- toVar (Name a) = [Var a]
+-- toVar (Applica a b) = (toVar a) ++ (toVar b)
+-- toVar (ProgPos _ p) = toVar p
 
-toVar (Name a) = [Var a]
-toVar (Applica a b) = (toVar a) ++ (toVar b)
-toVar (ProgPos _ p) = toVar p
 isConstr v ((DataDecl pos (Data name params cons) b):l) =
   case lookup v cons of
     Just _ -> True
@@ -328,11 +354,11 @@ toSet (Data d l branches) =
                    then ArgType (FVar x)
                    else ArgProg (Name x)
 
-arity :: FType -> Int
-arity (Arrow _ t) = 1 + (arity t)
-arity (Pi _ _ t) = 1 + (arity t)
-arity (FTPos p t) = arity t
-arity _ = 0
+-- arity :: FType -> Int
+-- arity (Arrow _ t) = 1 + (arity t)
+-- arity (Pi _ _ t) = 1 + (arity t)
+-- arity (FTPos p t) = arity t
+-- arity _ = 0
 
 args :: VName -> Int -> PreTerm -> PreTerm
 args a 0 t = t
@@ -348,7 +374,7 @@ toScott (Data d l cons) =
   let l1 = map fst cons in
   map (helper l1) cons
   where helper l1 (c, t) =
-          let n = arity t
+          let n = farity t
               a = args "a" n (PVar c)
               b = constrAbs l1 a
               e = abstr "a" n b in (c, e)

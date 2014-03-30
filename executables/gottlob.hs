@@ -32,7 +32,7 @@ main = flip catches handlers $ do
              Right a -> do putStrLn $ "Parsing success! \n"
                            print $ disp a
                            let (Module v a') = a
-                           ensureTypeCheck a'
+--                           ensureTypeCheck a'
                            putStrLn $ "Preprocessing.. \n"
                            b <- checkDefs a
                            case b of

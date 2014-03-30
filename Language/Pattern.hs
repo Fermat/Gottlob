@@ -1,4 +1,4 @@
-module Language.Pattern(match, Equation, Pattern(..)) where
+module Language.Pattern(match, Equation, Pattern(..), arity) where
 import Language.Syntax
 import Language.PrettyPrint
 import Text.Parsec

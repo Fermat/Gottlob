@@ -38,6 +38,7 @@ one = succ zero
 --            tail head -> (succ zero)
 --            tail (tail o') -> plus (fib' (tail o')) (fib' o')
 
+-- right, I have to fix a bug.
 fib' head = zero
 fib' (tail head) = succ zero
 fib' (tail (tail o')) = plus (fib' (tail o')) (fib' o')

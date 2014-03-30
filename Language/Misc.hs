@@ -176,6 +176,23 @@ knapsack' = foldr addItem (repeat (0,[]))
 
 fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
 
+data Observer where
+  H ::  Observer
+  T :: Observer -> Observer
+  deriving Show
+
+toOb 0 = H
+toOb n' = T (toOb (n' - 1))
+
+fib' H = 0
+fib' (T H) = 1
+fib' (T (T o')) =  (fib' (T o')) + (fib' o')
+
+-- nah, it is structurally isomorphic to 
+--sFib 0 = 0
+--sFib 1 = 1
+--sFib n = sFib (n - 1) + sFib (n - 2)
+
 data Tree a = Leaf
             | Node (Tree a) a (Tree a)
             deriving(Show, Eq)

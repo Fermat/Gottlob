@@ -253,8 +253,8 @@ toEquation state (PatternDecl y pats p) = do
   p' <- flat state p
   return $ (patterns, p')
   where helper a st = case runReaderT (toPat a) st of
-                        Left (ConstrError a) -> die $ "Not a constructor " <++> disp a
-                        Left (OtherError a) -> die $ disp a
+                        Left (ConstrError e) -> die $ "Not a constructor " <++> disp e
+                        Left (OtherError e) -> die $ e
                         Right p -> return p
                         
 -- getProofPos :: Pre -> SourcePos

@@ -56,5 +56,5 @@ demo f (cons x xs) (cons y ys) = f f x xs y ys
 
 
 demo' f nil ys = newapp f ys
-demo' f xs nil = f f xs
-demo' f (cons x xs) (cons y ys) = f f x xs y ys
+demo' f xs nil = nu3 f xs
+demo' f (cons x xs) (cons y ys) = nu1 f x xs y ys
