@@ -24,7 +24,7 @@
     3. How this could be helpful without constantly need to extend
        the implementation and making the prog language itself extensible.
 
---6. How to get a more efficient hnf reduction?
+6. How to get a more efficient hnf reduction?
    
    {- Renaming cost, FV cost, membership cost -- the cost of doing *a* substitution
       Y-Theta-cost -- added up with multiple subs. -}
@@ -44,18 +44,18 @@
 -- done by infix operator decl. 8. Try not be killed by parens in a formula
 
 
-9. Good error info, aka, location.   
+9. Good error info, aka, location.   (later..)
 
 -- Done. 10. Incorparate/Handling Typing. No dependent typing, 
 only HM-polymorphic decidable type inference.
 
-10. How to do IO and awkward squad? More importantly, how do you 
+10***. How to do IO and awkward squad? More importantly, how do you 
     reason about this kind of program? It looks like it will be tricky
     to reason about IO program, then, take a step back, reasoning
     about state monad then. How do you support monadic syntax????
 
 
-11. a nice REPL
+11***. a nice REPL
 
 -- Done. 11. Automatic deriving induction principle for data type.
 
