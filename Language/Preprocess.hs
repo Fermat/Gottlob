@@ -83,7 +83,7 @@ process state ((DataDecl pos d False):l) =
       sd = toSet d
       sdd = snd sd in do
     emit $ "processing data decl" <++> (fst sd)
-    emit $ "before comprehension" <++> sdd
+--    emit $ "before comprehension" <++> sdd
     sdd1 <- repeatComp False sdd
     wellDefined sdd1 `catchError` addPreErrorPos pos sdd1
     (t, res, _) <- withErrorInfo "During the set transformation"
@@ -102,7 +102,7 @@ process state ((DataDecl pos d True):l) =
       sdd = snd sd in
    do
     emit $ "processing data decl" <++> (fst sd)
-    emit $ "before comprehension" <++> sdd
+--    emit $ "before comprehension" <++> sdd
     sdd1 <- repeatComp False sdd
     let indF = getInd sdd1
         indP = runDerive indF

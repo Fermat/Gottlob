@@ -1,9 +1,17 @@
-module avl where
+module div where
 ---- library code, man, I should implement a module system...
 prog infixl 6 +
+prog infixl 6 -
+prog infixl 8 <
+prog infixl 8 == 
 prog infixr 10 @
 
+data Bool where
+  true :: Bool
+  false :: Bool
+  
 Eq a b = forall C . a :: C -> b :: C
+Le a b = Eq (a < b) true
 
 data Nat where
   zero :: Nat
@@ -24,6 +32,25 @@ foldr f a (x @ xs) = f x (foldr f a xs)
 (+) zero m = m
 (+) (succ n) m = n + succ m
 
+(-) zero m = zero
+(-) (succ n) zero = succ n
+(-) (succ n) (succ m) = n - m 
+
+(<) zero zero = false
+(<) zero (succ m) = true
+(<) (succ n) zero = false
+(<) (succ n) (succ m) = n < m
+
+(==) zero zero = true
+(==) zero (succ m) = false
+(==) (succ n) zero = false
+(==) (succ n) (succ m) = n == m
+
+div n m = case n < m of
+               true -> zero 
+               false -> succ (div (n - m) m)
+
+               
 tactic chain t ls = 
        ug Q. discharge a : t :: Q . 
           let insts = map (\ x . inst (cmp x) by Q) ls
@@ -35,10 +62,4 @@ tactic byEval t1 t2 =
    c3 = ug Q . discharge c . c1
    c5 = invcmp c3 : Eq t1 t2
 
---------------- actual code---
-
-data Tree U where
-  leaf :: Tree U
-  node ::  Tree U -> U -> Tree U -> Tree U
-  deriving Ind
 
