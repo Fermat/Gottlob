@@ -117,7 +117,7 @@ proof
    f5 = ug C . discharge a1 . discharge a2 . f4
    -- show succ x :: Nat * succ x :: C
 qed
-
+  
 theorem strongInd . forall C . zero :: C -> 
                            (forall x. x :: Nat * (forall y .  y :: Nat * Le y x -> y :: C) 
                                -> x :: C) -> forall m . m :: Nat -> m :: C
