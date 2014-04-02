@@ -17,8 +17,11 @@ data Bool where
 (*) U V = forall Y . (U -> V -> Y) -> Y  
 (<+>) U V = forall Y . (U -> Y) -> (V -> Y) -> Y  
 
+
+
 Eq a b = forall C . a :: C -> b :: C
 Le a b = Eq (a < b) true
+Bot = forall x y . Eq x y
 
 data Nat where
   zero :: Nat
@@ -60,6 +63,11 @@ div n m = case n < m of
 tactic and U V p1 p2 = ug Y . discharge x : U -> V -> Y . mp (mp x by p1) by p2
 tactic first U V p = mp cmp (inst (cmp p) by U) by cmp (discharge x : U . discharge y : V . x)
 tactic second U V p = mp cmp (inst (cmp p) by V) by cmp (discharge x : U . discharge y : V . y)
+
+tactic inj1 U V u = ug X . discharge x : U -> X . discharge y : V -> X . mp x by u
+tactic inj2 U V v = ug X . discharge x : U -> X . discharge y : V -> X . mp y by v
+
+
 tactic chain t ls = 
        ug Q. discharge a : t :: Q . 
           let insts = map (\ x . inst (cmp x) by Q) ls
@@ -70,6 +78,41 @@ tactic byEval t1 t2 =
    c1 = invbeta beta c : t2 :: Q
    c3 = ug Q . discharge c . c1
    c5 = invcmp c3 : Eq t1 t2
+tactic cmpinst p s = cmp inst p by s 
+tactic id F =  discharge a : F . a
+theorem cong . forall f a b. Eq a b -> Eq (f a) (f b)
+proof 
+ [a] : Eq a b
+ b = cmp a : forall C . a :: C -> b :: C
+ b1 = cmpinst b (iota q. Eq (f a) (f q)) : 
+    (forall C . f a :: C -> f a :: C) -> forall C . f a :: C -> f b :: C
+ d = ug C . id (f a :: C) : forall C. f a :: C -> f a :: C 
+ e = mp b1 by d : forall C . f a :: C -> f b :: C
+ f = invcmp e : Eq (f a) (f b)
+ q = ug f . ug a . ug b . discharge a . f : forall f . forall a . forall b . Eq a b -> Eq (f a) (f b)
+qed
+tactic useCong f a b p = mp (inst inst inst cong by f by a by b) by p
+
+tactic smartCong f a b p n m = 
+  -- has to rename x to x11 and y to y22 to avoid nasty variable capture problem... 
+   c1 = mp (inst inst inst cong by f by a by b) by p -- : Eq (f a) (f b)
+   c2 = invcmp (cmp c1) from (f a) :: (iota x11 . Eq x11 (f b))
+   c3 = beta c2 : n :: (iota x11 . Eq x11 (f b))
+   c4 = invcmp (cmp c3) : f b :: iota y22. ((iota x11 . Eq x11 y22) n)
+   c5 = beta c4 : m :: iota y22. ((iota x11 . Eq x11 y22) n)
+   c6 = invcmp (cmp c5) from Eq n m
+
+tactic useSym a b p = mp (inst inst sym by a by b) by p
+
+theorem sym . forall a b . Eq a b -> Eq b a
+proof
+        [c] : Eq a b
+        c1 = cmp c : forall C . a :: C -> b :: C
+        c2 = cmpinst c1 (iota x . x :: Q -> a :: Q )
+        d = id (a :: Q)
+        d1 = invcmp ug Q . mp c2 by d : Eq b a
+        r = ug a . ug b. discharge c . d1
+qed
 
 theorem surZ . zero :: Nat
 proof
@@ -117,7 +160,49 @@ proof
    f5 = ug C . discharge a1 . discharge a2 . f4
    -- show succ x :: Nat * succ x :: C
 qed
-  
+
+theorem boolContra[BContra]. Eq true false -> Bot
+proof
+     [a] : Eq true false
+     b = ug x . ug y . smartCong (\ f . f x y) true false a x y
+     c = invcmp cmp discharge a . b from BContra
+qed
+
+theorem lessZero . forall y . y :: Nat -> Le y zero -> Bot
+proof
+        a = simpCmp inst indNat by iota z . Le z zero -> Bot
+        b = byEval false (zero < zero)
+        [a1] : Le zero zero
+        b1 = invcmp cmp a1 : Eq (zero < zero) true
+        b2 = invcmp chain false ( b1 @ b @ nil) from Eq false true
+        b3 = discharge a1 . mp boolContra by useSym false true b2 
+        [ih] : Le x zero -> Bot
+        -- to show Le (succ x) zero -> Bot
+        [a2] : Le (succ x) zero
+        c1 = invcmp cmp a2 : Eq (succ x < zero) true
+        c = byEval false (succ x < zero)
+        c2 = invcmp chain false (c1 @ c @ nil) : Eq false true
+        c3 = ug x . discharge ih . discharge a2 . mp boolContra by useSym false true c2
+        end = mp mp a by b3 by c3
+qed
+
+-- theorem discrete . forall n y . n :: Nat -> y :: Nat -> Le y n * Le n (succ y) -> Bot
+-- proof
+        
+-- qed
+
+
+-- theorem less. forall y . y :: Nat -> Le y zero -> Bot
+-- proof
+
+
+-- qed
+-- theorem less . forall y n . y :: Nat -> n :: Nat -> Le y (succ n) -> Le y n <+> Eq y n
+-- proof
+--     a = simpCmp inst indNat by (iota z . forall n . n :: Nat -> Le z (succ n) -> Le z n <+> Eq z n)
+-- qed
+
+
 theorem strongInd . forall C . zero :: C -> 
                            (forall x. x :: Nat * (forall y .  y :: Nat * Le y x -> y :: C) 
                                -> x :: C) -> forall m . m :: Nat -> m :: C
