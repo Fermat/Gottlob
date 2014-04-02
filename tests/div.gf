@@ -186,10 +186,49 @@ proof
         end = mp mp a by b3 by c3
 qed
 
--- theorem discrete . forall n y . n :: Nat -> y :: Nat -> Le y n * Le n (succ y) -> Bot
--- proof
-        
--- qed
+theorem discrete . forall n y . n :: Nat -> y :: Nat -> Le y n * Le n (succ y) -> Bot
+proof
+         a = simpCmp inst weakInd by iota z . forall y . y :: Nat -> Le y z * Le z (succ y) -> Bot
+         [a1] : y :: Nat
+         [a2] : (Le y zero) * (Le zero (succ y))
+         a3 = inst lessZero by y
+         a4 = invcmp first (Le y zero) (Le zero (succ y)) a2 : Le y zero
+         a5 = mp mp a3 by a1 by a4
+         a6 = ug y . discharge a1 . discharge a2 . a5
+         [b] : (y :: Nat) * (forall y0 . y0 :: Nat -> (Le y0 y) * (Le y (succ y0)) -> Bot)
+         b1 = first (y :: Nat) (forall y0 . y0 :: Nat -> (Le y0 y) * (Le y (succ y0)) -> Bot) b
+         b2 = invcmp b1 : y :: Nat
+         b3 = second (y :: Nat) (forall y0 . y0 :: Nat -> (Le y0 y) * (Le y (succ y0)) -> Bot) b
+         b4 = invcmp b3 : forall y0 . y0 :: Nat -> (Le y0 y) * (Le y (succ y0)) -> Bot
+     -- to show  forall y0 . y0 :: Nat -> (*) (Le y0 (succ y)) (Le (succ y) (succ y0)) -> Bot
+         ind = simpCmp inst weakInd by iota z . Le z (succ y) * Le (succ y) (succ z) -> Bot
+         [c1] : (Le zero (succ y)) * (Le (succ y) (succ zero))
+         c2 = invcmp second (Le zero (succ y)) (Le (succ y) (succ zero)) c1 : Eq ((succ y) < (succ zero)) true
+         c3 = byEval (y < zero) (succ y < succ zero) 
+         c4 = invcmp chain (y < zero) (c2 @ c3 @ nil) : Le y zero
+         c5 = mp mp inst lessZero by y by b2 by c4
+         c6 = discharge c1 . c5
+         [d] : (y0 :: Nat) * ((Le y0 (succ y)) * (Le (succ y) (succ y0)) -> Bot)
+         d2 = invcmp first (y0 :: Nat) ((Le y0 (succ y)) * (Le (succ y) (succ y0)) -> Bot) d : y0 :: Nat
+     -- show: (Le (succ y0) (succ y)) * (Le (succ y) (succ (succ y0))) -> Bot
+         [d1] : (Le (succ y0) (succ y)) * (Le (succ y) (succ (succ y0)))
+         e1 = invcmp first (Le (succ y0) (succ y)) (Le (succ y) (succ (succ y0))) d1 : Eq ((succ y0) < (succ y)) true
+         e2 = invcmp second (Le (succ y0) (succ y)) (Le (succ y) (succ (succ y0))) d1 : Eq ((succ y) < (succ (succ y0))) true 
+         e3 = byEval (y0 < y) (succ y0 < succ y)                   
+         e4 = invcmp chain (y0 < y) (e1 @ e3 @ nil) : Le y0 y
+         e5 = byEval (y < succ y0) (succ y < (succ (succ y0)))
+         e6 = invcmp chain (y < succ y0) (e2 @ e5 @ nil) : Le y (succ y0)
+         e7 = invcmp cmp and (Le y0 y) (Le y (succ y0)) e4 e6 : (Le y0 y) * (Le y (succ y0))
+         e8 = mp mp inst b4 by y0 by d2 by e7
+         e9 = ug y0 . discharge d . discharge d1 . e8
+         f1 = mp mp ind by c6 by e9         
+         f2 = ug y . discharge b . f1         
+         f3 = mp mp a by a6 by f2
+         [g] : n :: Nat
+         [g1] : y :: Nat
+         f4 =  mp inst mp (inst f3 by n) by g by y by g1
+         f5 = ug n . ug y . discharge g . discharge g1 . f4
+qed
 
 
 -- theorem less. forall y . y :: Nat -> Le y zero -> Bot
