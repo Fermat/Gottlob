@@ -296,7 +296,7 @@ proof
     g1 = let q = (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
           in inst g by q
     g2 =  mp g1 by cmp d5 
-    -- by cmp e5 by cmp f5 
+      -- by cmp e5 by cmp f5 
     
 qed
 
