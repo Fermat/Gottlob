@@ -266,9 +266,37 @@ proof
     a4 = ug n . discharge a1 . a3
     [ih] : forall n . n :: Nat -> (Le x n) <+> (Eq x n) <+> (Le n x)    
     -- show forall n . n :: Nat -> (Le (succ x) n) <+> (Eq (succ x) n) <+> (Le n (succ x))
-    b = simpCmp inst indNat by iota n . (Le (succ x) n) <+> (Eq (succ x) n) <+> (Le n (succ x))
-    
-    
+    b = simpCmp inst weakInd by iota n . (Le (succ x) n) <+> (Eq (succ x) n) <+> (Le n (succ x))
+    b1 = inj2 ((Le (succ x) zero) <+> (Eq (succ x) zero)) (Le zero (succ x)) (inst sucY by x)
+    b2 = invcmp cmp b1 : (Le (succ x) zero) <+> (Eq (succ x) zero) <+> (Le zero (succ x))
+    [ih2] : (y :: Nat) * ((Le (succ x) y) <+> (Eq (succ x) y) <+> (Le y (succ x)))
+    c2 = invcmp first (y :: Nat) ((Le (succ x) y) <+> (Eq (succ x) y) <+> (Le y (succ x))) ih2 : y :: Nat
+    c3 = invcmp second (y :: Nat) ((Le (succ x) y) <+> (Eq (succ x) y) <+> (Le y (succ x))) ih2 : (Le (succ x) y) <+> (Eq (succ x) y) <+> (Le y (succ x))
+    c1 = mp inst ih by y by c2 
+    -- (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
+    [d1] : Le x y
+    d2 = byEval ((succ x) < (succ y)) (x < y) 
+    d3 = invcmp cmp d1 : Eq (x < y) true
+    d4 = invcmp chain (succ x < succ y) ( d3 @ d2 @ nil) : Le (succ x) (succ y)
+    d7 = invcmp cmp inj1 (Le (succ x) (succ y)) (Eq (succ x) (succ y)) d4 : (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y))
+    d6 = invcmp cmp inj1 ((Le (succ x) (succ y)) <+> (Eq (succ x) (succ y))) (Le (succ y) (succ x)) d7 : (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
+    d5 = discharge d1 . d6
+    [e1] : Eq x y 
+    e2 = useCong succ x y e1
+    e3 = invcmp cmp inj2 (Le (succ x) (succ y)) (Eq (succ x) (succ y)) e2 : (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y))
+    e4 = invcmp cmp inj1 ((Le (succ x) (succ y)) <+> (Eq (succ x) (succ y))) (Le (succ y) (succ x)) e3 : (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
+    e5 = discharge e1 . e4
+    [f1] : Le y x
+    f2 = byEval ((succ y) < (succ x)) (y < x) 
+    f3 = invcmp cmp f1 : Eq (y < x) true
+    f4 = invcmp chain (succ y < succ x) ( f3 @ f2 @ nil) : Le (succ y) (succ x)
+    f6 = invcmp cmp inj2 ((Le (succ x) (succ y)) <+> (Eq (succ x) (succ y))) (Le (succ y) (succ x)) f4 : (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
+    f5 = discharge f1 . f6
+    g = cmp c1
+    g1 = let q = (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
+          in inst g by q
+    g2 =  mp g1 by cmp d5 
+    -- by cmp e5 by cmp f5 
     
 qed
 
