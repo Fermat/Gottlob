@@ -116,6 +116,14 @@ proof
         r = ug a . ug b. discharge c . d1
 qed
 
+-- s : A + B, p1 : A -> P , p2 : A -> P
+tactic sumElim A B P p1 p2 = 
+       [s] : A <+> B
+       a1 = inst invcmp cmp s from (forall Y . (A -> Y) -> (B -> Y) -> Y) by P
+       a2 = mp (mp a1 by p1) by p2
+       a3 = discharge s . a2 -- from A <+> B -> P
+       
+
 theorem surZ . zero :: Nat
 proof
      [a0] : zero :: C
@@ -273,7 +281,7 @@ proof
     c2 = invcmp first (y :: Nat) ((Le (succ x) y) <+> (Eq (succ x) y) <+> (Le y (succ x))) ih2 : y :: Nat
     c3 = invcmp second (y :: Nat) ((Le (succ x) y) <+> (Eq (succ x) y) <+> (Le y (succ x))) ih2 : (Le (succ x) y) <+> (Eq (succ x) y) <+> (Le y (succ x))
     c1 = mp inst ih by y by c2 
-    -- (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
+    -- to show (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
     [d1] : Le x y
     d2 = byEval ((succ x) < (succ y)) (x < y) 
     d3 = invcmp cmp d1 : Eq (x < y) true
@@ -292,12 +300,22 @@ proof
     f4 = invcmp chain (succ y < succ x) ( f3 @ f2 @ nil) : Le (succ y) (succ x)
     f6 = invcmp cmp inj2 ((Le (succ x) (succ y)) <+> (Eq (succ x) (succ y))) (Le (succ y) (succ x)) f4 : (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
     f5 = discharge f1 . f6
-    g = cmp c1
-    g1 = let q = (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
-          in inst g by q
-    g2 =  mp g1 by cmp d5 
-      -- by cmp e5 by cmp f5 
-    
+    -- g1 = let q = (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
+    --       in inst g by q
+    g2 = let q = (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
+         in sumElim (Le x y) (Eq x y) q d5 e5
+    g3 = let q = (Le (succ x) (succ y)) <+> (Eq (succ x) (succ y)) <+> (Le (succ y) (succ x))
+         in sumElim ((Le x y) <+> (Eq x y)) (Le y x) q g2 f5
+    g4 = mp g3 by c1
+    h = ug y . discharge ih2 . g4     
+    h1 = mp mp b by b2 by h
+    h2 = ug x . discharge ih . h1
+    h3 = mp mp a by a4 by h2
+    h4 = inst h3 by y
+    [h5] : y :: Nat
+    h6 = inst (mp h4 by h5) by n 
+    [h7] : n :: Nat
+    h8 = ug y . ug n . discharge h5 . discharge h7 . mp h6 by h7
 qed
 
 
