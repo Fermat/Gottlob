@@ -333,10 +333,6 @@ proof
         e4 = ug y . ug n . discharge a2 . discharge a1 . discharge b . mp e2 by e3
 qed
 
-
-
-
-
 theorem strongInd . forall C . zero :: C -> 
                            (forall x. x :: Nat * (forall y .  y :: Nat * Le y x -> y :: C) 
                                -> x :: C) -> forall m . m :: Nat -> m :: C
@@ -344,5 +340,22 @@ proof
   [a1] : zero :: C
   [a2] : forall x. x :: Nat * (forall y .  y :: Nat * Le y x -> y :: C) -> x :: C
   b = simpCmp inst weakInd by (iota z . forall y .  y :: Nat * Le y z -> y :: C)
-
+  -- show forall y . (y :: Nat) * (Le y zero) -> y :: C
+  [b1] : (y :: Nat) * (Le y zero)
+  b2 = invcmp second (y :: Nat) (Le y zero) b1 : Le y zero
+  b4 = invcmp first (y :: Nat) (Le y zero) b1 : y :: Nat
+  b3 = cmp mp mp inst lessZero by y by b4 by b2
+  b5 = mp inst inst inst b3 by zero by y by C by a1
+  c = ug y . discharge b1 . b5
+  [ih] : (y :: Nat) * (forall y0 . (y0 :: Nat) * (Le y0 y) -> y0 :: C)
+  h1 = invcmp first (y :: Nat) (forall y0 . (y0 :: Nat) * (Le y0 y) -> y0 :: C) ih : y :: Nat
+  -- show forall y0 . (*) (y0 :: Nat) (Le y0 (succ y)) -> y0 :: C
+  [c1] : (y0 :: Nat) * (Le y0 (succ y))
+  c0 = invcmp first (y0 :: Nat) (Le y0 (succ y)) c1 : y0 :: Nat
+  c2 = invcmp second (y0 :: Nat) (Le y0 (succ y)) c1 : Le y0 (succ y)
+  c3 = mp mp mp inst inst less by y0 by y by c0 by h1 by c2
+  
+  
+  
+  
 qed
