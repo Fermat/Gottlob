@@ -39,6 +39,8 @@ map f (x @ xs) =  f x @ map f xs
 foldr f a nil = a
 foldr f a (x @ xs) = f x (foldr f a xs)
 
+pred zero = zero
+pred (succ n) = n
 (+) zero m = m
 (+) (succ n) m = n + succ m
 
@@ -230,16 +232,45 @@ proof
          f5 = ug n . ug y . discharge g . discharge g1 . f4
 qed
 
+theorem sucY . forall y . Le zero (succ y)
+proof
+        a0 = invcmp cmp byEval (zero < (succ y)) true : Le zero (succ y)
+        a1 = ug y . a0
+qed
 
--- theorem less. forall y . y :: Nat -> Le y zero -> Bot
--- proof
+theorem compareZero . forall n . n :: Nat -> (Le zero n) <+> (Eq zero n)
+proof
+      a = simpCmp inst indNat by iota n . (Le zero n) <+> (Eq zero n)        
+      a1 = byEval zero zero
+      a2 = invcmp cmp inj2 (Le zero zero) (Eq zero zero) a1 : (Le zero zero) <+> (Eq zero zero)       
+      [ih] : Le zero x <+> Eq zero x
+      a3 = invcmp cmp inj1 (Le zero (succ x)) (Eq zero (succ x)) (inst sucY by x) : (Le zero (succ x)) <+> (Eq zero (succ x))
+      a4 = ug x . discharge ih . a3
+      b = mp mp a by a2 by a4
+qed
 
+-- man, this is tiresome...
+theorem injective . forall n m . Eq (succ n) (succ m) -> Eq n m
+proof
+     [a0] : Eq (succ n) (succ m)
+     a = smartCong pred (succ n) (succ m) a0 n m 
+     a1 = ug n . ug m . discharge a0 . a
+qed
 
--- qed
--- theorem less . forall y n . y :: Nat -> n :: Nat -> Le y (succ n) -> Le y n <+> Eq y n
--- proof
---     a = simpCmp inst indNat by (iota z . forall n . n :: Nat -> Le z (succ n) -> Le z n <+> Eq z n)
--- qed
+theorem tri . forall y n . y :: Nat -> n :: Nat -> Le y n <+> Eq y n <+> Le n y
+proof
+    a = simpCmp inst indNat by iota y . forall n . n :: Nat -> Le y n <+> Eq y n <+> Le n y
+    [a1] : n :: Nat
+    a2 = mp inst compareZero by n by a1
+    a3 = invcmp cmp inj1 ((Le zero n) <+> (Eq zero n)) (Le n zero) a2 : (Le zero n) <+> (Eq zero n) <+> (Le n zero)
+    a4 = ug n . discharge a1 . a3
+    [ih] : forall n . n :: Nat -> (Le x n) <+> (Eq x n) <+> (Le n x)    
+    -- show forall n . n :: Nat -> (Le (succ x) n) <+> (Eq (succ x) n) <+> (Le n (succ x))
+    b = simpCmp inst indNat by iota n . (Le (succ x) n) <+> (Eq (succ x) n) <+> (Le n (succ x))
+    
+    
+    
+qed
 
 
 theorem strongInd . forall C . zero :: C -> 
