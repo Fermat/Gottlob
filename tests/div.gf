@@ -349,13 +349,27 @@ proof
   c = ug y . discharge b1 . b5
   [ih] : (y :: Nat) * (forall y0 . (y0 :: Nat) * (Le y0 y) -> y0 :: C)
   h1 = invcmp first (y :: Nat) (forall y0 . (y0 :: Nat) * (Le y0 y) -> y0 :: C) ih : y :: Nat
+  h2 = invcmp second (y :: Nat) (forall y0 . (y0 :: Nat) * (Le y0 y) -> y0 :: C) ih : forall y0 . (y0 :: Nat) * (Le y0 y) -> y0 :: C
   -- show forall y0 . (*) (y0 :: Nat) (Le y0 (succ y)) -> y0 :: C
   [c1] : (y0 :: Nat) * (Le y0 (succ y))
   c0 = invcmp first (y0 :: Nat) (Le y0 (succ y)) c1 : y0 :: Nat
   c2 = invcmp second (y0 :: Nat) (Le y0 (succ y)) c1 : Le y0 (succ y)
   c3 = mp mp mp inst inst less by y0 by y by c0 by h1 by c2
-  
-  
-  
-  
+  d1 = inst h2 by y0
+  [d2] : Le y0 y
+  d3 = invcmp cmp and (y0 :: Nat) (Le y0 y) c0 d2 : (y0 :: Nat) * (Le y0 y)
+  d4 = discharge d2 . mp d1 by d3
+  e1 = mp inst a2 by y by ih
+  [d3] : Eq y0 y
+  d7 = mp inst cmp (useSym y0 y d3) by C by e1
+  d5 = discharge d3 . d7
+  d8 = sumElim (Le y0 y) (Eq y0 y) (y0 :: C) d4 d5
+  d9 = ug y . discharge ih . ug y0 . discharge c1 . mp d8 by c3
+  e1 = mp mp b by c by d9
+  [f] : m :: Nat
+  f1 = mp inst e1 by m by f
+  f2 = inst a2 by m  
+  f3 = invcmp cmp and (m :: Nat) (forall y . (y :: Nat) * (Le y m) -> y :: C) f f1 : (m :: Nat) * (forall y . (y :: Nat) * (Le y m) -> y :: C)
+  f4 = mp f2 by f3
+  f5 = ug C . discharge a1 . discharge a2 . ug m . discharge f . f4
 qed
