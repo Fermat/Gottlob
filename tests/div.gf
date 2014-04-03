@@ -8,16 +8,12 @@ prog infixr 10 @
 formula infixl 3 *
 formula infixl 4 <+>
 
-
-
 data Bool where
   true :: Bool
   false :: Bool
 
 (*) U V = forall Y . (U -> V -> Y) -> Y  
 (<+>) U V = forall Y . (U -> Y) -> (V -> Y) -> Y  
-
-
 
 Eq a b = forall C . a :: C -> b :: C
 Le a b = Eq (a < b) true
@@ -317,6 +313,28 @@ proof
     [h7] : n :: Nat
     h8 = ug y . ug n . discharge h5 . discharge h7 . mp h6 by h7
 qed
+
+theorem less . forall y n . y :: Nat -> n :: Nat -> Le y (succ n) -> Le y n <+> Eq y n
+proof
+        [a2] : y :: Nat
+        [a1] : n :: Nat
+        [b] : Le y (succ n)
+        c = mp mp inst inst tri by y by n by a2 by a1         
+        c1 = discharge b1 : Le y n <+> Eq y n . b1
+        [c2] : Le n y
+        d = invcmp cmp and (Le n y)  (Le y (succ n)) c2 b : (Le n y) * (Le y (succ n))  
+        d1 = inst inst discrete by y by n
+        d2 = mp mp mp d1 by a2 by a1 by d
+        bot = invcmp inst inst cmp d2 by y by n : Eq y n
+        e = invcmp cmp inj2 (Le y n) (Eq y n) bot : Le y n <+> Eq y n
+        e1 = discharge c2 . e
+        e2 = sumElim (Le y n <+> Eq y n) (Le n y) (Le y n <+> Eq y n) c1 e1 
+        e3 = mp mp inst inst tri by y by n by a2 by a1
+        e4 = ug y . ug n . discharge a2 . discharge a1 . discharge b . mp e2 by e3
+qed
+
+
+
 
 
 theorem strongInd . forall C . zero :: C -> 
