@@ -116,6 +116,11 @@ naiveSub p (Name x) (Applica p1 p2) =
       a2 = naiveSub p (Name x) p2 in
   Applica a1 a2
 
+naiveSub p (Name x) (TSApp p1 p2) = 
+  -- let a1 = naiveSub p (Name x) p1
+  --     a2 = naiveSub p (Name x) p2 in
+  TSApp p1 p2
+
 --naiveSub p (Name x) (TIota y p1) =  TI y (naiveSub p (Name x) p1)
 
 naiveSub p (Name x) (ProgPos a p1) =
@@ -128,7 +133,6 @@ naiveSub a (Name x) (Let l p) =
         sub t x ((y, t1):ys) = (y, naiveSub t x t1):(sub t x ys)
         substList [] t = t
         substList ((x, t1):xs) t = substList (sub t1 x xs) (naiveSub t1 x t)
-
 
 naiveSub p (Name x) er = error $ "from naiveSub" ++ show er ++ "this is p " ++ show p
 
