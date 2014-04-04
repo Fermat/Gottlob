@@ -460,6 +460,8 @@ annotate (Applica p1 p2) = do
   p4 <- annotate p2
   return $ Applica p3 p4
 
+annotate a@(TSApp p1 p2) = return a
+  
 annotate (ProgPos pos p1) = annotate p1
 annotate p = error $ "from annotate" ++ show p
 

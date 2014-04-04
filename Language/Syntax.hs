@@ -116,6 +116,11 @@ naiveSub p (Name x) (Applica p1 p2) =
       a2 = naiveSub p (Name x) p2 in
   Applica a1 a2
 
+naiveSub p (Name x) (TSApp p1 p2) = 
+  -- let a1 = naiveSub p (Name x) p1
+  --     a2 = naiveSub p (Name x) p2 in
+  TSApp p1 p2
+
 --naiveSub p (Name x) (TIota y p1) =  TI y (naiveSub p (Name x) p1)
 
 naiveSub p (Name x) (ProgPos a p1) =
@@ -128,7 +133,6 @@ naiveSub a (Name x) (Let l p) =
         sub t x ((y, t1):ys) = (y, naiveSub t x t1):(sub t x ys)
         substList [] t = t
         substList ((x, t1):xs) t = substList (sub t1 x xs) (naiveSub t1 x t)
-
 
 naiveSub p (Name x) er = error $ "from naiveSub" ++ show er ++ "this is p " ++ show p
 
@@ -376,8 +380,8 @@ subst s (PVar x) (Forall a f) =
          n <- get
          modify (+1)
          c1 <- subst (PVar (a++ show n)) (PVar a) f
-         c2 <- subst s (PVar x) c1
-         return $ Forall (a++ show n) c2
+         subst s (PVar x) (Forall (a ++ show n) c1)
+--         return $ Forall (a++ show n) c2
 
 subst s (PVar x) (Iota a f) =
   if x == a || not (x `S.member` fv f) then return $ Iota a f
@@ -389,8 +393,8 @@ subst s (PVar x) (Iota a f) =
          n <- get
          modify (+1)
          c1 <- subst (PVar (a++ show n)) (PVar a) f
-         c2 <- subst s (PVar x) c1
-         return $ Iota (a++ show n) c2
+         subst s (PVar x) (Iota (a ++ show n) c1)
+--         return $ Iota (a++ show n) c2
 
 subst s (PVar x) (Lambda a f) =
   if x == a || not (x `S.member` fv f) then return $ Lambda a f
@@ -402,8 +406,8 @@ subst s (PVar x) (Lambda a f) =
          n <- get
          modify (+1)
          c1 <- subst (PVar (a++ show n)) (PVar a) f
-         c2 <- subst s (PVar x) c1
-         return $ Lambda (a++ show n) c2
+         subst s (PVar x) (Lambda (a ++ show n) c1)
+--         return $ Lambda (a++ show n) c2
 
 subst p (PVar x) (MP p1 p2) = do
   a1 <- subst p (PVar x) p1
@@ -425,8 +429,8 @@ subst p (PVar x) (UG y p1) =
          n <- get
          modify (+1)
          c1 <- subst (PVar (y++ show n)) (PVar y) p1
-         c2 <- subst p (PVar x) c1
-         return $ UG (y++ show n) c2
+         subst p (PVar x) (UG (y++ show n) c1)
+--         return $ UG (y++ show n) c2
                                      
 subst p (PVar x) (Cmp p1) =
   subst p (PVar x) p1 >>= \ a -> return $ Cmp a
@@ -452,20 +456,22 @@ subst p (PVar x) (InvBeta p1 t) = do
   a1 <- subst p (PVar x) t
   return $ InvBeta a a1
 
-subst p (PVar x) (Discharge y (Just t) p1) = do
-  t1 <- subst p (PVar x) t
+subst p (PVar x) (Discharge y (Just t) p1) =
   if x == y || not (x `S.member` fv p1)
-    then return $ Discharge y (Just t1) p1
+    then do
+    t1 <- subst p (PVar x) t
+    return $ Discharge y (Just t1) p1
     else if not (y `S.member` fv p)
          then do
+           t1 <- subst p (PVar x) t
            c <- subst p (PVar x) p1
            return $ Discharge y (Just t1) c
          else do
            n <- get
            modify (+1)
            c1 <- subst (PVar (y++ show n)) (PVar y) p1
-           c2 <- subst p (PVar x) c1
-           return $ Discharge (y++ show n) (Just t1) c2
+           subst p (PVar x) (Discharge (y++ show n) (Just t) c1)
+--           return $ Discharge (y++ show n) (Just t1) c2
 
 subst p (PVar x) (Discharge y Nothing p1) = 
   if x == y || not (x `S.member` fv p1) then return $ Discharge y (Nothing) p1
@@ -477,8 +483,9 @@ subst p (PVar x) (Discharge y Nothing p1) =
          n <- get
          modify (+1)
          c1 <- subst (PVar (y++ show n)) (PVar y) p1
-         c2 <- subst p (PVar x) c1
-         return $ Discharge (y++ show n) (Nothing) c2
+         subst p (PVar x) (Discharge (y++ show n) Nothing c1)
+--         return $ Discharge (y++ show n) (Nothing) c2
+         
 subst s (PVar x) (Pos _ f) = subst s (PVar x) f
 
 partition f [] = []
