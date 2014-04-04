@@ -373,3 +373,30 @@ proof
   f4 = mp f2 by f3
   f5 = ug C . discharge a1 . discharge a2 . ug m . discharge f . f4
 qed
+
+
+theorem sub. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (succ n - m) -> Bot
+proof
+--        [a1] : Le zero m
+        a = simpCmp inst indNat by iota m . forall n . n :: Nat -> Le zero m -> Le n (succ n - m) -> Bot
+        [b] : Le zero zero
+        b1 = invcmp cmp b : Eq (zero < zero) true
+        b2 = byEval false (zero < zero)
+        b3 = invcmp chain false (b1 @ b2 @ nil) : Eq false true
+        b4 = mp boolContra by useSym false true b3
+        b5 = ug n . discharge b7 : n :: Nat . discharge b . discharge b6 : Le n ((succ n) - zero) . b4
+        [ih] : forall n . n :: Nat -> Le zero x -> Le n ((succ n) - x) -> Bot
+        -- show forall n . n :: Nat -> Le zero (succ x) -> Le n ((succ n) - (succ x)) -> Bot
+        c = simpCmp inst weakInd by iota n . Le zero (succ x) -> Le n ((succ n) - (succ x)) -> Bot         
+        [c1] : Le (succ x) (succ zero - succ x)
+        c2 = simpCmp inst cmp byEval (succ zero - succ x) zero by iota z . Eq (succ x < z) true 
+        c3 = mp c2 by invcmp cmp c1 from Eq (succ x < succ zero - succ x) true
+        c4 = byEval false (succ x < zero)
+        c5 = invcmp chain false (c3 @ c4 @ nil) : Eq false true
+        c6 = mp boolContra by useSym false true c5
+        c7 = discharge c8 : Le zero (succ x) . discharge c1 . c6
+        [ih2] : (y :: Nat) * (Le zero (succ x) -> Le (succ x) (succ y - succ x) -> Bot)
+        -- show Le zero (succ x) -> Le (succ x) ((succ (succ y)) - (succ x)) -> Bot
+        
+        
+qed
