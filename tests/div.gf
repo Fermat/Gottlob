@@ -12,6 +12,14 @@ data Bool where
   true :: Bool
   false :: Bool
 
+-- data Stream A where
+--   cons :: A -> Stream A -> Stream A
+--  deriving Ind 
+
+
+--u b = b
+--u (cons a s) = s
+
 (*) U V = forall Y . (U -> V -> Y) -> Y  
 (<+>) U V = forall Y . (U -> Y) -> (V -> Y) -> Y  
 
@@ -70,7 +78,7 @@ tactic chain t ls =
        ug Q. discharge a : t :: Q . 
           let insts = map (\ x . inst (cmp x) by Q) ls
               in foldr (\ x y . mp x by y) a insts
-
+ 
 tactic byEval t1 t2 =   
    [c] : t1 :: Q
    c1 = invbeta beta c : t2 :: Q
@@ -374,6 +382,49 @@ proof
   f5 = ug C . discharge a1 . discharge a2 . ug m . discharge f . f4
 qed
 
+theorem succLess. forall n . n :: Nat -> Le n (succ n)
+proof
+        a = simpCmp inst indNat by iota n . Le n (succ n)
+        base = inst sucY by zero
+        [ih] : Le x (succ x)
+        -- show Le (succ x) (succ (succ x))
+        b = byEval (succ x < succ (succ x)) (x < succ x)
+        b1 = invcmp cmp ih : Eq (x < succ x) true
+        b2 = invcmp chain (succ x < succ (succ x)) (b1 @ b @ nil) : Le (succ x) (succ (succ x))
+        b3 = ug x . discharge ih . b2
+        r = mp mp a by base by b3
+qed
+
+theorem self . forall n . n :: Nat -> Le n n -> Bot
+proof
+        a = simpCmp inst indNat by iota n . Le n n -> Bot
+        [a1] : Le zero zero
+        base = byEval false (zero < zero) 
+        b = invcmp cmp a1 : Eq (zero < zero) true
+        b1 = invcmp chain false (b @ base @ nil) : Eq false true
+        b2 = mp boolContra by useSym false true b1
+        b3 = discharge a1 . b2
+        [ih] : Le x x -> Bot
+        -- show Le (succ x) (succ x) -> Bot
+        c = byEval (x < x) (succ x < succ x) 
+        [c1] : Le (succ x) (succ x)
+        c2 = invcmp cmp c1 : Eq (succ x < succ x) true
+        c3 = invcmp cmp chain (x < x) ( c2 @ c @ nil) : Le x x
+        c4 = mp ih by c3
+        c5 = ug x . discharge ih . discharge c1 . c4
+        d = mp mp a by b3 by c5
+qed
+
+theorem substract . forall n x . n :: Nat -> x :: Nat -> Le n (n - x) -> Bot
+proof
+  
+
+
+qed
+
+
+
+
 
 theorem sub. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (succ n - m) -> Bot
 proof
@@ -388,15 +439,15 @@ proof
         [ih] : forall n . n :: Nat -> Le zero x -> Le n ((succ n) - x) -> Bot
         -- show forall n . n :: Nat -> Le zero (succ x) -> Le n ((succ n) - (succ x)) -> Bot
         c = simpCmp inst weakInd by iota n . Le zero (succ x) -> Le n ((succ n) - (succ x)) -> Bot         
-        [c1] : Le (succ x) (succ zero - succ x)
-        c2 = simpCmp inst cmp byEval (succ zero - succ x) zero by iota z . Eq (succ x < z) true 
-        c3 = mp c2 by invcmp cmp c1 from Eq (succ x < succ zero - succ x) true
-        c4 = byEval false (succ x < zero)
+        [c1] : Le zero (succ zero - succ x)
+        c2 = simpCmp inst cmp byEval (succ zero - succ x) zero by iota z . Eq (zero < z) true 
+        c3 = mp c2 by invcmp cmp c1 from Eq (zero < succ zero - succ x) true
+        c4 = byEval false (zero < zero)
         c5 = invcmp chain false (c3 @ c4 @ nil) : Eq false true
         c6 = mp boolContra by useSym false true c5
         c7 = discharge c8 : Le zero (succ x) . discharge c1 . c6
-        [ih2] : (y :: Nat) * (Le zero (succ x) -> Le (succ x) (succ y - succ x) -> Bot)
-        -- show Le zero (succ x) -> Le (succ x) ((succ (succ y)) - (succ x)) -> Bot
+        [ih2] : (y :: Nat) * (Le zero (succ x) -> Le y (succ y - succ x) -> Bot)
+        -- show Le zero (succ x) -> Le (succ y) ((succ (succ y)) - (succ x)) -> Bot
         
         
 qed
