@@ -579,7 +579,7 @@ proof
         f4 = ug n . ug x . discharge q1 . inst mp inst f3 by n by q1 by x
 qed
 
-
+-- sub can actually be derived from substract above with transitivity, man, what a waste.
 theorem sub. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (succ n - m) -> Bot
 proof
 --        [a1] : Le zero m
@@ -622,3 +622,10 @@ proof
         
         
 qed
+
+theorem division. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (div n m) -> Bot
+proof
+        a = simpCmp inst strongInd by iota n . Le zero m -> Le n (div n m) -> Bot
+
+qed
+
