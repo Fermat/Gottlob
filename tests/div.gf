@@ -670,6 +670,7 @@ tactic congByEq p1 p2 S =
         a1 = mp a by p1
 
 tactic instInd p S = simpCmp inst p by S         
+
 theorem totalLess . forall n m . n :: Nat -> m :: Nat -> n < m :: Bool
 proof
         a = simpCmp inst indNat by iota n . forall m . m :: Nat -> n < m :: Bool
@@ -701,6 +702,29 @@ qed
 
 tactic refl F = byEval F F
 
+theorem inverse . forall x m . x :: Nat -> m :: Nat -> Le zero m -> Le m x -> Eq x (x - m) -> Bot
+proof
+        
+qed
+
+theorem sub2 . forall x m . x :: Nat -> m :: Nat -> Le zero m -> Le m x -> Le (x - m) x 
+proof
+        [a1] : x :: Nat
+        [a2] : m :: Nat
+        [a0] : Le zero m
+        [a01] : Le m x
+        a = mp mp inst inst substract by x by m by a1 by a2
+        a3 = mp mp inst inst tri by x by x - m by a1 by (mp mp inst inst minor by x by m by a1 by a2)
+        [b] : Le x (x - m)
+        b1 = mp mp inst inst substract by x by m by a1 by a2
+        b2 = mp b1 by b
+        b3 = discharge b . b2
+        [c] : Eq x (x - m)
+        
+        
+
+qed
+
 theorem division. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (div n m) -> Bot
 proof
         [a0] : m :: Nat
@@ -717,18 +741,26 @@ proof
         ih2 = smartSecond (x :: Nat) (forall y . (y :: Nat) * (Le y x) -> Le zero m -> Le y (div y m) -> Bot) ih
         -- show Le zero m -> Le x (div x m) -> Bot
         [b] : Le zero m
+        [b0] : Le x (div x m)
         b1 = mp mp inst inst totalLess by x by m by ih1 by a0 : x < m :: Bool
         b2 = mp inst totalBool by (x < m) by b1
         [c] : Eq (x < m) true
         c1 = byEval (div x m) ((x < m) zero (succ (div (x - m) m)))
         c2 = congByEq (refl ((x < m) zero (succ (div (x - m) m)))) c (iota z . Eq ((x < m) zero (succ (div (x - m) m))) (z zero (succ (div (x - m) m))))
-        c3 = byEval (true zero (succ (div ((-) x m) m))) zero
+        c3 = byEval (true zero (succ (div (x - m) m))) zero
         c4 = invcmp chain (div x m) ( c3 @ c2 @ c1 @ nil) : Eq (div x m) zero
-        c5 = discharge c . c4 : Eq (x < m) true -> Eq (div x m) zero
+        c5 = congByEq b0 c4 (iota z . Le x z)
+        c6 = mp mp inst lessZero by x by ih1 by c5
+        c7 = discharge c . c6
+--        c5 = discharge c . c4 : Eq (x < m) true -> Eq (div x m) zero
         [d] : Eq (x < m) false
-        
-        
-        
+        d1 = congByEq (refl ((x < m) zero (succ (div (x - m) m)))) d (iota z . Eq ((x < m) zero (succ (div (x - m) m))) (z zero (succ (div (x - m) m))))
+        d2 = byEval (false zero (succ (div ( x - m) m))) (succ (div ( x - m) m))
+        d3 = invcmp chain (div x m) ( d2 @ d1 @ c1 @ nil) : Eq (div x m) (succ (div ( x - m) m))
+        d4 = inst ih2 by (x - m)
+        d5 = mp mp inst inst minor by x by m by ih1 by a0
+--        d6 = inst 
+--        d6 = and (x - m :: Nat) (Le ( x - m) x) d5
         
 qed
 
