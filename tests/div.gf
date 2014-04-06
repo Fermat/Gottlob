@@ -492,6 +492,27 @@ proof
         
 qed
 
+theorem man . forall m . m :: Nat -> Eq (m - zero) m
+proof
+
+qed
+
+theorem minor . forall n m . n :: Nat -> m :: Nat -> n - m :: Nat
+proof
+     a = simpCmp inst weakInd by iota n . forall m . m :: Nat -> n - m :: Nat
+     b = byEval zero (zero - m )
+     b1 =  cmp inst cmp b by iota z . z :: Nat
+     b2 = invcmp mp b1 by cmp surZ : zero - m :: Nat
+     b3 = ug m . discharge b4 : m :: Nat . b2
+     [ih] : (y :: Nat) * (forall m . m :: Nat -> y - m :: Nat)
+     ih1 = smartFirst (y :: Nat) (forall m . m :: Nat -> y - m :: Nat) ih
+     ih2 = smartSecond (y :: Nat) (forall m . m :: Nat -> y - m :: Nat) ih
+     c = simpCmp inst weakInd by iota m . y - m :: Nat
+     c1 = byEval 
+     
+     
+qed
+
 theorem substract . forall n x . n :: Nat -> x :: Nat -> Le n (n - x) -> Bot
 proof
         a = simpCmp inst weakInd by iota n . forall x. x :: Nat -> Le n (n - x) -> Bot
@@ -519,11 +540,11 @@ proof
         d2 = byEval (succ y - succ y0) (y - y0)
         d3 = simpCmp inst cmp d2 by iota z . Le (succ y) z        
         d4 = mp d3 by d
+        d5 = mp inst succLess by y by ih1
+        d6 = inst inst inst transitivity by y by (succ y) by (y - y0)
+        d7 = mp mp d6 by ih1 by mp (inst surSuc by y) by ih1
 
 qed
-
-
-
 
 
 theorem sub. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (succ n - m) -> Bot
