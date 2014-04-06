@@ -70,6 +70,10 @@ tactic and U V p1 p2 = ug Y . discharge x : U -> V -> Y . mp (mp x by p1) by p2
 tactic first U V p = mp cmp (inst (cmp p) by U) by cmp (discharge x : U . discharge y : V . x)
 tactic second U V p = mp cmp (inst (cmp p) by V) by cmp (discharge x : U . discharge y : V . y)
 
+tactic smartFirst U V p = invcmp mp cmp (inst (cmp p) by U) by cmp (discharge x : U . discharge y : V . x) from U
+
+tactic smartSecond U V p = invcmp mp cmp (inst (cmp p) by V) by cmp (discharge x : U . discharge y : V . y) from V
+
 tactic inj1 U V u = ug X . discharge x : U -> X . discharge y : V -> X . mp x by u
 tactic inj2 U V v = ug X . discharge x : U -> X . discharge y : V -> X . mp y by v
 
@@ -415,10 +419,51 @@ proof
         d = mp mp a by b3 by c5
 qed
 
+theorem transitivity . forall a b c . a :: Nat -> b :: Nat -> c :: Nat -> Le a b -> Le b c -> Le a c
+proof
+        f = simpCmp inst weakInd by iota b . forall a c . a :: Nat -> c :: Nat -> Le a b -> Le b c -> Le a c
+        [f1] : a :: Nat
+        [f3] : Le a zero
+        f2 = mp mp inst lessZero by a by f1 by f3
+        f4 = invcmp inst inst cmp f2 by a < c by true : Le a c
+        f5 = ug a . ug c . discharge f1 . discharge f9 : c :: Nat . discharge f3 . discharge f8 : Le zero c . f4
+        [ih] : (y :: Nat) * (forall a . forall c . a :: Nat -> c :: Nat -> Le a y -> Le y c -> Le a c)
+        ih1 = smartFirst (y :: Nat) (forall a . forall c . a :: Nat -> c :: Nat -> Le a y -> Le y c -> Le a c) ih 
+        ih2 = smartSecond (y :: Nat) (forall a . forall c . a :: Nat -> c :: Nat -> Le a y -> Le y c -> Le a c) ih 
+        -- show forall a . forall c . a :: Nat -> c :: Nat -> Le a (succ y) -> Le (succ y) c -> Le a c
+        g = simpCmp inst weakInd by iota a . forall c . c :: Nat -> Le a (succ y) -> Le (succ y) c -> Le a c
+        -- show forall c . c :: Nat -> Le zero (succ y) -> Le (succ y) c -> Le zero c by IH..
+        
+
+qed
+
 theorem substract . forall n x . n :: Nat -> x :: Nat -> Le n (n - x) -> Bot
 proof
-  
-
+        a = simpCmp inst weakInd by iota n . forall x. x :: Nat -> Le n (n - x) -> Bot
+        [a1] : Le zero (zero - x)
+        a3 = simpCmp inst cmp byEval (zero - x) zero by iota z . Le zero z
+        a2 = mp a3 by a1 : Le zero zero
+        a4 = mp mp (inst self by zero) by surZ by a2
+        a5 = ug  x . discharge a6 : x :: Nat . discharge a1 . a4
+        [ih] : (y :: Nat) * (forall x . x :: Nat -> Le y (y - x) -> Bot)
+        ih1 = invcmp first (y :: Nat) (forall x . x :: Nat -> Le y (y - x) -> Bot) ih : y :: Nat
+        ih2 = invcmp second (y :: Nat) (forall x . x :: Nat -> Le y ( y - x) -> Bot) ih : (forall x . x :: Nat -> Le y (y - x) -> Bot)
+        -- show forall x . x :: Nat -> Le (succ y) ((succ y) - x) -> Bot
+        b = simpCmp inst weakInd by iota x . Le (succ y) ((succ y) - x) -> Bot
+        [b1] : Le (succ y) (succ y - zero) 
+        b2 = byEval (succ y - zero) (succ y)
+        b3 = simpCmp inst cmp b2 by iota z . Le (succ y) z
+        b4 = mp b3 by b1
+        b5 = inst self by (succ y)
+        b6 = mp inst surSuc by y by ih1
+        b7 = mp mp b5 by b6 by b4
+        b8 = discharge b1 . b7
+        [c] : (y0 :: Nat) * (Le (succ y) (succ y - y0) -> Bot)
+        -- show Le (succ y) (succ y - succ y0) -> Bot
+        [d] : Le (succ y) (succ y - succ y0)
+        d2 = byEval (succ y - succ y0) (y - y0)
+        d3 = simpCmp inst cmp d2 by iota z . Le (succ y) z        
+        d4 = mp d3 by d
 
 qed
 
