@@ -11,7 +11,7 @@ formula infixl 4 <+>
 data Bool where
   true :: Bool
   false :: Bool
-
+  deriving Ind
 -- data Stream A where
 --   cons :: A -> Stream A -> Stream A
 --  deriving Ind 
@@ -56,7 +56,7 @@ pred (succ n) = n
 (<) zero (succ m) = true
 (<) (succ n) zero = false
 (<) (succ n) (succ m) = n < m
-
+    
 (==) zero zero = true
 (==) zero (succ m) = false
 (==) (succ n) zero = false
@@ -619,13 +619,116 @@ proof
         [f1] : n :: Nat
         [f2] : m :: Nat
         f3 = ug n . ug m . discharge f1 . discharge f2 . mp inst mp inst e3 by m by f2 by n by f1
-        
+qed
+
+tactic red t1 = 
+   [c] : t1 :: Q
+   c1 = beta c 
+   c3 = ug Q . discharge c . c1
+
+theorem zeroDiv . forall m . m :: Nat -> Le zero m -> Eq (div zero m) zero 
+proof
+        a = simpCmp inst weakInd by iota m . Le zero m -> Eq (div zero m) zero 
+        [a1] : Le zero zero
+        a2 = mp mp inst lessZero by zero by surZ by a1
+        a3 = invcmp inst inst cmp a2 by (div zero zero) by zero : Eq (div zero zero) zero
+        a4 = discharge a1 . a3
+        [ih] : (y :: Nat) * (Le zero y -> Eq (div zero y) zero)
+        -- show Le zero (succ y) -> Eq (div zero (succ y)) zero
+        b =  byEval (div zero (succ y)) zero
+        b1 = ug y . discharge ih . discharge b6 : Le zero (succ y) . b
+        b2 = mp mp a by a4 by b1         
+
+qed
+
+theorem totalBool . forall b . b :: Bool -> Eq b true <+> Eq b false
+proof
+        a = simpCmp inst indBool by iota b . Eq b true <+> Eq b false
+        a1 = byEval true true
+        a2 = invcmp cmp inj1 (Eq true true) (Eq true false) a1 : (Eq true true) <+> (Eq true false)
+        b1 = byEval false false
+        b2 = invcmp cmp inj2 (Eq false true) (Eq false false) b1 :  (Eq false true) <+> (Eq false false)
+        b3 = mp mp a by a2 by b2
+qed
+
+tactic convert p A = invcmp cmp p from A
+theorem surTrue . true :: Bool
+proof
+        a = ug C . discharge a1 : true :: C . discharge a2 : false :: C . a1
+        b = convert a (true :: Bool)
+qed
+
+theorem surFalse . false :: Bool
+proof
+        a = ug C . discharge a1 : true :: C . discharge a2 : false :: C . a2
+        b = convert a (false :: Bool)
+qed
+
+-- p1 : C[x] , p2 : x = y, S = iota x . C[x]
+tactic congByEq p1 p2 S = 
+        a = simpCmp inst cmp p2 by S
+        a1 = mp a by p1
+
+tactic instInd p S = simpCmp inst p by S         
+theorem totalLess . forall n m . n :: Nat -> m :: Nat -> n < m :: Bool
+proof
+        a = simpCmp inst indNat by iota n . forall m . m :: Nat -> n < m :: Bool
+        a1 = simpCmp inst indNat by iota m . zero < m :: Bool
+        a2 = byEval false (zero < zero)
+        a3 = congByEq surFalse a2 (iota z . z :: Bool)
+        b1 = byEval true (zero < succ x)
+        b2 = congByEq surTrue b1 (iota z . z :: Bool)
+        b3 = ug x . discharge c1 : zero < x :: Bool . b2
+        c2 = mp mp a1 by a3 by b3
+        [ih] : forall m . m :: Nat -> x < m :: Bool
+        -- show forall m . m :: Nat -> (succ x) < m :: Bool
+        a4 = instInd weakInd (iota m . (succ x) < m :: Bool)
+        d = byEval false (succ x < zero)
+        d1 = congByEq surFalse d (iota z . z :: Bool)
+        [ih2] : (y :: Nat) * ( succ x < y :: Bool)
+        ih3 = smartFirst (y :: Nat) ( succ x < y :: Bool) ih2
+        d2 = mp inst ih by y by ih3
+        d3 = byEval (x < y) (succ x < succ y)
+        d4 = congByEq d2 d3 (iota z . z :: Bool)
+        d5 = ug y . discharge ih2 . d4
+        d6 = mp mp a4 by d1 by d5
+        e = ug x . discharge ih . d6        
+        e1 = mp mp a by c2 by e         
+        [f] : n :: Nat
+        f1 = ug n . ug m . discharge f . inst mp inst e1 by n by f by m
         
 qed
 
+tactic refl F = byEval F F
+
 theorem division. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (div n m) -> Bot
 proof
+        [a0] : m :: Nat
         a = simpCmp inst strongInd by iota n . Le zero m -> Le n (div n m) -> Bot
-
+        [a3] : Le zero m
+        [a1] : Le zero (div zero m)
+        a2 = mp mp inst zeroDiv by m by a0 by a3
+        a4 = simpCmp inst cmp a2 by iota z . Le zero z
+        a5 = mp a4 by a1
+        a6 = mp mp inst lessZero by zero by surZ by a5
+        a7 = discharge a3 . discharge a1 . a6
+        [ih] : (x :: Nat) * (forall y . (y :: Nat) * (Le y x) -> Le zero m -> Le y (div y m) -> Bot)
+        ih1 = smartFirst (x :: Nat) (forall y . (y :: Nat) * (Le y x) -> Le zero m -> Le y (div y m) -> Bot) ih
+        ih2 = smartSecond (x :: Nat) (forall y . (y :: Nat) * (Le y x) -> Le zero m -> Le y (div y m) -> Bot) ih
+        -- show Le zero m -> Le x (div x m) -> Bot
+        [b] : Le zero m
+        b1 = mp mp inst inst totalLess by x by m by ih1 by a0 : x < m :: Bool
+        b2 = mp inst totalBool by (x < m) by b1
+        [c] : Eq (x < m) true
+        c1 = byEval (div x m) ((x < m) zero (succ (div (x - m) m)))
+        c2 = congByEq (refl ((x < m) zero (succ (div (x - m) m)))) c (iota z . Eq ((x < m) zero (succ (div (x - m) m))) (z zero (succ (div (x - m) m))))
+        c3 = byEval (true zero (succ (div ((-) x m) m))) zero
+        c4 = invcmp chain (div x m) ( c3 @ c2 @ c1 @ nil) : Eq (div x m) zero
+        c5 = discharge c . c4 : Eq (x < m) true -> Eq (div x m) zero
+        [d] : Eq (x < m) false
+        
+        
+        
+        
 qed
 
