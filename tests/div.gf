@@ -494,7 +494,13 @@ qed
 
 theorem man . forall m . m :: Nat -> Eq (m - zero) m
 proof
-
+        a = simpCmp inst indNat by iota m . Eq (m - zero) m
+        a1 = byEval (zero - zero) zero
+        [ih] : Eq (x - zero) x
+        b = byEval (succ x - zero) (succ x)
+        b1 = ug x . discharge ih . b
+        b2 = mp mp a by a1 by b1
+        
 qed
 
 theorem minor . forall n m . n :: Nat -> m :: Nat -> n - m :: Nat
@@ -507,10 +513,28 @@ proof
      [ih] : (y :: Nat) * (forall m . m :: Nat -> y - m :: Nat)
      ih1 = smartFirst (y :: Nat) (forall m . m :: Nat -> y - m :: Nat) ih
      ih2 = smartSecond (y :: Nat) (forall m . m :: Nat -> y - m :: Nat) ih
-     c = simpCmp inst weakInd by iota m . y - m :: Nat
-     c1 = byEval 
-     
-     
+     --  to show : forall m . m :: Nat -> (succ y) - m :: Nat)
+     c = simpCmp inst weakInd by iota m . succ y - m :: Nat
+     c1 = mp (inst man by succ y) by (mp inst surSuc by y by ih1)
+     e1 = useSym (succ y - zero) (succ y) c1     
+     e2 = mp inst surSuc by y by ih1
+     e3 = mp simpCmp inst cmp e1 by iota z . z :: Nat by e2
+     [c2] : (y0 :: Nat) * (succ y - y0 :: Nat)
+     c3 = smartFirst (y0 :: Nat) (succ y - y0 :: Nat) c2
+     c4 = smartSecond (y0 :: Nat) (succ y - y0 :: Nat) c2
+     -- show succ y - (succ y0) :: Nat
+     c5 = byEval (y - y0) (succ y - succ y0)
+     c6 = mp inst ih2 by y0 by c3
+     c7 = simpCmp inst cmp c5 by iota z . z :: Nat 
+     c8 = mp c7 by c6
+     c9 = ug y0 . discharge c2 . c8
+     d = mp mp c by e3 by c9
+     d1 = ug y . discharge ih . d      
+     d2 = mp mp a by b3 by d1     
+     [f1] : n :: Nat 
+     [f2] : m :: Nat
+     f3 = mp inst mp inst d2 by n by f1 by m by f2
+     f4 = ug n . ug m . discharge f1 . discharge f2 . f3
 qed
 
 theorem substract . forall n x . n :: Nat -> x :: Nat -> Le n (n - x) -> Bot
@@ -535,15 +559,24 @@ proof
         b7 = mp mp b5 by b6 by b4
         b8 = discharge b1 . b7
         [c] : (y0 :: Nat) * (Le (succ y) (succ y - y0) -> Bot)
+        c1 = smartFirst (y0 :: Nat) (Le (succ y) (succ y - y0) -> Bot) c
+        c2 = smartSecond (y0 :: Nat) (Le (succ y) (succ y - y0) -> Bot) c
         -- show Le (succ y) (succ y - succ y0) -> Bot
         [d] : Le (succ y) (succ y - succ y0)
         d2 = byEval (succ y - succ y0) (y - y0)
         d3 = simpCmp inst cmp d2 by iota z . Le (succ y) z        
-        d4 = mp d3 by d
-        d5 = mp inst succLess by y by ih1
+        d4 = mp d3 by d -- Le (succ y) ((-) y y0)
+        d5 = mp inst succLess by y by ih1 -- Le y (succ y)
         d6 = inst inst inst transitivity by y by (succ y) by (y - y0)
-        d7 = mp mp d6 by ih1 by mp (inst surSuc by y) by ih1
-
+        e1 = mp mp inst inst minor by y by y0 by ih1 by c1
+        d7 = mp mp mp mp mp d6 by ih1 by mp (inst surSuc by y) by ih1 by e1 by d5 by d4
+        e2 = mp mp inst ih2 by y0 by c1 by d7
+        e3 = ug y0 . discharge c . discharge d . e2
+        f1 = mp mp b by b8 by e3
+        f2 = ug y . discharge ih . f1
+        f3 = mp mp a by a5 by f2
+        [q1] : n :: Nat
+        f4 = ug n . ug x . discharge q1 . inst mp inst f3 by n by q1 by x
 qed
 
 
