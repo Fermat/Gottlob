@@ -433,8 +433,63 @@ proof
         -- show forall a . forall c . a :: Nat -> c :: Nat -> Le a (succ y) -> Le (succ y) c -> Le a c
         g = simpCmp inst weakInd by iota a . forall c . c :: Nat -> Le a (succ y) -> Le (succ y) c -> Le a c
         -- show forall c . c :: Nat -> Le zero (succ y) -> Le (succ y) c -> Le zero c by IH..
+        h = simpCmp inst indNat by iota c . Le zero (succ y) -> Le (succ y) c -> Le zero c
+        [h1] : Le (succ y) zero
+        h2 = mp inst lessZero by (succ y) by (mp inst surSuc by y by ih1)
+        h3 = mp h2 by h1
+        h4 = invcmp inst inst cmp h3 by (zero < zero) by true : Le zero zero
+        h5 = discharge h6 : Le zero (succ y) . discharge h1 . h4
+        [i] : Le zero (succ y) -> Le (succ y) x -> Le zero x
+        i1 = discharge i3 : Le zero (succ y) . discharge i2 : Le (succ y) (succ x) . inst sucY by x
+        i4 = ug x . discharge i . i1
+        i5 = mp mp h by h5 by i4 -- done
+        [j] : (y0 :: Nat) * (forall c . c :: Nat -> Le y0 (succ y) -> Le (succ y) c -> Le y0 c)
+        -- show forall c . c :: Nat -> Le (succ y0) (succ y) -> Le (succ y) c -> Le (succ y0) c by IH
+        j1 = smartFirst (y0 :: Nat) (forall c . c :: Nat -> Le y0 (succ y) -> Le (succ y) c -> Le y0 c) j
+        j2 = smartSecond (y0 :: Nat) (forall c . c :: Nat -> Le y0 (succ y) -> Le (succ y) c -> Le y0 c) j
+        j3 = simpCmp inst weakInd by iota c . Le (succ y0) (succ y) -> Le (succ y) c -> Le (succ y0) c
+        [k] : Le (succ y) zero
+        k1 = mp inst lessZero by (succ y) by (mp inst surSuc by y by ih1)
+        k2 = mp k1 by k
+        k3 = invcmp inst inst cmp k2 by (succ y0) < zero by true : Le (succ y0) zero
+        k4 = discharge k5 : Le (succ y0) (succ y) . discharge k . k3
+        [l] : (y01 :: Nat) * (Le (succ y0) (succ y) -> Le (succ y) y01 -> Le (succ y0) y01)
+        l1 = smartFirst (y01 :: Nat) (Le (succ y0) (succ y) -> Le (succ y) y01 -> Le (succ y0) y01) l
+        l2 = smartSecond (y01 :: Nat) (Le (succ y0) (succ y) -> Le (succ y) y01 -> Le (succ y0) y01) l
+        -- show Le (succ y0) (succ y) -> Le (succ y) (succ y01) -> Le (succ y0) (succ y01)
+        [l3] : Le (succ y0) (succ y)
+        [l4] : Le (succ y) (succ y01)
+        m = byEval (y0 < y) (succ y0 < succ y)
+        m1 = invcmp cmp l3 : Eq (succ y0 < succ y) true
+        m2 = invcmp cmp chain (y0 < y) ( m1 @ m @ nil) : Le y0 y
+        n = byEval (y < y01) (succ y < succ y01)
+        n1 = invcmp cmp l4 : Eq (succ y < succ y01) true
+        n2 = invcmp cmp chain (y < y01) ( n1 @ n @ nil) : Le y y01
+        n3 = mp mp inst inst ih2 by y0 by y01 by j1 by l1
+        n4 = mp mp n3 by m2 by n2 : Le y0 y01
+        o = invcmp cmp n4 : Eq (y0 < y01) true
+        o1 = byEval (succ y0 < succ y01) (y0 < y01)
+        o2 = invcmp cmp chain (succ y0 < succ y01) (o @ o1 @ nil) : Le (succ y0) (succ y01)
+        o3 = discharge l3 . discharge l4 . o2
+        o4 = ug y01 . discharge l . o3
+        o5 = mp mp j3 by k4 by o4
+        p = ug y0 . discharge j . o5        
+        p1 = mp mp g by i5 by p         
+        p2 = inst p1 by m 
+        [p3] : m :: Nat
+        p4 = inst mp p2 by p3 by c
+        [p5] : c :: Nat
+        p6 = mp p4 by p5
+        p7 = ug m . ug c . discharge p3 . discharge p5 . p6
+        q = mp mp f by f5 by ug y . discharge ih . p7
+        [q2] : a :: Nat
+        [q3] : b :: Nat
+        [q4] : c :: Nat
+        r1 = inst q by b
+        r2 = inst inst mp r1 by q3 by a by c
+        r3 = mp mp r2 by q2 by q4
+        r4 = ug a . ug b. ug c . discharge q2 . discharge q3 . discharge q4 . r3
         
-
 qed
 
 theorem substract . forall n x . n :: Nat -> x :: Nat -> Le n (n - x) -> Bot
