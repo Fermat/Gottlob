@@ -583,14 +583,16 @@ qed
 theorem sub. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (succ n - m) -> Bot
 proof
 --        [a1] : Le zero m
-        a = simpCmp inst indNat by iota m . forall n . n :: Nat -> Le zero m -> Le n (succ n - m) -> Bot
+        a = simpCmp inst weakInd by iota m . forall n . n :: Nat -> Le zero m -> Le n (succ n - m) -> Bot
         [b] : Le zero zero
         b1 = invcmp cmp b : Eq (zero < zero) true
         b2 = byEval false (zero < zero)
         b3 = invcmp chain false (b1 @ b2 @ nil) : Eq false true
         b4 = mp boolContra by useSym false true b3
         b5 = ug n . discharge b7 : n :: Nat . discharge b . discharge b6 : Le n ((succ n) - zero) . b4
-        [ih] : forall n . n :: Nat -> Le zero x -> Le n ((succ n) - x) -> Bot
+        [ih'] : (x :: Nat) * (forall n . n :: Nat -> Le zero x -> Le n ((succ n) - x) -> Bot)
+        ih = smartSecond (x :: Nat) (forall n . n :: Nat -> Le zero x -> Le n ((succ n) - x) -> Bot) ih'
+        nat = smartFirst (x :: Nat) (forall n . n :: Nat -> Le zero x -> Le n ((succ n) - x) -> Bot) ih'
         -- show forall n . n :: Nat -> Le zero (succ x) -> Le n ((succ n) - (succ x)) -> Bot
         c = simpCmp inst weakInd by iota n . Le zero (succ x) -> Le n ((succ n) - (succ x)) -> Bot         
         [c1] : Le zero (succ zero - succ x)
@@ -602,6 +604,21 @@ proof
         c7 = discharge c8 : Le zero (succ x) . discharge c1 . c6
         [ih2] : (y :: Nat) * (Le zero (succ x) -> Le y (succ y - succ x) -> Bot)
         -- show Le zero (succ x) -> Le (succ y) ((succ (succ y)) - (succ x)) -> Bot
+        d1 = smartFirst (y :: Nat) (Le zero (succ x) -> Le y (succ y - succ x) -> Bot) ih2
+        d2 = smartSecond (y :: Nat) (Le zero (succ x) -> Le y (succ y - succ x) -> Bot) ih2
+        [d3] : Le zero (succ x)
+        [d4] : Le (succ y) ((succ (succ y)) - (succ x))
+        d = byEval (succ (succ y) - succ x) (succ y - x)
+        d5 = mp simpCmp inst cmp d by iota z . Le (succ y) z by d4 -- Le (succ y) ((-) (succ y) x)
+        d6 = mp mp inst inst substract by succ y by x by mp inst surSuc by y by d1 by nat
+        d7 = mp d6 by d5
+        d8 = ug y . discharge ih2 . discharge d3 . discharge d4 . d7
+        e1 = mp mp c by c7 by d8
+        e2 = ug x . discharge ih' . e1        
+        e3 = mp mp a by b5 by e2        
+        [f1] : n :: Nat
+        [f2] : m :: Nat
+        f3 = ug n . ug m . discharge f1 . discharge f2 . mp inst mp inst e3 by m by f2 by n by f1
         
         
 qed

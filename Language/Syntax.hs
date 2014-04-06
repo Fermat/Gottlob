@@ -254,8 +254,10 @@ fv (Cmp p) = fv p
 fv (Beta p) = fv p
 fv (InvCmp p1 t) = fv p1 `S.union` fv t
 fv (InvBeta p1 t) = fv p1 `S.union` fv t
+fv (SimpCmp p) = fv p
+fv (InvSimp p1 t) = fv p1 `S.union` fv t
 fv (Pos _ p) = fv p
-
+fv p = error $ "from fv" ++ show p
 -- get free set var
 fVar :: PreTerm -> S.Set VName
 fVar (PVar x) = S.insert x S.empty
