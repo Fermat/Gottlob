@@ -65,9 +65,9 @@ pred (succ n) = n
 div n m = case n < m of
                true -> zero 
                false -> succ (div (n - m) m)
--- FIXME: when changing the X in 'and' to Y, we got an type inference error
--- in d8 of the proof of division.
-tactic and U V p1 p2 = ug X . discharge x11 : U -> V -> X . mp (mp x11 by p1) by p2
+
+-- DEBUGGGG               
+tactic and U V p1 p2 = ug Y . discharge x11 : U -> V -> Y . mp (mp x11 by p1) by p2
 tactic first U V p = mp cmp (inst (cmp p) by U) by cmp (discharge x : U . discharge y : V . x)
 tactic second U V p = mp cmp (inst (cmp p) by V) by cmp (discharge x : U . discharge y : V . y)
 
@@ -787,42 +787,6 @@ proof
         e = ug x . ug m . discharge a1 . discharge a2 . discharge a0 . discharge a01 . d5       
 qed
 
-theorem divTotal . forall x m . x :: Nat -> m :: Nat -> Le zero m -> div x m :: Nat
-proof
-          [a0] : m :: Nat
-          a = simpCmp inst strongInd by iota x . Le zero m -> div x m :: Nat
-          [a3] : Le zero m
-          a2 = useSym (div zero m) zero (mp mp inst zeroDiv by m by a0 by a3)
-          a4 = mp simpCmp inst cmp a2 by iota z . z :: Nat by surZ
-          a5 = discharge a3 . a4
-          [ih] : (x :: Nat) * (forall y . (y :: Nat) * (Le y x) -> Le zero m -> div y m :: Nat)
-          ih1 = smartFirst (x :: Nat) (forall y . (y :: Nat) * (Le y x) -> Le zero m -> div y m :: Nat) ih
-          ih2 = smartSecond (x :: Nat) (forall y . (y :: Nat) * (Le y x) -> Le zero m -> div y m :: Nat) ih
-          -- show Le zero m -> div x m :: Nat
-          [b] : Le zero m           
-          b1 = mp mp inst inst totalLess by x by m by ih1 by a0 : x < m :: Bool
-          b2 = mp inst totalBool by (x < m) by b1
-          [c] : Eq (x < m) true
-          c1 = byEval (div x m) ((x < m) zero (succ (div (x - m) m)))
-          c2 = congByEq (refl ((x < m) zero (succ (div (x - m) m)))) c (iota z . Eq ((x < m) zero (succ (div (x - m) m))) (z zero (succ (div (x - m) m))))
-          c3 = byEval (true zero (succ (div (x - m) m))) zero
-          c4 = invcmp chain (div x m) ( c3 @ c2 @ c1 @ nil) : Eq (div x m) zero
-          c5 = congByEq surZ (useSym (div x m) zero c4) (iota z . z :: Nat)
-          c7 = discharge c . c5
-          [d] : Eq (x < m) false
-          d1 = congByEq (refl ((x < m) zero (succ (div (x - m) m)))) d (iota z . Eq ((x < m) zero (succ (div (x - m) m))) (z zero (succ (div (x - m) m))))
-          d2 = byEval (false zero (succ (div ( x - m) m))) (succ (div ( x - m) m))
-          d3 = invcmp chain (div x m) ( d2 @ d1 @ c1 @ nil) : Eq (div x m) (succ (div ( x - m) m))
-          d4 = inst ih2 by (x - m)
-          d5 = mp mp inst inst minor by x by m by ih1 by a0
-          d6 = mp mp mp inst inst sub2 by x by m by ih1 by a0 by b          
-          [e] : Le m x
-          d7 = mp d6 by e        
-          d8 = convert (and ( x -  m :: Nat) (Le (x - m) x) d5 d7) (( x -  m :: Nat) * (Le (x - m) x))
-          d9 = mp mp d4 by d8 by b
-          d10 = discharge e . d9
-qed
-
 theorem division. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (div n m) -> Bot
 proof
         [a0] : m :: Nat
@@ -861,8 +825,7 @@ proof
         [e] : Le m x
         d7 = mp d6 by e        
         d8 = convert (and ( x -  m :: Nat) (Le (x - m) x) d5 d7) (( x -  m :: Nat) * (Le (x - m) x))
-        d9 = mp mp d4 by d8 by b
-   -- need totality  d10 = mp mp mp inst inst inst transitivity by (x - m) by x by (div x m) by 
+        d9 = mp d4 by d8 
         
 qed
 
