@@ -65,8 +65,9 @@ pred (succ n) = n
 div n m = case n < m of
                true -> zero 
                false -> succ (div (n - m) m)
-
-tactic and U V p1 p2 = ug Y . discharge x : U -> V -> Y . mp (mp x by p1) by p2
+-- FIXME: when changing the X in 'and' to Y, we got an type inference error
+-- in d8 of the proof of division.
+tactic and U V p1 p2 = ug X . discharge x11 : U -> V -> X . mp (mp x11 by p1) by p2
 tactic first U V p = mp cmp (inst (cmp p) by U) by cmp (discharge x : U . discharge y : V . x)
 tactic second U V p = mp cmp (inst (cmp p) by V) by cmp (discharge x : U . discharge y : V . y)
 
@@ -820,8 +821,11 @@ proof
         d3 = invcmp chain (div x m) ( d2 @ d1 @ c1 @ nil) : Eq (div x m) (succ (div ( x - m) m))
         d4 = inst ih2 by (x - m)
         d5 = mp mp inst inst minor by x by m by ih1 by a0
---        d6 = inst 
---        d6 = and (x - m :: Nat) (Le ( x - m) x) d5
+        d6 = mp mp mp inst inst sub2 by x by m by ih1 by a0 by b
+        [e] : Le m x
+        d7 = mp d6 by e        
+        d8 = convert (and ( x -  m :: Nat) (Le (x - m) x) d5 d7) (( x -  m :: Nat) * (Le (x - m) x))
+        d9 = mp d4 by d8 
         
 qed
 
