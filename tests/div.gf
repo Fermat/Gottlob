@@ -742,11 +742,24 @@ proof
         [b3] : m :: Nat
         [b] : Le m zero
         b1 = mp mp inst lessZero by m by b3 by b
-        b2 = ug m . discharge b3 . discharge b . discharge b4 : Le zero m . discharge b5 : Eq zero (zero - m) . b1
+        b2 = ug m . discharge b3 . discharge b4 : Le zero m . discharge b  . discharge b5 : Eq zero (zero - m) . b1
         [ih] : (y :: Nat) * (forall m . m :: Nat -> Le zero m -> Le m y -> Eq y (y - m) -> Bot)
-        -- show forall m . m :: Nat -> Le zero m -> Le m (succ y) -> Eq (succ y) ((-) (succ y) m) -> Bot
-        
-        
+-- show forall m . m :: Nat -> Le zero m -> Le m (succ y) -> Eq (succ y) ((succ y) - m) -> Bot
+        ih1 = smartFirst (y :: Nat) (forall m . m :: Nat -> Le zero m -> Le m y -> Eq y (y - m) -> Bot) ih
+        ih2 = smartSecond (y :: Nat) (forall m . m :: Nat -> Le zero m -> Le m y -> Eq y (y - m) -> Bot) ih
+        [c] : m :: Nat
+        [c1] : Le zero m
+        [c2] : Le m (succ y)
+        [c3] : Eq (succ y) (succ y - m)
+        c4 = mp mp mp inst inst sub by y by m by ih1 by c by c1
+        c5 = mp inst succLess by y by ih1
+        c6 = congByEq c5 c3 (iota z . Le y z)
+        c7 = mp c4 by c6
+        c8 = ug m . discharge c . discharge c1 . discharge c2 . discharge c3 . c7
+        d = ug y . discharge ih . c8
+        r = mp mp a by b2 by d        
+        [r1] : x :: Nat
+        r2 = ug x . ug m . discharge r1 . inst mp inst r by x by r1 by m
 qed
 
 theorem sub2 . forall x m . x :: Nat -> m :: Nat -> Le zero m -> Le m x -> Le (x - m) x 
@@ -761,10 +774,16 @@ proof
         b1 = mp mp inst inst substract by x by m by a1 by a2
         b2 = mp b1 by b
         b3 = discharge b . b2
-        [c] : Eq x (x - m)
-        
-        
-
+      --  [c] : Eq x (x - m)
+        c = mp mp mp mp inst inst inverse by x by m by a1 by a2 by a0 by a01
+        c1 = sumElim (Le x (x - m)) (Eq x (x - m)) Bot b3 c
+        [d] : (Le x (x - m)) <+> (Eq x (x - m))
+        d1 = mp c1 by d
+        d2 = discharge d . convert (inst inst cmp d1 by (x - m < x) by true) (Le (x - m) x)
+        d3 = id (Le (x - m) x)
+        d4 = sumElim ((Le x (x - m)) <+> (Eq x (x - m))) (Le (x - m) x) (Le (x - m) x) d2 d3
+        d5 = mp d4 by a3 
+        e = ug x . ug m . discharge a1 . discharge a2 . discharge a0 . discharge a01 . d5       
 qed
 
 theorem division. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (div n m) -> Bot
