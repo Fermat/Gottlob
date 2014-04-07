@@ -852,6 +852,7 @@ proof
         b1 = congByEq b a11 (iota z . Eq (z < m) false)
         b2 = ug x . ug m . discharge a . discharge a0. discharge a1 . b1
 qed
+
 theorem divOne . forall x m . x :: Nat -> m :: Nat -> Le zero m -> Eq x m 
                         -> Eq (div x m) (succ zero)
 proof
@@ -859,8 +860,16 @@ proof
         [a1] : m :: Nat
         [a2] : Le zero m
         [a3] : Eq x m
-        
-
+        b = mp mp mp inst inst noLess by x by m by a0 by a1 by a3         
+        c1 = byEval (div x m) ((x < m) zero (succ (div (x - m) m)))
+        c2 = congByEq (refl ((x < m) zero (succ (div (x - m) m)))) b (iota z . Eq ((x < m) zero (succ (div (x - m) m))) (z zero (succ (div (x - m) m))))
+        c3 = byEval (false zero (succ (div (x - m) m))) (succ (div (x - m) m)) 
+        c4 = invcmp chain (div x m) (c3 @ c2 @ c1 @ nil) : Eq (div x m) (succ (div (x - m) m)) 
+        d = mp mp mp inst inst subEq by x by m by a0 by a1 by a3
+        d1 = congByEq c4 d (iota z . Eq (div x m) (succ (div z m)))
+        d2 = mp inst divZero by m by a2
+        d3 = congByEq d1 d2 (iota z . Eq (div x m) (succ z))
+        d4 = ug x . ug m . discharge a0 . discharge a1 . discharge a2 . discharge a3 . d3        
 qed
 
 theorem divTotal . forall x m . x :: Nat -> m :: Nat -> Le zero m -> div x m :: Nat
