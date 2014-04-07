@@ -697,13 +697,55 @@ proof
         e1 = mp mp a by c2 by e         
         [f] : n :: Nat
         f1 = ug n . ug m . discharge f . inst mp inst e1 by n by f by m
-        
 qed
 
-tactic refl F = byEval F F
+-- much better refl.
+tactic refl t = invcmp ug E . discharge a : t :: E . a from Eq t t
+
+theorem suucc . forall x . x :: Nat -> Le (succ x) x -> Bot 
+proof
+        a = instInd indNat (iota x . Le (succ x) x -> Bot)
+        a1 = mp inst lessZero by (succ zero) by mp inst surSuc by zero by surZ
+        [b] : Le (succ x) x -> Bot
+        [b1] : Le (succ (succ x)) (succ x)
+        b2 = convert b1 (Eq (succ (succ x) < succ x) true)
+        b3 = byEval (succ x < x) (succ (succ x) < succ x)
+        b4 = invcmp chain (succ x < x) (b2 @ b3 @ nil) from Le (succ x) x
+        b5 = ug x . discharge b . discharge b1 . mp b by b4
+        c = mp mp a by a1 by b5
+qed
+
+theorem notEq . Eq (succ zero) zero -> Bot
+proof
+        [a] : Eq (succ zero) zero
+        b = smartCong (\ n . n x (\ u . y)) (succ zero) zero a y x
+        c = convert (ug y . ug x . b) Bot
+        r = discharge a . c
+qed
+
+theorem suuccEqq . forall x . x :: Nat -> Eq (succ x) x -> Bot 
+proof
+        a = instInd indNat (iota x . Eq (succ x) x -> Bot)
+        a1 = notEq
+        [b] : Eq (succ x) x -> Bot
+        [b1] : Eq (succ (succ x)) (succ x)
+        b2 = smartCong pred (succ (succ x)) (succ x) b1 (\ z s . s x) x : Eq (\ z s . s x) x
+        b21 = byEval (succ x) (\ z s . s x)
+        b22 = invcmp chain (succ x) ( b2 @ b21 @ nil) : Eq (succ x) x
+        b3 = ug x . discharge b . discharge b1 . mp b by b22
+        r = mp mp a by a1 by b3
+qed
 
 theorem inverse . forall x m . x :: Nat -> m :: Nat -> Le zero m -> Le m x -> Eq x (x - m) -> Bot
 proof
+        a = instInd weakInd (iota x . forall m . m :: Nat -> Le zero m -> Le m x -> Eq x (x - m) -> Bot)
+        [b3] : m :: Nat
+        [b] : Le m zero
+        b1 = mp mp inst lessZero by m by b3 by b
+        b2 = ug m . discharge b3 . discharge b . discharge b4 : Le zero m . discharge b5 : Eq zero (zero - m) . b1
+        [ih] : (y :: Nat) * (forall m . m :: Nat -> Le zero m -> Le m y -> Eq y (y - m) -> Bot)
+        -- show forall m . m :: Nat -> Le zero m -> Le m (succ y) -> Eq (succ y) ((-) (succ y) m) -> Bot
+        
         
 qed
 
