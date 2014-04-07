@@ -987,7 +987,8 @@ proof
         d7 = mp d6 by e        
         d8 = convert (and ( x -  m :: Nat) (Le (x - m) x) d5 d7) (( x -  m :: Nat) * (Le (x - m) x))
         d9 = mp mp d4 by d8 by b
-   -- need totality  d10 = mp mp mp inst inst inst transitivity by (x - m) by x by (div x m) by 
+        d11 = mp mp mp inst inst divTotal by x by m by ih1 by a0 by b
+        d10 = mp mp mp mp mp inst inst inst transitivity by (x - m) by x by (div x m) by d5 by ih1 by d11 by d7 by b0
         
 qed
 
