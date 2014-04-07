@@ -872,8 +872,29 @@ proof
         d4 = ug x . ug m . discharge a0 . discharge a1 . discharge a2 . discharge a3 . d3        
 qed
 
+theorem mamm . forall x m . x :: Nat -> m :: Nat -> Eq (x < m) false -> (Le m x) <+> (Eq m x) 
+proof
+        [a0] : x :: Nat
+        [a1] : m :: Nat
+        [a2] : Eq (x < m) false
+        a = mp mp inst inst tri by m by x by a1 by a0
+        [b] : Le x m
+        b1 = convert b (Eq (x < m) true)
+        b2 = useSym (x < m) true b1
+        b3 = invcmp chain true (a2 @ b2 @ nil) : Eq true false
+        b4 = mp boolContra by b3
+        b5 = invcmp inst inst cmp b4 by m by x : Eq m x
+        b6 = convert (inj2 (Le m x) (Eq m x) b5) ((Le m x) <+> (Eq m x))
+        b7 = discharge b . b6
+        b8 = id ((Le m x) <+> (Eq m x))
+        b9 = sumElim ((Le m x) <+> (Eq m x)) (Le x m) ((Le m x) <+> (Eq m x)) b8 b7
+        c = mp b9 by a
+        c1 = ug x . ug m . discharge a0 . discharge a1 . discharge a2 . c        
+qed
+
 theorem divTotal . forall x m . x :: Nat -> m :: Nat -> Le zero m -> div x m :: Nat
 proof
+          [a00] : u :: Nat
           [a0] : m :: Nat
           a = simpCmp inst strongInd by iota x . Le zero m -> div x m :: Nat
           [a3] : Le zero m
@@ -908,7 +929,22 @@ proof
           d9 = mp mp d4 by d8 by b
           d10 = mp inst surSuc by (div (x - m) m) by d9
           d11 = congByEq d10 d30 (iota z . z :: Nat)
+          d12 = discharge e . d11
           [e1] : Eq m x
+          e11 = useSym m x e1
+          e2 = mp mp mp mp inst inst divOne by x by m by ih1 by a0 by b by e11
+          e3 = mp (inst surSuc by zero) by surZ
+          e4 = congByEq e3 (useSym (div x m) (succ zero) e2) (iota z . z :: Nat)
+          e5 = discharge e1 . e4
+          e6 = sumElim (Le m x) (Eq m x) (div x m :: Nat) d12 e5
+          f = mp mp mp inst inst mamm by x by m by ih1 by a0 by d
+          f1 = mp e6 by f
+          f2 = discharge d . f1
+          f3 = sumElim (Eq (x < m) true) (Eq (x < m) false) (div x m :: Nat) c7 f2
+          g = mp f3 by b2
+          g1 = ug x . discharge ih . discharge b . g
+          g2 = mp mp a by a5 by g1
+          g3 = ug u . ug m . discharge a00 . discharge a0 . mp inst g2 by u by a00
 
 qed
 
