@@ -1032,3 +1032,22 @@ proof
         h7 = ug n . ug m . discharge i . discharge a0 . mp inst h6 by n by i
 qed
 
+theorem divi. forall n m . n :: Nat -> m :: Nat -> Le zero m -> 
+                                       Le (div n m) n <+> Eq (div n m) n
+proof
+        [a1] : n :: Nat
+        [a2] : m :: Nat
+        [a3] : Le zero m
+        a = id (Le (div n m) n <+> Eq (div n m) n)
+        [b1] : Le n (div n m)
+        b = mp mp mp mp inst inst division by n by m by a1 by a2 by a3 by b1
+        b2 = invcmp inst inst cmp b by (div n m) by n : Eq (div n m) n
+        b3 = convert (inj2 (Le (div n m) n) (Eq (div n m) n) b2) ((Le (div n m) n <+> Eq (div n m) n))  
+        b4 = discharge b1 . b3
+        b5 = sumElim (Le (div n m) n <+> Eq (div n m) n) (Le n (div n m)) (Le (div n m) n <+> Eq (div n m) n) a b4
+        c1 = mp mp mp inst inst divTotal by n by m by a1 by a2 by a3
+        c = mp mp inst inst tri by (div n m) by n by c1 by a1     
+        c2 = mp b5 by c
+        r = ug n . ug m . discharge a1 . discharge a2 . discharge a3 . c2
+
+qed
