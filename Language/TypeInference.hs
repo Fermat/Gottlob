@@ -20,7 +20,9 @@ runInference p c =
   let s = runIdentity $ runStateT (runStateT (infer p) 0) c
       (t,c1) = (fst. fst) s
       def = snd s in (t,c1,def)
-
+tTerm = Imply (In (App (App (PVar "-") (PVar "x")) (PVar "m")) (PVar "Nat")) (Imply (TApp (TApp (PVar "Le") (App (App (PVar "-") (PVar "x")) (PVar "m"))) (PVar "x")) (PVar "Y"))
+tes23 = let (_ , cons , _) = runInference tTerm [("Nat", To Ind Form), ("Le", To Ind (To Ind Form))] in isSolvable $ runSolve cons
+tes33 = runInference tTerm [("Nat", To Ind Form), ("Le", To Ind (To Ind Form))]
 infer :: PreTerm -> InfCxt (EType, Constraints)
 infer (Pos _ p) = infer p
 infer (PVar x) = do

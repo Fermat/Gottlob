@@ -65,9 +65,9 @@ pred (succ n) = n
 div n m = case n < m of
                true -> zero 
                false -> succ (div (n - m) m)
--- FIXME: when changing the X in 'and' to Y, we got an type inference error
--- in d8 of the proof of division.
-tactic and U V p1 p2 = ug X . discharge x11 : U -> V -> X . mp (mp x11 by p1) by p2
+
+-- DEBUGGGG               
+tactic and U V p1 p2 = ug Y . discharge x11 : U -> V -> Y . mp (mp x11 by p1) by p2
 tactic first U V p = mp cmp (inst (cmp p) by U) by cmp (discharge x : U . discharge y : V . x)
 tactic second U V p = mp cmp (inst (cmp p) by V) by cmp (discharge x : U . discharge y : V . y)
 
@@ -112,14 +112,6 @@ tactic smartCong f a b p n m =
    c4 = invcmp (cmp c3) : f b :: iota y22. ((iota x11 . Eq x11 y22) n)
    c5 = beta c4 : m :: iota y22. ((iota x11 . Eq x11 y22) n)
    c6 = invcmp (cmp c5) from Eq n m
-
-tactic betterCong f a b p n m = 
--- name comes from "better call Saul"
-   c1 = mp (inst inst inst cong by f by a by b) by p -- : Eq (f a) (f b)
-   c2 = byEval n (f a)
-   c3 = byEval (f b) m 
-   c4 = invcmp chain n (c3 @ c1 @ c2 @ nil) : Eq n m 
-   
 
 tactic useSym a b p = mp (inst inst sym by a by b) by p
 
@@ -426,18 +418,6 @@ proof
         c4 = mp ih by c3
         c5 = ug x . discharge ih . discharge c1 . c4
         d = mp mp a by b3 by c5
-qed
-
-theorem betterSelf . forall n . n :: Nat -> Eq (n < n) false
-proof
-        a = simpCmp inst indNat by iota n . Eq (n < n) false
-        base = byEval (zero < zero) false
-        [ih] : Eq (x < x) false
-        -- show Le (succ x) (succ x) -> Bot
-        c = byEval (succ x < succ x) (x < x)
-        c3 = invcmp cmp chain (succ x < succ x) ( ih @ c @ nil) : Eq ((succ x) < (succ x)) false
-        c5 = ug x . discharge ih . c3
-        d = mp mp a by base by c5
 qed
 
 theorem transitivity . forall a b c . a :: Nat -> b :: Nat -> c :: Nat -> Le a b -> Le b c -> Le a c
@@ -807,161 +787,8 @@ proof
         e = ug x . ug m . discharge a1 . discharge a2 . discharge a0 . discharge a01 . d5       
 qed
 
-theorem subRefl . forall m . m :: Nat -> Eq (m - m) zero
-proof
-        a = instInd indNat (iota m . Eq (m - m) zero)
-        a1 = byEval (zero - zero) zero
-        [ih] : Eq (x - x) zero
-        b = byEval (succ x - succ x) (x - x)
-        b2 = invcmp chain (succ x - succ x) (ih @ b @ nil) : Eq (succ x - succ x) zero
-        b3 = ug x . discharge ih . b2
-        b4 = mp mp a by a1 by b3
-qed
-
-theorem subEq . forall x m . x :: Nat -> m :: Nat -> Eq x m -> Eq (x - m) zero
-proof
-        [a0] : m :: Nat
-        [a] : Eq x m
-        a1 = betterCong (\ y . y - m) x m a (x - m) (m - m)
-        a2 = mp inst subRefl by m by a0
-        a3 = invcmp chain (x - m) (a2 @ a1 @ nil) : Eq (x - m ) zero
-        a4 = ug x . ug m . discharge a00 : x :: Nat . discharge a0 . discharge a . a3
-qed
-
-theorem divZero . forall m . Le zero m -> Eq (div zero m) zero
-proof
-        [a0] : Le zero m
-        a = byEval (div zero m) ((zero < m) zero (succ (div (zero - m) m)))
-        a1 = convert a0 (Eq (zero < m) true)
-        a2 = let nu = ((zero < m) zero (succ (div (zero - m) m))) in
-                 congByEq (refl nu ) a1 (iota z . Eq nu (z zero (succ (div (zero - m) m))))
-        -- Eq ((zero < m) zero (succ (div (zero - m) m))) (true zero (succ (div ((-) zero m) m)))
-        a3 = byEval (true zero (succ (div (zero - m) m))) zero
-        a4 = invcmp chain (div zero m) ( a3 @ a2 @ a @ nil) : Eq (div zero m) zero
-        a5 = ug m . discharge a0 . a4
-        
-qed
-
-theorem noLess . forall x m . x :: Nat -> m :: Nat -> Eq x m -> Eq (x < m) false
-proof
-        [a] : x :: Nat
-        [a0] : m :: Nat
-        [a1] : Eq x m
-        a11 = useSym x m a1
-        b = mp inst betterSelf by m by a0
-        b1 = congByEq b a11 (iota z . Eq (z < m) false)
-        b2 = ug x . ug m . discharge a . discharge a0. discharge a1 . b1
-qed
-
-theorem divOne . forall x m . x :: Nat -> m :: Nat -> Le zero m -> Eq x m 
-                        -> Eq (div x m) (succ zero)
-proof
-        [a0] : x :: Nat
-        [a1] : m :: Nat
-        [a2] : Le zero m
-        [a3] : Eq x m
-        b = mp mp mp inst inst noLess by x by m by a0 by a1 by a3         
-        c1 = byEval (div x m) ((x < m) zero (succ (div (x - m) m)))
-        c2 = congByEq (refl ((x < m) zero (succ (div (x - m) m)))) b (iota z . Eq ((x < m) zero (succ (div (x - m) m))) (z zero (succ (div (x - m) m))))
-        c3 = byEval (false zero (succ (div (x - m) m))) (succ (div (x - m) m)) 
-        c4 = invcmp chain (div x m) (c3 @ c2 @ c1 @ nil) : Eq (div x m) (succ (div (x - m) m)) 
-        d = mp mp mp inst inst subEq by x by m by a0 by a1 by a3
-        d1 = congByEq c4 d (iota z . Eq (div x m) (succ (div z m)))
-        d2 = mp inst divZero by m by a2
-        d3 = congByEq d1 d2 (iota z . Eq (div x m) (succ z))
-        d4 = ug x . ug m . discharge a0 . discharge a1 . discharge a2 . discharge a3 . d3        
-qed
-
-theorem mamm . forall x m . x :: Nat -> m :: Nat -> Eq (x < m) false -> (Le m x) <+> (Eq m x) 
-proof
-        [a0] : x :: Nat
-        [a1] : m :: Nat
-        [a2] : Eq (x < m) false
-        a = mp mp inst inst tri by m by x by a1 by a0
-        [b] : Le x m
-        b1 = convert b (Eq (x < m) true)
-        b2 = useSym (x < m) true b1
-        b3 = invcmp chain true (a2 @ b2 @ nil) : Eq true false
-        b4 = mp boolContra by b3
-        b5 = invcmp inst inst cmp b4 by m by x : Eq m x
-        b6 = convert (inj2 (Le m x) (Eq m x) b5) ((Le m x) <+> (Eq m x))
-        b7 = discharge b . b6
-        b8 = id ((Le m x) <+> (Eq m x))
-        b9 = sumElim ((Le m x) <+> (Eq m x)) (Le x m) ((Le m x) <+> (Eq m x)) b8 b7
-        c = mp b9 by a
-        c1 = ug x . ug m . discharge a0 . discharge a1 . discharge a2 . c        
-qed
-
-theorem divTotal . forall x m . x :: Nat -> m :: Nat -> Le zero m -> div x m :: Nat
-proof
-          [a00] : u :: Nat
-          [a0] : m :: Nat
-          a = simpCmp inst strongInd by iota x . Le zero m -> div x m :: Nat
-          [a3] : Le zero m
-          a2 = useSym (div zero m) zero (mp mp inst zeroDiv by m by a0 by a3)
-          a4 = mp simpCmp inst cmp a2 by iota z . z :: Nat by surZ
-          a5 = discharge a3 . a4
-          [ih] : (x :: Nat) * (forall y . (y :: Nat) * (Le y x) -> Le zero m -> div y m :: Nat)
-          ih1 = smartFirst (x :: Nat) (forall y . (y :: Nat) * (Le y x) -> Le zero m -> div y m :: Nat) ih
-          ih2 = smartSecond (x :: Nat) (forall y . (y :: Nat) * (Le y x) -> Le zero m -> div y m :: Nat) ih
-          -- show Le zero m -> div x m :: Nat
-          [b] : Le zero m           
-          b1 = mp mp inst inst totalLess by x by m by ih1 by a0 : x < m :: Bool
-          b2 = mp inst totalBool by (x < m) by b1
-          [c] : Eq (x < m) true
-          c1 = byEval (div x m) ((x < m) zero (succ (div (x - m) m)))
-          c2 = congByEq (refl ((x < m) zero (succ (div (x - m) m)))) c (iota z . Eq ((x < m) zero (succ (div (x - m) m))) (z zero (succ (div (x - m) m))))
-          c3 = byEval (true zero (succ (div (x - m) m))) zero
-          c4 = invcmp chain (div x m) ( c3 @ c2 @ c1 @ nil) : Eq (div x m) zero
-          c5 = congByEq surZ (useSym (div x m) zero c4) (iota z . z :: Nat)
-          c7 = discharge c . c5
-          [d] : Eq (x < m) false
-          d1 = congByEq (refl ((x < m) zero (succ (div (x - m) m)))) d (iota z . Eq ((x < m) zero (succ (div (x - m) m))) (z zero (succ (div (x - m) m))))
-          d2 = byEval (false zero (succ (div ( x - m) m))) (succ (div ( x - m) m))
-          d3 = invcmp chain (div x m) ( d2 @ d1 @ c1 @ nil) : Eq (div x m) (succ (div ( x - m) m))
-          d30 = useSym (div x m) (succ (div ( x - m) m)) d3
-          d4 = inst ih2 by (x - m)
-          d5 = mp mp inst inst minor by x by m by ih1 by a0
-          d6 = mp mp mp inst inst sub2 by x by m by ih1 by a0 by b          
-          [e] : Le m x
-          d7 = mp d6 by e        
-          d8 = convert (and ( x -  m :: Nat) (Le (x - m) x) d5 d7) (( x -  m :: Nat) * (Le (x - m) x))
-          d9 = mp mp d4 by d8 by b
-          d10 = mp inst surSuc by (div (x - m) m) by d9
-          d11 = congByEq d10 d30 (iota z . z :: Nat)
-          d12 = discharge e . d11
-          [e1] : Eq m x
-          e11 = useSym m x e1
-          e2 = mp mp mp mp inst inst divOne by x by m by ih1 by a0 by b by e11
-          e3 = mp (inst surSuc by zero) by surZ
-          e4 = congByEq e3 (useSym (div x m) (succ zero) e2) (iota z . z :: Nat)
-          e5 = discharge e1 . e4
-          e6 = sumElim (Le m x) (Eq m x) (div x m :: Nat) d12 e5
-          f = mp mp mp inst inst mamm by x by m by ih1 by a0 by d
-          f1 = mp e6 by f
-          f2 = discharge d . f1
-          f3 = sumElim (Eq (x < m) true) (Eq (x < m) false) (div x m :: Nat) c7 f2
-          g = mp f3 by b2
-          g1 = ug x . discharge ih . discharge b . g
-          g2 = mp mp a by a5 by g1
-          g3 = ug u . ug m . discharge a00 . discharge a0 . mp inst g2 by u by a00
-
-qed
-
-theorem anotherContra . forall n m . n :: Nat -> m :: Nat -> Le n m -> Eq n m -> Bot
-proof
-        [a0] : n :: Nat
-        [a1] : m :: Nat
-        [a] : Le n m
-        [b] : Eq n m
-        c = congByEq a b (iota z . Le z m)
-        c1 = mp mp (inst self by m) by a1 by c
-        r = ug n . ug m . discharge a0 . discharge a1 . discharge a . discharge b . c1
-qed
-
 theorem division. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (div n m) -> Bot
 proof
-        [i] : n :: Nat
         [a0] : m :: Nat
         a = simpCmp inst strongInd by iota n . Le zero m -> Le n (div n m) -> Bot
         [a3] : Le zero m
@@ -998,56 +825,7 @@ proof
         [e] : Le m x
         d7 = mp d6 by e        
         d8 = convert (and ( x -  m :: Nat) (Le (x - m) x) d5 d7) (( x -  m :: Nat) * (Le (x - m) x))
-        d9 = mp mp d4 by d8 by b
-        d11 = mp mp mp inst inst divTotal by x by m by ih1 by a0 by b
-        d10 = mp mp mp mp mp inst inst inst transitivity by (x - m) by x by (div x m) by d5 by ih1 by d11 by d7 by b0
-        e00 = congByEq d10 d3 (iota z . Le (x - m) z)
-        d12 = mp mp mp inst inst divTotal by (x - m) by m by d5 by a0 by b
-        e1 = mp mp inst inst less by (x - m) by (div (x - m) m) by d5 by d12
-        e2 = mp e1 by e00
-        [e3] : Eq (x - m) (div ( x - m) m)
-        e4 = congByEq d7 e3 (iota z . Le z x) 
-        e41 = congByEq b0 d3 (iota z . Le x z)
-        e40 = convert (and (Le (div (x - m) m) x) (Le x (succ (div ( x - m) m))) e4 e41) ((Le (div (x - m) m) x) * (Le x (succ (div ( x - m) m))))
-        e5 = mp mp inst inst discrete by x by (div (x - m) m) by ih1 by d12 
-        f = discharge e3 . mp e5 by e40
-        f1 = sumElim (Le ( x - m) (div ( x - m) m)) (Eq ( x - m) (div ( x - m) m)) Bot d9 f
-        f2 = discharge e . mp f1 by e2
-        [g] : Eq m x        
-        g1 = mp mp mp mp inst inst divOne by x by m by ih1 by a0 by b by (useSym m x g)        
-        g2 = congByEq b g (iota z . Le zero z )
-        g3 = congByEq b0 g1 (iota z . Le x z)
-        g4 = mp mp inst inst discrete by x by zero by ih1 by surZ
-        g5 = convert (and (Le zero x) (Le x (succ zero)) g2 g3) ((Le zero x) * (Le x (succ zero)))
-        g6 = mp g4 by g5
-        g7 = discharge g . g6
-        h0 = sumElim (Le m x) (Eq m x) Bot f2 g7
-        h = mp mp mp inst inst mamm by x by m by ih1 by a0 by d
-        h1 = discharge d . mp h0 by h
-        h2 = sumElim (Eq (x < m) true) (Eq (x < m) false) Bot c7 h1        
-        h3 = mp h2 by b2
-        h4 = discharge b . discharge b0 . h3
-        h5 = ug x . discharge ih . h4
-        h6 = mp mp a by a7 by h5
-        h7 = ug n . ug m . discharge i . discharge a0 . mp inst h6 by n by i
+        d9 = mp d4 by d8 
+        
 qed
 
-theorem divi. forall n m . n :: Nat -> m :: Nat -> Le zero m -> 
-                                       Le (div n m) n <+> Eq (div n m) n
-proof
-        [a1] : n :: Nat
-        [a2] : m :: Nat
-        [a3] : Le zero m
-        a = id (Le (div n m) n <+> Eq (div n m) n)
-        [b1] : Le n (div n m)
-        b = mp mp mp mp inst inst division by n by m by a1 by a2 by a3 by b1
-        b2 = invcmp inst inst cmp b by (div n m) by n : Eq (div n m) n
-        b3 = convert (inj2 (Le (div n m) n) (Eq (div n m) n) b2) ((Le (div n m) n <+> Eq (div n m) n))  
-        b4 = discharge b1 . b3
-        b5 = sumElim (Le (div n m) n <+> Eq (div n m) n) (Le n (div n m)) (Le (div n m) n <+> Eq (div n m) n) a b4
-        c1 = mp mp mp inst inst divTotal by n by m by a1 by a2 by a3
-        c = mp mp inst inst tri by (div n m) by n by c1 by a1     
-        c2 = mp b5 by c
-        r = ug n . ug m . discharge a1 . discharge a2 . discharge a3 . c2
-
-qed

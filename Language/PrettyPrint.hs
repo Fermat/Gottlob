@@ -114,6 +114,8 @@ instance Disp Prog where
   precedence (Name _) = 12
   precedence (Applica _ _) = 8
   precedence (AppPre _ _) = 8
+  precedence (TSApp _ _) = 8
+  precedence (TSTApp _ _) = 8
 --  precedence (AppProof _ _) = 8
   -- precedence (TPApp _ _) = 8
   -- precedence (TPFApp _ _) = 7

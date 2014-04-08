@@ -18,7 +18,7 @@ import Control.Monad.Identity
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Char
-
+import Debug.Trace
 proofCheck :: [Decl] -> ProofScripts -> Global ()
 -- proofCheck ((n, (PPos pos p ), f):l) f1 = 
 --   proofCheck ((n,  p, f):l) `catchError` addProofErrorPos pos p
@@ -110,7 +110,8 @@ wellFormed f = do
   state <- get
   st <- lift get  
   let glAnt = map (\ (v, (_, etype)) -> (v, etype)) (M.toList $ setDef state)
-      env = glAnt ++ (M.toList $ localEType st)
+      localE = M.toList $ localEType st
+      env = glAnt ++ localE
       (t,c,def) = runInference f env
       res = runSolve c in
       if isSolvable res then do
@@ -120,9 +121,13 @@ wellFormed f = do
             solvedDef = subDef res def
     --    emit $ ("residues " ++ (show etype) ++ (show res) ++ (show solvedDef))
         lift $ put (updateLocalEType solvedDef st)
-        return (etype, res, solvedDef) 
+        return (etype, res, solvedDef)
+          -- else 
+          -- if ((fst $ last localE) == "Y" )
+          -- then trace (show "formula" ++ (show $ disp f) ++ show localE) $ return (etype, res, solvedDef)
+          -- else return (etype, res, solvedDef)
       else pcError "Ill-formed formula or set definition."
-           [(disp "Unsolvable constraints", disp res), (disp "formula", disp f)]
+           [(disp "Unsolvable constraints", disp res), (disp "formula", disp f), (disp "other", disp (show "infered type"++ show t ++ show "constraints " ++ show c ++ show "definitions " ++show def ++ show "env" ++ show env ++ show "global" ++ show glAnt))]
 
 subDef :: Constraints -> [(VName, EType)] -> [(VName, EType)]
 subDef res l = map (\ (x, t) -> (x, multiSub res t)) l

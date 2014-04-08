@@ -59,6 +59,11 @@ only HM-polymorphic decidable type inference.
 
 -- Done. 11. Automatic deriving induction principle for data type.
 
+12 . Automatic generate totality proof for algebraic data type constructors and 
+     primitive recursive defined function
+
+
+
 ----------
 Big picture:
 1. Support reasoning on Stateful programs 
