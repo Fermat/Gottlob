@@ -948,8 +948,20 @@ proof
 
 qed
 
+theorem anotherContra . forall n m . n :: Nat -> m :: Nat -> Le n m -> Eq n m -> Bot
+proof
+        [a0] : n :: Nat
+        [a1] : m :: Nat
+        [a] : Le n m
+        [b] : Eq n m
+        c = congByEq a b (iota z . Le z m)
+        c1 = mp mp (inst self by m) by a1 by c
+        r = ug n . ug m . discharge a0 . discharge a1 . discharge a . discharge b . c1
+qed
+
 theorem division. forall n m . n :: Nat -> m :: Nat -> Le zero m -> Le n (div n m) -> Bot
 proof
+        [i] : n :: Nat
         [a0] : m :: Nat
         a = simpCmp inst strongInd by iota n . Le zero m -> Le n (div n m) -> Bot
         [a3] : Le zero m
@@ -989,6 +1001,34 @@ proof
         d9 = mp mp d4 by d8 by b
         d11 = mp mp mp inst inst divTotal by x by m by ih1 by a0 by b
         d10 = mp mp mp mp mp inst inst inst transitivity by (x - m) by x by (div x m) by d5 by ih1 by d11 by d7 by b0
-        
+        e00 = congByEq d10 d3 (iota z . Le (x - m) z)
+        d12 = mp mp mp inst inst divTotal by (x - m) by m by d5 by a0 by b
+        e1 = mp mp inst inst less by (x - m) by (div (x - m) m) by d5 by d12
+        e2 = mp e1 by e00
+        [e3] : Eq (x - m) (div ( x - m) m)
+        e4 = congByEq d7 e3 (iota z . Le z x) 
+        e41 = congByEq b0 d3 (iota z . Le x z)
+        e40 = convert (and (Le (div (x - m) m) x) (Le x (succ (div ( x - m) m))) e4 e41) ((Le (div (x - m) m) x) * (Le x (succ (div ( x - m) m))))
+        e5 = mp mp inst inst discrete by x by (div (x - m) m) by ih1 by d12 
+        f = discharge e3 . mp e5 by e40
+        f1 = sumElim (Le ( x - m) (div ( x - m) m)) (Eq ( x - m) (div ( x - m) m)) Bot d9 f
+        f2 = discharge e . mp f1 by e2
+        [g] : Eq m x        
+        g1 = mp mp mp mp inst inst divOne by x by m by ih1 by a0 by b by (useSym m x g)        
+        g2 = congByEq b g (iota z . Le zero z )
+        g3 = congByEq b0 g1 (iota z . Le x z)
+        g4 = mp mp inst inst discrete by x by zero by ih1 by surZ
+        g5 = convert (and (Le zero x) (Le x (succ zero)) g2 g3) ((Le zero x) * (Le x (succ zero)))
+        g6 = mp g4 by g5
+        g7 = discharge g . g6
+        h0 = sumElim (Le m x) (Eq m x) Bot f2 g7
+        h = mp mp mp inst inst mamm by x by m by ih1 by a0 by d
+        h1 = discharge d . mp h0 by h
+        h2 = sumElim (Eq (x < m) true) (Eq (x < m) false) Bot c7 h1        
+        h3 = mp h2 by b2
+        h4 = discharge b . discharge b0 . h3
+        h5 = ug x . discharge ih . h4
+        h6 = mp mp a by a7 by h5
+        h7 = ug n . ug m . discharge i . discharge a0 . mp inst h6 by n by i
 qed
 
