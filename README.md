@@ -8,7 +8,7 @@ Data Type Declaration
 &nbsp;&nbsp; constr :: Type  
 &nbsp;&nbsp; ...
 &nbsp;&nbsp; (deriving Ind)?
-
+   
 Name ::= upperVar  
 constr ::= lowerVar  
 params ::= (var)*  
