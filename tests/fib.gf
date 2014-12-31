@@ -76,9 +76,12 @@ ob n = h n zero
 
 
 -- I revised my previous belief. We can indeed prove the following theorem
--- by proving a more general lemma, namely: 
--- forall n. forall m . (tail^m fibs) !! n + (tail^m fibs) !! n+1 = (tail^m fibs) !! n+2 
-
+-- by induction on n. 
+-- IH: fib !! n + fib !! n+1 = fib !! n+2
+-- show fib !! (n+1) + fib !! n+2 = fib !! n+3
+-- fib !! (n+3) = (zipWith + fibs (tail fibs)) !! (n+1) = fibs  !! (n+1) + tail fibs !! n+1
+-- = fibs  !! (n+1) +  fibs !! n+2
+-- in fact, the whole argument does not use IH at all. 
 theorem fibb . forall n . n :: Nat -> Eq (plus (fibs !! n ) (fibs !! succ n)) (fibs !! succ (succ n))
 proof
   b0 = byEval ((fib' (succ (succ (succ (succ zero)))))) zero
