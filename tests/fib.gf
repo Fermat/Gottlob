@@ -74,6 +74,11 @@ ob n = h n zero
 -- think we could have one. So proof by pessimistic, I claim
 -- Gottlob can not reason about *any* intensional behavior of infinite object. 
 
+
+-- I revised my previous belief. We can indeed prove the following theorem
+-- by proving a more general lemma, namely: 
+-- forall n. forall m . (tail^m fibs) !! n + (tail^m fibs) !! n+1 = (tail^m fibs) !! n+2 
+
 theorem fibb . forall n . n :: Nat -> Eq (plus (fibs !! n ) (fibs !! succ n)) (fibs !! succ (succ n))
 proof
   b0 = byEval ((fib' (succ (succ (succ (succ zero)))))) zero
