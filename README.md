@@ -20,7 +20,7 @@ A proper subset of Haskell without explicit type declaration.
 
 Theorem Proving
 ------
-*thoerem* proofName ([formulaName])? . formula  
+*theorem* proofName ([formulaName])? . formula  
 *proof*  
 &nbsp;&nbsp; [name = proof (: formula)? | [assumption] : formula ]  
 &nbsp;&nbsp; [name = proof (: formula)? | [assumption] : formula ]  
